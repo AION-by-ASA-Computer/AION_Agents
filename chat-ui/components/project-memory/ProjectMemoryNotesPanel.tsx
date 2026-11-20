@@ -265,7 +265,7 @@ export function ProjectMemoryNotesPanel({
         <button
           type="button"
           onClick={startCreate}
-          className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 py-2 px-3 text-xs font-bold text-white shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+          className="focus-ring inline-flex shrink-0 items-center gap-1.5 rounded-2xl bg-gradient-to-r from-rose-500 to-brand-end hover:from-rose-600 hover:to-brand-end-hover py-2 px-3 text-xs font-bold text-white shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
         >
           <Plus size={14} className="shrink-0" />
           <span className="hidden sm:inline">Nuova Nota</span>
@@ -408,7 +408,7 @@ export function ProjectMemoryNotesPanel({
             </button>
             <button
               type="button"
-              className="focus-ring rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+              className="focus-ring rounded-2xl bg-gradient-to-r from-rose-500 to-brand-end hover:from-rose-600 hover:to-brand-end-hover px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
               onClick={() => void saveForm()}
               disabled={loading || !draft.trim()}
             >

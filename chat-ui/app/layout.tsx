@@ -6,6 +6,8 @@ import "katex/dist/katex.min.css";
 import { AuthGate } from "@/components/auth/AuthGate";
 import { LanguageSync } from "@/components/i18n/LanguageSync";
 import { FontSizeSync } from "@/components/theme/FontSizeSync";
+import { BrandingSync } from "@/components/brand/BrandingSync";
+import { brandingInitScript } from "@/lib/branding/init-script";
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-sans",
@@ -91,10 +93,16 @@ export default function RootLayout({
           id="aion-chat-font-init"
           dangerouslySetInnerHTML={{ __html: fontScaleInit }}
         />
+        {/* Tenant colours from the last visit, applied before paint (no AION-red flash). */}
+        <script
+          id="aion-chat-branding-init"
+          dangerouslySetInnerHTML={{ __html: brandingInitScript }}
+        />
       </head>
       <body className="min-h-screen">
         <LanguageSync />
         <FontSizeSync />
+        <BrandingSync />
         <AuthGate>{children}</AuthGate>
       </body>
     </html>

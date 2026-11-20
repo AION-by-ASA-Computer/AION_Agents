@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
         'configuration/office-and-legacy-word',
         'configuration/document-evidence',
         'configuration/soul-memory-user',
+        'configuration/branding',
       ],
     },
     {

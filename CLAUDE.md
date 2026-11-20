@@ -443,6 +443,21 @@ avoid AD account lockout.
 Dev servers: `docker compose -f docker-compose.dev.yml --profile smb up samba samba2` (host ports 1445/1446).
 See `docs/mcp/smb-files.md`.
 
+### Tenant branding
+
+Admins set the company logo (light + optional dark), favicon and primary colour
+(light/dark hex) from admin-ui → Settings → Brand. Data lives in the DB
+(`branding_settings`, `branding_assets`; logic in `src/branding/`), admin API
+`/admin/branding*` (`src/api/admin_branding.py`), public read-only API
+`GET /branding` + `GET /branding/assets/{kind}` (`src/api/branding.py`, used by
+the login pages too). Uploads are validated by magic bytes and SVGs with
+active content are refused. Frontends apply colours via `lib/branding/*` and
+`components/brand/BrandingSync.tsx`, and logos via `ChatBrand`/`AdminBrand`.
+Emails embed a PNG/JPEG logo as `cid:` and colour the buttons. **Product rule:**
+with a custom logo, "Powered by AION" (link to aion-asa.com) is always shown
+under every logo and in the email footer. Never make it optional. See
+`docs/configuration/branding.md`.
+
 ### Documentation
 - Single source of truth: `docs/` directory
 - Rendered site: `website/` (Docusaurus)

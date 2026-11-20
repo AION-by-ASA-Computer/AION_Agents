@@ -5484,7 +5484,7 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
           className={cn(
             "relative flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden transition-colors duration-500",
             showEmptyState &&
-            "bg-[radial-gradient(ellipse_80%_60%_at_50%_38%,rgba(225,29,72,0.12),rgba(159,18,57,0.04)_45%,transparent_75%)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_38%,rgba(225,29,72,0.18),rgba(159,18,57,0.06)_48%,transparent_80%)]",
+            "bg-[radial-gradient(ellipse_80%_60%_at_50%_38%,color-mix(in_srgb,var(--color-rose-600)_12%,transparent),color-mix(in_srgb,var(--color-rose-800)_4%,transparent)_45%,transparent_75%)] dark:bg-[radial-gradient(ellipse_80%_60%_at_50%_38%,color-mix(in_srgb,var(--color-rose-600)_18%,transparent),color-mix(in_srgb,var(--color-rose-800)_6%,transparent)_48%,transparent_80%)]",
           )}
         >
           {/* Floating non-intrusive status when session tools are warming up (in top position only for new/empty chat) */}

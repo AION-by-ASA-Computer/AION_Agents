@@ -366,6 +366,12 @@ Admins cannot read users' chats. There is no conversation viewer in the admin UI
   resets and SSO-migration links (host, port, STARTTLS/SSL/none, credentials,
   sender, email language) with a "send test email" probe. The SMTP password is
   write-only and stored encrypted (`GET/PUT /admin/smtp`, `POST /admin/smtp/test`).
+- **Brand** (`/settings#branding`): company logo (light theme, optional dark
+  theme), favicon and primary colour (one per theme), applied to chat-ui,
+  admin-ui and emails. With a custom logo, "Powered by AION" (link to
+  aion-asa.com) is always shown under it. Uploads and removals apply
+  immediately, and colours have their own Save button
+  (`/admin/branding*`). See [Tenant branding](../configuration/branding.md).
 
 ### 14. First setup wizard
 

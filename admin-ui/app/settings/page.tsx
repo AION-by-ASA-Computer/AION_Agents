@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { AudioLines, Brain, Cpu, Globe, Loader2, Mail, RotateCcw, Save, ScanLine, Server, ShieldCheck, Timer } from "lucide-react";
+import { AudioLines, Brain, Cpu, Globe, Loader2, Mail, Palette, RotateCcw, Save, ScanLine, Server, ShieldCheck, Timer } from "lucide-react";
 import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
 import { cn } from "@/lib/cn";
@@ -19,6 +19,7 @@ import { SttSection, clearedStt, type SttMode } from "@/components/settings/SttS
 import { RetentionSection } from "@/components/settings/RetentionSection";
 import { SmtpSection } from "@/components/settings/SmtpSection";
 import { SmbSection } from "@/components/settings/SmbSection";
+import { BrandingSection } from "@/components/settings/BrandingSection";
 import { K, type Notify, type SectionCtx, type Settings } from "@/components/settings/types";
 
 const k = K;
@@ -33,11 +34,12 @@ const SECTIONS = [
   { id: "retention", icon: Timer },
   { id: "smtp", icon: Mail },
   { id: "smb", icon: Server },
+  { id: "branding", icon: Palette },
 ] as const;
 type SectionId = (typeof SECTIONS)[number]["id"];
 
-// Models, Sandbox, SMTP and the file server persist on their own; the rest saves through the page bar.
-const SELF_SAVING: SectionId[] = ["models", "sandbox", "smtp", "smb"];
+// Models, Sandbox, SMTP, the file server and Brand persist on their own; the rest saves through the page bar.
+const SELF_SAVING: SectionId[] = ["models", "sandbox", "smtp", "smb", "branding"];
 
 const isSection = (v: string): v is SectionId => SECTIONS.some((s) => s.id === v);
 const positive = (v: string | undefined) => {
@@ -280,6 +282,7 @@ export default function SettingsPage() {
           <div hidden={active !== "retention"}><RetentionSection {...ctx} /></div>
           <div hidden={active !== "smtp"}><SmtpSection t={t} notify={notify} /></div>
           <div hidden={active !== "smb"}><SmbSection t={t} notify={notify} /></div>
+          <div hidden={active !== "branding"}><BrandingSection t={t} notify={notify} /></div>
         </div>
       </div>
 

@@ -3,6 +3,16 @@
 
 @variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
 
+/*
+ * End stop of the brand CTA gradients (`from-rose-500 to-brand-end`).
+ * Defaults to AION red; tenant branding overrides it (lib/branding/colors.ts).
+ * Not `inline`, so utilities read the variable at runtime.
+ */
+@theme {
+  --color-brand-end: var(--color-red-600);
+  --color-brand-end-hover: var(--color-red-700);
+}
+
 @theme inline {
   --radius-lg: var(--radius);
 
