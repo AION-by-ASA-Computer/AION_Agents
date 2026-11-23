@@ -121,8 +121,9 @@ async def load_conversation_charts(
 async def delete_conversation_charts(conversation_ids: Iterable[str]) -> None:
     """Remove charts (SQLite rows + live Redis/memory store) of whole conversations.
 
-    Conversations are soft-deleted (``archived_at``), so the FK cascade does not
-    fire: this keeps the chart history from outliving the chat the user deleted.
+    Conversation deletion itself goes through ``src/runtime/conversation_purge.py``,
+    which removes these rows in its own transaction; this helper stays for
+    callers that drop charts without deleting the conversation.
     """
     ids = [c for c in conversation_ids if c]
     if not ids:

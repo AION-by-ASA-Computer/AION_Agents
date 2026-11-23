@@ -427,8 +427,28 @@
     "rename": "Umbenennen",
     "search_placeholder": "Unterhaltungen suchen…",
     "theme": "Design",
+    "section_collapse": "Bereich einklappen",
+    "section_expand": "Bereich ausklappen",
     "from_whatsapp": "Unterhaltung aus WhatsApp",
-    "from_telegram": "Unterhaltung aus Telegram"
+    "from_telegram": "Unterhaltung aus Telegram",
+    "folders": {
+      "title": "Ordner",
+      "new": "Neuer Ordner",
+      "name_placeholder": "Ordnername",
+      "options": "Ordneroptionen",
+      "delete": "Ordner löschen",
+      "delete_confirm": "Ordner löschen? Die Chats bleiben erhalten.",
+      "empty": "Keine Chats hier",
+      "count": "{{count}} Chats",
+      "move_to": "In Ordner verschieben",
+      "remove_from_folder": "Aus Ordner entfernen",
+      "no_folders": "Noch keine Ordner. Erstelle einen mit + neben Ordner.",
+      "drop_here": "Hier ablegen, um aus dem Ordner zu entfernen",
+      "name_taken": "Ein Ordner mit diesem Namen existiert bereits.",
+      "name_too_long": "Name zu lang (max. 128 Zeichen).",
+      "limit_reached": "Maximale Anzahl an Ordnern erreicht.",
+      "error": "Vorgang fehlgeschlagen. Bitte erneut versuchen."
+    }
   },
   "schedulesPage": {
     "title": "Automationen",
@@ -1267,6 +1287,8 @@
     "hint_navigation": "Strukturierte Notizen für Datenbank-Exploration: Einstieg, JOINs, Fallstricke, Entdeckungen.",
     "open_panel": "Speicher-Panel öffnen (Projekteinstellungen)",
     "no_capabilities": "Dieses Profil bietet keinen SQL- oder Mnemos-Speicher.",
+    "protocol_warning_title": "Skill memory_protocol nicht aktiviert",
+    "protocol_warning_body": "Der Speicher funktioniert, aber ohne diesen Skill speichert und ruft der Agent Notizen nur selten ab. Bitte einen Administrator, memory_protocol zu den Skills des Profils hinzuzufügen.",
     "hint_debug": "Digest-Baum, Wake-Vorschau, Komprimierungsstatus und veraltete Knoten prüfen.",
     "hint_notes": "Projektspezifische Mnemos-Notizen: Fakten, Fallstricke, Entscheidungen und Erkenntnisse.",
     "hint_user": "Ihre persönlichen Mnemos-Notizen — Präferenzen, Identität und projektübergreifende Fakten.",

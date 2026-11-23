@@ -419,6 +419,16 @@ def cleanup_session_offloads(session_id: str) -> int:
     sid = (session_id or "").strip()
     if not sid:
         return 0
+    # ``safe_resolve`` re-creates the session dirs: bail out first when the
+    # session folder is gone (e.g. chat deleted), or the periodic cleanup of
+    # archived chats would resurrect empty folders under data/sessions/.
+    try:
+        from src.session_workspace import session_fs
+
+        if not os.path.isdir(session_fs(sid)):
+            return 0
+    except ValueError:
+        return 0
     freed = 0
     try:
         base = safe_resolve(sid, TOOL_RESULTS_REL)

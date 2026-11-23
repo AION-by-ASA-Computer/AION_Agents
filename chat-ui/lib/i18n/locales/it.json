@@ -413,6 +413,8 @@
     "collapse": "Comprimi barra laterale",
     "expand": "Espandi barra laterale",
     "theme": "Tema",
+    "section_collapse": "Comprimi sezione",
+    "section_expand": "Espandi sezione",
     "bucket_today": "Oggi",
     "bucket_yesterday": "Ieri",
     "bucket_previous_7_days": "Ultimi 7 giorni",
@@ -428,7 +430,25 @@
       "admin_panel": "Pannello admin"
     },
     "from_whatsapp": "Conversazione da WhatsApp",
-    "from_telegram": "Conversazione da Telegram"
+    "from_telegram": "Conversazione da Telegram",
+    "folders": {
+      "title": "Cartelle",
+      "new": "Nuova cartella",
+      "name_placeholder": "Nome cartella",
+      "options": "Opzioni cartella",
+      "delete": "Elimina cartella",
+      "delete_confirm": "Eliminare la cartella? Le chat restano.",
+      "empty": "Nessuna chat qui",
+      "count": "{{count}} chat",
+      "move_to": "Sposta in cartella",
+      "remove_from_folder": "Togli dalla cartella",
+      "no_folders": "Nessuna cartella. Creane una con + accanto a Cartelle.",
+      "drop_here": "Rilascia qui per togliere dalla cartella",
+      "name_taken": "Esiste già una cartella con questo nome.",
+      "name_too_long": "Nome troppo lungo (max 128 caratteri).",
+      "limit_reached": "Hai raggiunto il numero massimo di cartelle.",
+      "error": "Operazione non riuscita. Riprova."
+    }
   },
   "schedulesPage": {
     "title": "Automazioni",
@@ -1314,7 +1334,9 @@
     "hint_navigation": "Note Mnemos di progetto: fatti, pitfall, decisioni e lezioni apprese.",
     "user_scope_hint": "Memoria personale legata al tuo account (non al progetto attivo).",
     "open_panel": "Apri pannello memoria (impostazioni progetto)",
-    "no_capabilities": "Questo profilo non espone memoria SQL o Mnemos."
+    "no_capabilities": "Questo profilo non espone memoria SQL o Mnemos.",
+    "protocol_warning_title": "Skill memory_protocol non abilitata",
+    "protocol_warning_body": "La memoria funziona, ma senza questa skill l'agente salva e richiama le note raramente. Chiedi a un amministratore di aggiungere memory_protocol alle skill del profilo."
   },
   "project_memory": {
     "search_placeholder": "Cerca note…",
