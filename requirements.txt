@@ -3,7 +3,7 @@ fastapi<0.137.0,>=0.115.0
 uvicorn[standard]>=0.30.0
 sse-starlette>=2.0.0
 httpx>=0.27.0
-python-dotenv>=1.2.2
+python-dotenv>=1.2.4
 # OSV: 6.21.4 fixes the full 6.16–6.21 advisory batch (GHSA-5849-834g-hvw5 et al.).
 pypdf>=6.21.4
 pandas>=1.0.4
