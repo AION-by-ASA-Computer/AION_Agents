@@ -824,7 +824,9 @@ async def save_profile(p: ProfileUpdate):
         if unknown:
             raise HTTPException(
                 status_code=400,
-                detail={"errors": [f"unknown sub-agent profile(s): {', '.join(unknown)}"]},
+                detail={
+                    "errors": [f"unknown sub-agent profile(s): {', '.join(unknown)}"]
+                },
             )
         if subs:
             data["subagents"] = subs

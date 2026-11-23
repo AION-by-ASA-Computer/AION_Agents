@@ -273,7 +273,9 @@ class AgentProfile:
             base = frozenset(base_set)
         # System skills (e.g. ``delegation``) are always inlined in full: they
         # are short and the model must see them to use the feature at all.
-        return ALWAYS_CRITICAL_SKILL_NAMES | base | frozenset(self._system_skill_names())
+        return (
+            ALWAYS_CRITICAL_SKILL_NAMES | base | frozenset(self._system_skill_names())
+        )
 
     def generate_system_prompt(
         self,

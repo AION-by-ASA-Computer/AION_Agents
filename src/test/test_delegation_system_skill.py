@@ -63,7 +63,11 @@ def test_strip_system_skills_removes_only_delegation():
 def test_yaml_entry_is_ignored_on_load():
     """A hand-written ``delegation`` in skills/critical_skills does not survive loading."""
     schema = ProfileSchema.from_yaml_dict(
-        {"name": "X", "skills": ["delegation", "pdf"], "critical_skills": ["delegation"]},
+        {
+            "name": "X",
+            "skills": ["delegation", "pdf"],
+            "critical_skills": ["delegation"],
+        },
         "x",
     )
     assert schema.skills == ["pdf"]
@@ -75,7 +79,11 @@ def test_yaml_entry_is_ignored_on_load():
 
 def test_profile_with_subagents_gets_skill_inlined():
     """Sub-agents => delegation is active and inlined in full, even with explicit critical_skills."""
-    p = _profile(skills=["pdf"], subagents=["graphic_designer"], critical_skills=["core_protocol"])
+    p = _profile(
+        skills=["pdf"],
+        subagents=["graphic_designer"],
+        critical_skills=["core_protocol"],
+    )
     assert p.resolved_skills()[-1] == DELEGATION_SKILL
     assert DELEGATION_SKILL in p._resolved_critical_skill_names()
     assert DELEGATION_HEADER in p.generate_system_prompt()
@@ -105,13 +113,23 @@ def test_registry_loads_system_skill_only_from_shipped_dir(tmp_path: Path):
     generated = tmp_path / "gen"
     for d in (shipped, local, generated):
         d.mkdir()
-    (shipped / "delegation.md").write_text("---\nname: delegation\nversion: 1\n---\nSHIPPED", encoding="utf-8")
-    (local / "delegation.md").write_text("---\nname: delegation\nversion: 9\n---\nLOCAL", encoding="utf-8")
-    (generated / "delegation.md").write_text("---\nname: delegation\nversion: 9\n---\nGEN", encoding="utf-8")
+    (shipped / "delegation.md").write_text(
+        "---\nname: delegation\nversion: 1\n---\nSHIPPED", encoding="utf-8"
+    )
+    (local / "delegation.md").write_text(
+        "---\nname: delegation\nversion: 9\n---\nLOCAL", encoding="utf-8"
+    )
+    (generated / "delegation.md").write_text(
+        "---\nname: delegation\nversion: 9\n---\nGEN", encoding="utf-8"
+    )
     # A hidden list naming the skill must not remove it either.
     (tmp_path / "hidden_skills.json").write_text('["delegation"]', encoding="utf-8")
 
-    reg = SkillRegistry(curated_dir=str(local), curated_fallback_dir=str(shipped), generated_dir=str(generated))
+    reg = SkillRegistry(
+        curated_dir=str(local),
+        curated_fallback_dir=str(shipped),
+        generated_dir=str(generated),
+    )
     assert reg.get_skill_full("delegation").strip() == "SHIPPED"
 
 
@@ -132,10 +150,28 @@ def test_admin_skill_list_hides_delegation():
         (lambda: admin.get_skill(DELEGATION_SKILL), 404),
         (lambda: admin.export_skill_md(DELEGATION_SKILL), 404),
         (lambda: admin.promote_skill(DELEGATION_SKILL), 404),
-        (lambda: admin.rename_skill(DELEGATION_SKILL, SkillRename(new_name="x_deleg")), 404),
-        (lambda: admin.rename_skill("core_protocol", SkillRename(new_name=DELEGATION_SKILL)), 403),
-        (lambda: admin.save_skill(SkillUpdate(name=DELEGATION_SKILL, content="x")), 403),
-        (lambda: admin.save_skill(SkillUpdate(name="other", content="---\nname: delegation\n---\nx")), 403),
+        (
+            lambda: admin.rename_skill(
+                DELEGATION_SKILL, SkillRename(new_name="x_deleg")
+            ),
+            404,
+        ),
+        (
+            lambda: admin.rename_skill(
+                "core_protocol", SkillRename(new_name=DELEGATION_SKILL)
+            ),
+            403,
+        ),
+        (
+            lambda: admin.save_skill(SkillUpdate(name=DELEGATION_SKILL, content="x")),
+            403,
+        ),
+        (
+            lambda: admin.save_skill(
+                SkillUpdate(name="other", content="---\nname: delegation\n---\nx")
+            ),
+            403,
+        ),
         (lambda: admin.delete_skill(DELEGATION_SKILL), 403),
     ],
 )
@@ -154,7 +190,9 @@ def pm(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ap.ProfileManager:
     """Profile manager on a temp dir with a parent profile and a sub-agent profile."""
     for slug in ("parent", "child"):
         (tmp_path / f"{slug}.yaml").write_text(
-            yaml.dump({"name": slug, "instructions": "x", "skills": [], "mcp_servers": []}),
+            yaml.dump(
+                {"name": slug, "instructions": "x", "skills": [], "mcp_servers": []}
+            ),
             encoding="utf-8",
         )
     monkeypatch.setattr(ap, "migrate_profiles_to_write_dir", lambda: None)

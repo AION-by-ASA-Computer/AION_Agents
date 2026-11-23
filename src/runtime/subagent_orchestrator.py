@@ -539,13 +539,17 @@ async def _run_child_turn(
         )
     except Exception as e:
         logger.exception("subagent: cannot create child conversation %s", child_sid)
-        return SubagentResult("error", slug, error=f"cannot create sub-agent session: {e}")
+        return SubagentResult(
+            "error", slug, error=f"cannot create sub-agent session: {e}"
+        )
 
     # Give the child the files the user uploaded in the parent conversation.
     ensure_session_dirs(child_sid)
     sync_meta = sync_parent_uploads_to_child(parent_session_id, child_sid)
     if sync_meta.get("errors"):
-        logger.warning("subagent upload sync %s → %s: %s", parent_session_id, child_sid, sync_meta)
+        logger.warning(
+            "subagent upload sync %s → %s: %s", parent_session_id, child_sid, sync_meta
+        )
 
     _emit_parent(
         parent_session_id,
@@ -598,7 +602,11 @@ async def _run_child_turn(
             message_source=SUBAGENT_MESSAGE_SOURCE,
             metadata={
                 "source": SUBAGENT_MESSAGE_SOURCE,
-                **({"llm_provider_name": llm_provider_name} if llm_provider_name else {}),
+                **(
+                    {"llm_provider_name": llm_provider_name}
+                    if llm_provider_name
+                    else {}
+                ),
             },
             runtime=runtime,
         ):
@@ -679,7 +687,9 @@ async def _run_child_turn(
             pass
         files: List[str] = []
         try:
-            files = sync_child_outputs_to_parent(child_sid, parent_session_id).get("copied", [])
+            files = sync_child_outputs_to_parent(child_sid, parent_session_id).get(
+                "copied", []
+            )
         except Exception as e:
             logger.warning("subagent output sync %s failed: %s", child_sid, e)
 
@@ -689,7 +699,9 @@ async def _run_child_turn(
         # The pipeline replaces an empty answer with its diagnostic warning
         # (e.g. "Il turno è terminato senza testo..."): that is a failure, not
         # a result the parent LLM should relay as the sub-agent's work.
-        no_answer = not text or (outcome_warning is not None and text == outcome_warning)
+        no_answer = not text or (
+            outcome_warning is not None and text == outcome_warning
+        )
         if status == "done" and no_answer:
             status = "error"
             child_error = child_error or (

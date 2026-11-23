@@ -104,7 +104,9 @@ def test_subagent_events_match_schema():
             "files": ["workspace/subagents/sub_research_abc/report.md"],
         },
     ):
-        chat_stream_event_adapter.validate_python({"type": "tool_event", "event": payload})
+        chat_stream_event_adapter.validate_python(
+            {"type": "tool_event", "event": payload}
+        )
     # ``status`` is mandatory on the end event: the card needs it to stop spinning.
     with pytest.raises(ValidationError):
         chat_stream_event_adapter.validate_python(

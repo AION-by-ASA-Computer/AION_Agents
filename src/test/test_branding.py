@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import io
 import json
+import re
 from typing import List
 
 import pytest
@@ -17,6 +18,9 @@ from fastapi import HTTPException
 from starlette.datastructures import Headers, UploadFile
 
 from src.test.smtp_fakes import configure_smtp, install_fake_smtp
+
+# Link of the mandatory "Powered by AION" footer (docs/configuration/branding.md).
+POWERED_BY_URL = "https://aion-asa.com"
 
 PNG = b"\x89PNG\r\n\x1a\n" + b"\x00" * 64
 JPEG = b"\xff\xd8\xff\xe0" + b"\x00" * 64
@@ -319,9 +323,14 @@ async def test_email_with_raster_logo_and_color(monkeypatch, tmp_path):
         branding=branding,
     )
     assert 'src="cid:aion-brand-logo"' in html
-    assert "https://aion-asa.com" in html and "Powered by" in html
+    # Exact comparisons on the extracted link (not substring checks on the URL):
+    # CodeQL's py/incomplete-url-substring-sanitization rule otherwise reads
+    # these test assertions as a weak URL sanitizer.
+    hrefs = re.findall(r'href="([^"]+)"', html)
+    assert any(href == POWERED_BY_URL for href in hrefs)
+    assert "Powered by" in html
     assert "background:#facc15;color:#18181b;" in html  # light bg -> dark text
-    assert text.rstrip().endswith("https://aion-asa.com")
+    assert text.rstrip().split()[-1] == POWERED_BY_URL
 
     res = await test_smtp(SmtpTestBody(), auth=_auth())
     assert res["ok"] is True

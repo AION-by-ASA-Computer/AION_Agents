@@ -489,7 +489,9 @@ def build_delegate_to_agent_tool(
         if result.ok:
             emit_tool_end(sid, DELEGATE_TOOL_NAME, call_id, out)
         else:
-            emit_tool_error(sid, DELEGATE_TOOL_NAME, call_id, result.error or result.status)
+            emit_tool_error(
+                sid, DELEGATE_TOOL_NAME, call_id, result.error or result.status
+            )
         return out
 
     return Tool(

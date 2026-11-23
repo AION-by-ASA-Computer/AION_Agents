@@ -85,7 +85,11 @@ def test_truncate_result_keeps_newlines_head_and_tail():
 def test_tool_output_lists_status_text_and_files():
     """The parent LLM gets a header with status/conversation, the answer and the files."""
     res = orch.SubagentResult(
-        "done", "legal", child_conversation_id="sub_legal_x", text="## Answer", files=["workspace/subagents/sub_legal_x/a.md"]
+        "done",
+        "legal",
+        child_conversation_id="sub_legal_x",
+        text="## Answer",
+        files=["workspace/subagents/sub_legal_x/a.md"],
     )
     out = res.to_tool_output()
     assert out.startswith("[sub-agent legal · status=done · conversation=sub_legal_x]")
@@ -134,7 +138,10 @@ def test_allowed_slugs_unrestricted_user_and_fail_closed(profiles, monkeypatch):
 
     monkeypatch.setattr(pa, "user_row_id_for", _row_id)
     monkeypatch.setattr(pa, "allowed_profile_slugs", _unrestricted)
-    assert _run(orch.allowed_subagent_slugs(profiles["aion_std"], "alice")) == ["legal", "sql"]
+    assert _run(orch.allowed_subagent_slugs(profiles["aion_std"], "alice")) == [
+        "legal",
+        "sql",
+    ]
 
     async def _boom(row_id):
         raise RuntimeError("db down")
@@ -152,7 +159,9 @@ def test_delegate_tool_schema_enum_and_empty_catalog(profiles):
     assert tool.parameters["properties"]["agent"]["enum"] == ["legal", "sql"]
     assert "legal (Legal): Contract and legal review." in tool.description
     with pytest.raises(ValueError):
-        build_delegate_to_agent_tool("conv-1", "alice", _profile("lonely", subagents=["ghost"]))
+        build_delegate_to_agent_tool(
+            "conv-1", "alice", _profile("lonely", subagents=["ghost"])
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -294,13 +303,24 @@ class _FakePipeline:
             # What the real pipeline does when the LLM wrote nothing: a
             # turn_outcome warning, then the same warning as final text.
             warn = "Il turno è terminato senza testo di risposta in chat."
-            yield {"type": "turn_outcome", "code": "empty_final", "message": warn, "details": {}}
+            yield {
+                "type": "turn_outcome",
+                "code": "empty_final",
+                "message": warn,
+                "details": {},
+            }
             yield {"type": "final", "text": warn}
             return
         if self.mode == "ok":
-            yield {"type": "tool_event", "event": {"type": "tool_start", "id": "t1", "name": "sql_query"}}
+            yield {
+                "type": "tool_event",
+                "event": {"type": "tool_start", "id": "t1", "name": "sql_query"},
+            }
             yield {"type": "token", "content": "partial"}
-            yield {"type": "tool_event", "event": {"type": "tool_end", "id": "t1", "name": "sql_query"}}
+            yield {
+                "type": "tool_event",
+                "event": {"type": "tool_end", "id": "t1", "name": "sql_query"},
+            }
             yield {"type": "final", "text": "Final answer\nwith lines"}
             return
         while True:
@@ -346,7 +366,9 @@ def child_env(runner_env, monkeypatch):
     monkeypatch.setattr(orch, "_create_child_conversation", _noop)
     monkeypatch.setattr(orch, "_child_runtime", _runtime)
     monkeypatch.setattr(orch, "_release_child_resources", _release)
-    monkeypatch.setattr(orch, "_emit_parent", lambda sid, payload: events.append(payload))
+    monkeypatch.setattr(
+        orch, "_emit_parent", lambda sid, payload: events.append(payload)
+    )
     monkeypatch.setattr(main, "get_agent", _agent)
     monkeypatch.setattr(main, "set_event_loop", lambda loop: None)
     monkeypatch.setattr(ap, "AgentPipeline", _FakePipeline)
@@ -367,7 +389,13 @@ def child_env(runner_env, monkeypatch):
 
 def test_child_turn_success_events_and_result(child_env):
     """A finished child returns its final text and files and mirrors steps to the parent."""
-    res = _run(_call(child_env.profiles, parent_tool_call_id="call-1", child_session_id="sub_legal_aaa"))
+    res = _run(
+        _call(
+            child_env.profiles,
+            parent_tool_call_id="call-1",
+            child_session_id="sub_legal_aaa",
+        )
+    )
     assert res.ok
     assert res.text == "Final answer\nwith lines"
     assert res.files == ["workspace/subagents/sub_legal_aaa/report.md"]
@@ -378,7 +406,11 @@ def test_child_turn_success_events_and_result(child_env):
         assert e["parent_tool_call_id"] == "call-1"
         assert e["child_conversation_id"] == "sub_legal_aaa"
         assert e["profile"] == "legal"
-    assert child_env.events[1]["step"] == {"id": "t1", "name": "sql_query", "status": "running"}
+    assert child_env.events[1]["step"] == {
+        "id": "t1",
+        "name": "sql_query",
+        "status": "running",
+    }
     end = child_env.events[-1]
     assert end["status"] == "done" and end["steps"] == 1
     assert end["files"] == res.files
@@ -472,18 +504,66 @@ def test_child_turn_parent_stop_hard_cancel(child_env, monkeypatch):
 def test_timeline_merges_subagent_events_into_tool_segment():
     """``subagent_*`` events land on the delegate_to_agent tool segment and survive tool_end."""
     tb = TimelineBuilder()
-    ids = {"parent_tool_call_id": "call-1", "run_id": "r1", "child_conversation_id": "sub_legal_x", "profile": "legal"}
+    ids = {
+        "parent_tool_call_id": "call-1",
+        "run_id": "r1",
+        "child_conversation_id": "sub_legal_x",
+        "profile": "legal",
+    }
 
     def ev(payload):
         tb.apply_chunk({"type": "tool_event", "event": payload})
 
-    ev({"type": "tool_start", "id": "call-1", "name": "delegate_to_agent", "input": {"agent": "legal", "task": "T"}})
+    ev(
+        {
+            "type": "tool_start",
+            "id": "call-1",
+            "name": "delegate_to_agent",
+            "input": {"agent": "legal", "task": "T"},
+        }
+    )
     ev({"type": "subagent_start", **ids, "profile_name": "Legal", "task": "T"})
-    ev({"type": "subagent_step", **ids, "step": {"id": "s1", "name": "read_file", "status": "running"}})
-    ev({"type": "subagent_step", **ids, "step": {"id": "s2", "name": "search", "status": "running"}})
-    ev({"type": "subagent_step", **ids, "step": {"id": "s1", "name": "read_file", "status": "done"}})
-    ev({"type": "subagent_end", **ids, "status": "done", "steps": 2, "error": None, "result_preview": "OK", "files": ["a.md"]})
-    ev({"type": "tool_end", "id": "call-1", "name": "delegate_to_agent", "input": {}, "output": "done"})
+    ev(
+        {
+            "type": "subagent_step",
+            **ids,
+            "step": {"id": "s1", "name": "read_file", "status": "running"},
+        }
+    )
+    ev(
+        {
+            "type": "subagent_step",
+            **ids,
+            "step": {"id": "s2", "name": "search", "status": "running"},
+        }
+    )
+    ev(
+        {
+            "type": "subagent_step",
+            **ids,
+            "step": {"id": "s1", "name": "read_file", "status": "done"},
+        }
+    )
+    ev(
+        {
+            "type": "subagent_end",
+            **ids,
+            "status": "done",
+            "steps": 2,
+            "error": None,
+            "result_preview": "OK",
+            "files": ["a.md"],
+        }
+    )
+    ev(
+        {
+            "type": "tool_end",
+            "id": "call-1",
+            "name": "delegate_to_agent",
+            "input": {},
+            "output": "done",
+        }
+    )
 
     tools = [s for s in tb.to_list() if s.get("kind") == "tool"]
     assert len(tools) == 1
@@ -493,7 +573,10 @@ def test_timeline_merges_subagent_events_into_tool_segment():
     assert sub["status"] == "done"
     assert sub["stepCount"] == 2
     # The step still running at the end is closed with the final status.
-    assert [(s["id"], s["status"]) for s in sub["steps"]] == [("s1", "done"), ("s2", "done")]
+    assert [(s["id"], s["status"]) for s in sub["steps"]] == [
+        ("s1", "done"),
+        ("s2", "done"),
+    ]
     assert sub["resultPreview"] == "OK" and sub["files"] == ["a.md"]
 
 
@@ -502,11 +585,33 @@ def test_timeline_caps_subagent_steps():
     from src.runtime.timeline_builder import SUBAGENT_MAX_STEPS
 
     tb = TimelineBuilder()
-    ids = {"parent_tool_call_id": "c", "run_id": "r", "child_conversation_id": "sub_x_y", "profile": "x"}
-    tb.apply_chunk({"type": "tool_event", "event": {"type": "tool_start", "id": "c", "name": "delegate_to_agent", "input": {}}})
+    ids = {
+        "parent_tool_call_id": "c",
+        "run_id": "r",
+        "child_conversation_id": "sub_x_y",
+        "profile": "x",
+    }
+    tb.apply_chunk(
+        {
+            "type": "tool_event",
+            "event": {
+                "type": "tool_start",
+                "id": "c",
+                "name": "delegate_to_agent",
+                "input": {},
+            },
+        }
+    )
     for i in range(SUBAGENT_MAX_STEPS + 10):
         tb.apply_chunk(
-            {"type": "tool_event", "event": {"type": "subagent_step", **ids, "step": {"id": f"s{i}", "name": "t", "status": "running"}}}
+            {
+                "type": "tool_event",
+                "event": {
+                    "type": "subagent_step",
+                    **ids,
+                    "step": {"id": f"s{i}", "name": "t", "status": "running"},
+                },
+            }
         )
     sub = [s for s in tb.to_list() if s.get("kind") == "tool"][0]["subagent"]
     assert len(sub["steps"]) == SUBAGENT_MAX_STEPS
@@ -549,7 +654,9 @@ def test_child_conversation_hidden_and_read_only(monkeypatch, tmp_path):
 
     async def run():
         await _reset_unified_db(monkeypatch, tmp_path)
-        await UnifiedHistoryBridge().add_message("conv-parent", "user", "hi", user_id="alice", message_id="m1")
+        await UnifiedHistoryBridge().add_message(
+            "conv-parent", "user", "hi", user_id="alice", message_id="m1"
+        )
         await orch._create_child_conversation(
             child_session_id="sub_legal_0123456789ab",
             parent_session_id="conv-parent",
@@ -566,7 +673,9 @@ def test_child_conversation_hidden_and_read_only(monkeypatch, tmp_path):
         assert "conv-parent" in ids
         assert "sub_legal_0123456789ab" not in ids
 
-        details = await get_conversation_chat_ui("sub_legal_0123456789ab", user_id="alice")
+        details = await get_conversation_chat_ui(
+            "sub_legal_0123456789ab", user_id="alice"
+        )
         assert details["spawned_by_conversation_id"] == "conv-parent"
         assert details["read_only"] is True
 
@@ -593,7 +702,9 @@ def test_normalize_subagent_slugs_dedup_and_self():
     """The allowlist is lower-cased, de-duplicated and never contains the profile itself."""
     from src.runtime.profile_schema import normalize_subagent_slugs
 
-    assert normalize_subagent_slugs(["Legal", "legal", "SQL", "aion_std", ""], self_slug="aion_std") == [
+    assert normalize_subagent_slugs(
+        ["Legal", "legal", "SQL", "aion_std", ""], self_slug="aion_std"
+    ) == [
         "legal",
         "sql",
     ]
@@ -604,7 +715,9 @@ def test_retired_aion_subagents_mcp_dropped():
     """A leftover ``aion_subagents`` MCP entry in a profile is ignored on load."""
     from src.runtime.profile_schema import _drop_retired_mcp_servers
 
-    assert _drop_retired_mcp_servers(["session_sandbox", "aion_subagents"], "aion_std") == ["session_sandbox"]
+    assert _drop_retired_mcp_servers(
+        ["session_sandbox", "aion_subagents"], "aion_std"
+    ) == ["session_sandbox"]
 
 
 def test_delegate_always_blocked_in_plan_and_deep_research(monkeypatch):
@@ -617,7 +730,9 @@ def test_delegate_always_blocked_in_plan_and_deep_research(monkeypatch):
     assert "delegate_to_agent" in plan_mode_blocked_tool_names()
     assert "delegate_to_agent" in deep_research_blocked_tool_names()
 
-    monkeypatch.setenv("AION_PLAN_MODE_BLOCKED_TOOLS", "delegate_to_subagent,skill_view")
+    monkeypatch.setenv(
+        "AION_PLAN_MODE_BLOCKED_TOOLS", "delegate_to_subagent,skill_view"
+    )
     monkeypatch.setenv("AION_DEEP_RESEARCH_BLOCKED_TOOLS", "web_search")
     assert "delegate_to_agent" in plan_mode_blocked_tool_names()
     assert "delegate_to_agent" in deep_research_blocked_tool_names()
@@ -627,9 +742,14 @@ def test_subagent_source_forces_normal_mode():
     """Sub-agent turns always run in normal mode, whatever mode the caller asks for."""
     from src.runtime.agent_mode_resolve import resolve_agent_mode
 
-    assert resolve_agent_mode("plan", plan_mode=True, message_source="subagent") == "normal"
     assert (
-        resolve_agent_mode("deep_research", deep_research_mode=True, message_source="subagent")
+        resolve_agent_mode("plan", plan_mode=True, message_source="subagent")
+        == "normal"
+    )
+    assert (
+        resolve_agent_mode(
+            "deep_research", deep_research_mode=True, message_source="subagent"
+        )
         == "normal"
     )
     # Control: a normal user message keeps the requested mode.
