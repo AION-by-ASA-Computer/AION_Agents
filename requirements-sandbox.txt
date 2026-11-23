@@ -4,5 +4,5 @@ fastmcp<4.0.0,>=3.4.11
 anyio>=4.14.2
 idna>=3.15
 PyYAML>=6.0
-ruff>=0.8.0
+ruff>=0.17.6
 -r requirements-sandbox-skills.txt
