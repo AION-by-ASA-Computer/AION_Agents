@@ -381,6 +381,17 @@ Admin-toggled (`PUT /admin/auth/2fa`), applies only to the password login while 
 (`src/api/auth_mfa.py`, logic in `src/auth/mfa/totp.py`). Recovery: admin reset, `python -m src.auth.mfa reset <user>`
 or `AION_2FA_FORCE_DISABLE=1`. See `docs/security/two-factor-auth.md`.
 
+### Access control (groups and rules)
+
+Single decision point in `src/access/` (`principal.py` caller + cached rules,
+`policy.py` decisions, `store.py` writes); never query `access_grants` /
+`user_profile_access` directly. Admin-managed `user_groups` + members carry
+rules in `access_grants` (`/admin/groups*`, `/admin/users/{id}/rules|groups|effective-access`
+in `src/api/admin_groups.py`). "No rule = no limit" per resource type, union of
+the subjects that have a rule; no default group. Roles are read from the DB
+per request (cache `AION_ACCESS_CACHE_TTL_SEC`). Phase 1 rules cover profiles
+only; roadmap in `PLAN_access_control.md`. See `docs/security/groups-and-permissions.md`.
+
 ### Service accounts
 
 Non-human accounts for integrations: `users` rows with `account_type='service'`,

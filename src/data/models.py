@@ -989,6 +989,119 @@ class UserProfileAccess(Base):
     )
 
 
+class UserGroup(Base):
+    """Admin-managed group of users (access control, Phase 1).
+
+    A group carries access rules (``AccessGrant`` rows with
+    ``subject_type="group"``) that apply to every member. There is no system
+    or default group: a user in no group and without direct rules has no
+    limits. Managed via ``/admin/groups`` (``src/api/admin_groups.py``); see
+    ``docs/security/groups-and-permissions.md``.
+    """
+
+    __tablename__ = "user_groups"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="default", server_default="default"
+    )
+    # Stable machine name (``[a-z0-9_-]+``), unique per tenant.
+    slug: Mapped[str] = mapped_column(String(64), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text)
+    created_by: Mapped[Optional[str]] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "slug", name="uq_user_groups_tenant_slug"),
+    )
+
+
+class UserGroupMember(Base):
+    """Membership of a user (``users.id``) in a ``UserGroup``.
+
+    Rows are removed explicitly when the user or the group is deleted (the FK
+    cascades are not enforced on patched SQLite databases).
+    """
+
+    __tablename__ = "user_group_members"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    group_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("user_groups.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    user_id: Mapped[str] = mapped_column(
+        String(64),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="default", server_default="default"
+    )
+    added_by: Mapped[Optional[str]] = mapped_column(String(256))
+    added_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint("group_id", "user_id", name="uq_user_group_members"),
+    )
+
+
+class AccessGrant(Base):
+    """One access rule entry: ``subject`` may ``action`` on ``resource``.
+
+    ``subject_type`` is ``user`` (``subject_id`` = ``users.id``) or ``group``
+    (``subject_id`` = ``user_groups.id``). ``resource_type`` is one of the
+    types in ``src/access/policy.py`` (``profile``, ``skill``, ``mcp_server``,
+    ``native_tool_group``, ``capability``, ``admin_section``); ``resource_id``
+    is a slug, ``*`` (all) or ``!none`` (the subject has a rule for that type
+    that grants nothing). A subject without rows for a type has no rule for it.
+    The autoincrement id gives a stable order (default-profile fallback).
+    Read by ``src/access/principal.py``, written by ``src/access/store.py``.
+    """
+
+    __tablename__ = "access_grants"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), nullable=False, default="default", server_default="default"
+    )
+    subject_type: Mapped[str] = mapped_column(String(16), nullable=False)
+    subject_id: Mapped[str] = mapped_column(String(64), nullable=False)
+    resource_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    resource_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    action: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="use", server_default="use"
+    )
+    created_by: Mapped[Optional[str]] = mapped_column(String(256))
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        UniqueConstraint(
+            "tenant_id",
+            "subject_type",
+            "subject_id",
+            "resource_type",
+            "resource_id",
+            "action",
+            name="uq_access_grants",
+        ),
+        Index("ix_access_grants_subject", "tenant_id", "subject_type", "subject_id"),
+    )
+
+
 class SsoProvider(Base):
     """Configurazione provider SSO (Microsoft/Google) per tenant."""
 

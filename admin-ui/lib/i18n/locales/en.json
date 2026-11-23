@@ -1271,6 +1271,7 @@
       "aria": "Users sections",
       "accounts": "Accounts",
       "signin": "Sign-in",
+      "groups": "Groups",
       "migration": "Migration"
     },
     "cols": {
@@ -1306,7 +1307,8 @@
       "delete": "Delete {{name}}",
       "send_reset": "Send {{name}} a password reset link",
       "resend_invite": "Resend the invite to {{name}}",
-      "issue_temp": "Generate a temporary password for {{name}}"
+      "issue_temp": "Generate a temporary password for {{name}}",
+      "access": "Access of {{name}}"
     },
     "form": {
       "title_new": "New user",
@@ -1415,7 +1417,8 @@
       "invite_failed": "User created, but the invite to {{email}} wasn't sent: {{error}}. You can resend it from the list.",
       "link_failed": "Couldn't send the link: {{error}}",
       "link_sent_reset": "Reset link sent to {{email}}.",
-      "link_sent_invite": "Invite sent to {{email}}."
+      "link_sent_invite": "Invite sent to {{email}}.",
+      "access_saved": "Access updated."
     },
     "filter": {
       "aria": "Filter by {{col}}",
@@ -1633,7 +1636,8 @@
       "body": "{{name}}'s current password will stop working right away and a temporary password will be generated for you to hand over. At first sign-in they must choose a new one.",
       "cancel": "Cancel",
       "confirm": "Generate temporary password"
-    }
+    },
+    "groups_aria": "User's groups"
   },
   "admin_security": {
     "title": "Security",
@@ -3007,6 +3011,130 @@
       "key_create_failed": "Couldn't create the key: {{error}}",
       "key_revoked": "Key \"{{name}}\" revoked",
       "key_revoke_failed": "Couldn't revoke the key: {{error}}"
+    }
+  },
+  "admin_groups": {
+    "title": "Groups",
+    "subtitle": "Group users and service accounts and decide which profiles they can use. Anyone in no group and without own rules has no limits.",
+    "add": "New group",
+    "loading": "Loading groups…",
+    "error": "Could not load the groups.",
+    "retry": "Retry",
+    "search": "Search groups",
+    "count_one": "{{count}} group",
+    "count_other": "{{count}} groups",
+    "count_filtered": "{{shown}} of {{total}}",
+    "members_count_one": "{{count}} member",
+    "members_count_other": "{{count}} members",
+    "cols": {
+      "group": "Group",
+      "members": "Members",
+      "actions": "Actions"
+    },
+    "row": {
+      "members": "Members of {{name}}",
+      "rules": "Access rules of {{name}}",
+      "edit": "Edit {{name}}",
+      "delete": "Delete {{name}}"
+    },
+    "empty": {
+      "title": "No groups",
+      "body": "Groups give the same rules to several people. Until a user is in a group with a rule (or has an own rule) they can use every profile.",
+      "search": "No group matches the search.",
+      "clear_filters": "Clear search"
+    },
+    "form": {
+      "create_title": "New group",
+      "edit_title": "Edit group",
+      "name": "Name",
+      "name_placeholder": "E.g. Sales team",
+      "slug": "Identifier",
+      "slug_hint": "Lowercase letters, digits, - and _. Used by the API and logs.",
+      "slug_invalid": "Use only lowercase letters, digits, - and _ (max 64).",
+      "slug_taken": "A group with this identifier already exists.",
+      "description": "Description",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "members": {
+      "title": "Members of {{name}}",
+      "body": "The group's rules apply to every selected account.",
+      "search": "Search users",
+      "service": "Service account",
+      "empty": "No account found.",
+      "selected": "{{count}} selected",
+      "cancel": "Cancel",
+      "save": "Save members",
+      "saving": "Saving…"
+    },
+    "rules": {
+      "title": "Access rules of {{name}}",
+      "body": "Rules add up with those of the user's other groups and their own rules. A group without a rule on a type does not limit it.",
+      "profiles": "Usable profiles",
+      "cancel": "Cancel",
+      "save": "Save rules",
+      "saving": "Saving…"
+    },
+    "rule": {
+      "aria": "Rule type",
+      "mode": {
+        "none": "No rule",
+        "all": "All profiles",
+        "some": "Only some profiles",
+        "nothing": "No profile"
+      },
+      "mode_hint": {
+        "none_group": "The group does not limit its members' profiles.",
+        "none_user": "No own rule: groups decide (no rules, no limit).",
+        "all": "Grants every profile, even if other groups limit some.",
+        "some": "Grants only the profiles selected below.",
+        "nothing": "Grants no profile at all."
+      },
+      "no_profiles": "There are no profiles yet.",
+      "selected": "{{count}} profiles selected",
+      "summary": {
+        "no_rule": "no rule",
+        "all": "all profiles",
+        "nothing": "no profile",
+        "count": "{{count}} profiles"
+      }
+    },
+    "access": {
+      "title": "Access of {{name}}",
+      "loading": "Loading…",
+      "load_failed": "Could not load the user's access.",
+      "groups": "Groups",
+      "no_groups": "There are no groups. Create them from the Groups page.",
+      "direct_profiles": "Own profile rule",
+      "effective": "Profiles usable now",
+      "effective_unlimited": "All profiles (no rules).",
+      "effective_all": "All profiles.",
+      "effective_nothing": "No profile.",
+      "effective_hint": "Saved state: unsaved changes are not included.",
+      "source_user": "Own rule",
+      "source_group": "Group {{name}}",
+      "close": "Close",
+      "save": "Save",
+      "saving": "Saving…"
+    },
+    "delete": {
+      "title": "Delete the group?",
+      "body": "Members immediately lose the rules of group {{name}}.",
+      "confirm_label": "Type {{name}} to confirm",
+      "cancel": "Cancel",
+      "confirm": "Delete",
+      "deleting": "Deleting…"
+    },
+    "toast": {
+      "load_failed": "Loading failed: {{error}}",
+      "save_failed": "Saving failed: {{error}}",
+      "delete_failed": "Deleting failed: {{error}}",
+      "created": "Group created.",
+      "updated": "Group updated.",
+      "deleted": "Group deleted.",
+      "members_saved": "Members updated.",
+      "rules_saved": "Rules updated."
     }
   }
 }

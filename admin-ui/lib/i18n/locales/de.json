@@ -1270,6 +1270,7 @@
       "aria": "Benutzerbereiche",
       "accounts": "Konten",
       "signin": "Anmeldung",
+      "groups": "Gruppen",
       "migration": "Migration"
     },
     "cols": {
@@ -1305,7 +1306,8 @@
       "delete": "{{name}} löschen",
       "send_reset": "{{name}} einen Link zum Zurücksetzen des Passworts senden",
       "resend_invite": "Einladung an {{name}} erneut senden",
-      "issue_temp": "Temporäres Passwort für {{name}} erzeugen"
+      "issue_temp": "Temporäres Passwort für {{name}} erzeugen",
+      "access": "Zugriff von {{name}}"
     },
     "form": {
       "title_new": "Neuer Benutzer",
@@ -1414,7 +1416,8 @@
       "invite_failed": "Benutzer erstellt, aber die Einladung an {{email}} wurde nicht gesendet: {{error}}. Sie können sie in der Liste erneut senden.",
       "link_failed": "Link konnte nicht gesendet werden: {{error}}",
       "link_sent_reset": "Link zum Zurücksetzen an {{email}} gesendet.",
-      "link_sent_invite": "Einladung an {{email}} gesendet."
+      "link_sent_invite": "Einladung an {{email}} gesendet.",
+      "access_saved": "Zugriff aktualisiert."
     },
     "filter": {
       "aria": "Nach {{col}} filtern",
@@ -1632,7 +1635,8 @@
       "body": "Das aktuelle Passwort von {{name}} funktioniert sofort nicht mehr, und es wird ein temporäres Passwort zum Weitergeben erzeugt. Bei der ersten Anmeldung muss ein neues gewählt werden.",
       "cancel": "Abbrechen",
       "confirm": "Temporäres Passwort erzeugen"
-    }
+    },
+    "groups_aria": "Gruppen des Benutzers"
   },
   "admin_security": {
     "title": "Sicherheit",
@@ -3006,6 +3010,130 @@
       "key_create_failed": "Schlüssel konnte nicht erstellt werden: {{error}}",
       "key_revoked": "Schlüssel „{{name}}“ widerrufen",
       "key_revoke_failed": "Schlüssel konnte nicht widerrufen werden: {{error}}"
+    }
+  },
+  "admin_groups": {
+    "title": "Gruppen",
+    "subtitle": "Fasse Benutzer und Dienstkonten zusammen und lege fest, welche Profile sie nutzen dürfen. Wer in keiner Gruppe ist und keine eigenen Regeln hat, hat keine Einschränkungen.",
+    "add": "Neue Gruppe",
+    "loading": "Gruppen werden geladen…",
+    "error": "Die Gruppen konnten nicht geladen werden.",
+    "retry": "Erneut versuchen",
+    "search": "Gruppen suchen",
+    "count_one": "{{count}} Gruppe",
+    "count_other": "{{count}} Gruppen",
+    "count_filtered": "{{shown}} von {{total}}",
+    "members_count_one": "{{count}} Mitglied",
+    "members_count_other": "{{count}} Mitglieder",
+    "cols": {
+      "group": "Gruppe",
+      "members": "Mitglieder",
+      "actions": "Aktionen"
+    },
+    "row": {
+      "members": "Mitglieder von {{name}}",
+      "rules": "Zugriffsregeln von {{name}}",
+      "edit": "{{name}} bearbeiten",
+      "delete": "{{name}} löschen"
+    },
+    "empty": {
+      "title": "Keine Gruppen",
+      "body": "Gruppen geben mehreren Personen dieselben Regeln. Solange ein Benutzer in keiner Gruppe mit Regel ist (und keine eigene Regel hat), kann er alle Profile nutzen.",
+      "search": "Keine Gruppe entspricht der Suche.",
+      "clear_filters": "Suche löschen"
+    },
+    "form": {
+      "create_title": "Neue Gruppe",
+      "edit_title": "Gruppe bearbeiten",
+      "name": "Name",
+      "name_placeholder": "z. B. Vertriebsteam",
+      "slug": "Kennung",
+      "slug_hint": "Kleinbuchstaben, Ziffern, - und _. Wird von API und Logs verwendet.",
+      "slug_invalid": "Nur Kleinbuchstaben, Ziffern, - und _ (max. 64).",
+      "slug_taken": "Eine Gruppe mit dieser Kennung existiert bereits.",
+      "description": "Beschreibung",
+      "cancel": "Abbrechen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…"
+    },
+    "members": {
+      "title": "Mitglieder von {{name}}",
+      "body": "Die Regeln der Gruppe gelten für alle ausgewählten Konten.",
+      "search": "Benutzer suchen",
+      "service": "Dienstkonto",
+      "empty": "Kein Konto gefunden.",
+      "selected": "{{count}} ausgewählt",
+      "cancel": "Abbrechen",
+      "save": "Mitglieder speichern",
+      "saving": "Wird gespeichert…"
+    },
+    "rules": {
+      "title": "Zugriffsregeln von {{name}}",
+      "body": "Die Regeln addieren sich zu denen der anderen Gruppen des Benutzers und zu seinen eigenen Regeln. Eine Gruppe ohne Regel für einen Typ schränkt ihn nicht ein.",
+      "profiles": "Nutzbare Profile",
+      "cancel": "Abbrechen",
+      "save": "Regeln speichern",
+      "saving": "Wird gespeichert…"
+    },
+    "rule": {
+      "aria": "Regeltyp",
+      "mode": {
+        "none": "Keine Regel",
+        "all": "Alle Profile",
+        "some": "Nur einige Profile",
+        "nothing": "Kein Profil"
+      },
+      "mode_hint": {
+        "none_group": "Die Gruppe schränkt die Profile ihrer Mitglieder nicht ein.",
+        "none_user": "Keine eigene Regel: die Gruppen entscheiden (ohne Regeln keine Einschränkung).",
+        "all": "Erlaubt alle Profile, auch wenn andere Gruppen einige einschränken.",
+        "some": "Erlaubt nur die unten ausgewählten Profile.",
+        "nothing": "Erlaubt kein Profil."
+      },
+      "no_profiles": "Es gibt noch keine Profile.",
+      "selected": "{{count}} Profile ausgewählt",
+      "summary": {
+        "no_rule": "keine Regel",
+        "all": "alle Profile",
+        "nothing": "kein Profil",
+        "count": "{{count}} Profile"
+      }
+    },
+    "access": {
+      "title": "Zugriff von {{name}}",
+      "loading": "Wird geladen…",
+      "load_failed": "Der Zugriff des Benutzers konnte nicht geladen werden.",
+      "groups": "Gruppen",
+      "no_groups": "Es gibt keine Gruppen. Lege sie auf der Seite Gruppen an.",
+      "direct_profiles": "Eigene Profilregel",
+      "effective": "Jetzt nutzbare Profile",
+      "effective_unlimited": "Alle Profile (keine Regeln).",
+      "effective_all": "Alle Profile.",
+      "effective_nothing": "Kein Profil.",
+      "effective_hint": "Gespeicherter Stand: ungespeicherte Änderungen sind nicht enthalten.",
+      "source_user": "Eigene Regel",
+      "source_group": "Gruppe {{name}}",
+      "close": "Schließen",
+      "save": "Speichern",
+      "saving": "Wird gespeichert…"
+    },
+    "delete": {
+      "title": "Gruppe löschen?",
+      "body": "Die Mitglieder verlieren sofort die Regeln der Gruppe {{name}}.",
+      "confirm_label": "Gib {{name}} zur Bestätigung ein",
+      "cancel": "Abbrechen",
+      "confirm": "Löschen",
+      "deleting": "Wird gelöscht…"
+    },
+    "toast": {
+      "load_failed": "Laden fehlgeschlagen: {{error}}",
+      "save_failed": "Speichern fehlgeschlagen: {{error}}",
+      "delete_failed": "Löschen fehlgeschlagen: {{error}}",
+      "created": "Gruppe erstellt.",
+      "updated": "Gruppe aktualisiert.",
+      "deleted": "Gruppe gelöscht.",
+      "members_saved": "Mitglieder aktualisiert.",
+      "rules_saved": "Regeln aktualisiert."
     }
   }
 }

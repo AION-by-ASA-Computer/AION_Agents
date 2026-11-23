@@ -13,6 +13,7 @@ import {
   isChangePwSkipped,
 } from "@/lib/auth/storage";
 import { fetchAuthStatus, resetAuthStatusCache } from "@/lib/auth/status";
+import { canAccessAdmin, type AdminAccessInfo } from "@/lib/auth/permissions";
 import {
   initLocaleFromStorage,
   setLocale,
@@ -89,8 +90,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
           router.replace(next ? `/login?next=${next}` : "/login");
           return;
         }
-        const me = (await r.json()) as {
-          roles?: string[];
+        const me = (await r.json()) as AdminAccessInfo & {
           must_change_password?: boolean;
           password_change_required?: boolean;
           metadata?: { language?: string };
@@ -98,8 +98,8 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
         if (me.metadata?.language && isValidLocale(me.metadata.language)) {
           setLocale(me.metadata.language);
         }
-        const roles = Array.isArray(me.roles) ? me.roles : [];
-        if (!roles.includes("admin")) {
+        // Role or any admin-section permission (see lib/auth/permissions.ts).
+        if (!canAccessAdmin(me)) {
           setState("no_admin_role");
           return;
         }

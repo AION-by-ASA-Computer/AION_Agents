@@ -1270,6 +1270,7 @@
       "aria": "Sections utilisateurs",
       "accounts": "Comptes",
       "signin": "Connexion",
+      "groups": "Groupes",
       "migration": "Migration"
     },
     "cols": {
@@ -1305,7 +1306,8 @@
       "delete": "Supprimer {{name}}",
       "send_reset": "Envoyer à {{name}} un lien de réinitialisation",
       "resend_invite": "Renvoyer l'invitation à {{name}}",
-      "issue_temp": "Générer un mot de passe temporaire pour {{name}}"
+      "issue_temp": "Générer un mot de passe temporaire pour {{name}}",
+      "access": "Accès de {{name}}"
     },
     "form": {
       "title_new": "Nouvel utilisateur",
@@ -1414,7 +1416,8 @@
       "invite_failed": "Utilisateur créé, mais l'invitation à {{email}} n'est pas partie : {{error}}. Vous pouvez la renvoyer depuis la liste.",
       "link_failed": "Échec de l'envoi du lien : {{error}}",
       "link_sent_reset": "Lien de réinitialisation envoyé à {{email}}.",
-      "link_sent_invite": "Invitation envoyée à {{email}}."
+      "link_sent_invite": "Invitation envoyée à {{email}}.",
+      "access_saved": "Accès mis à jour."
     },
     "filter": {
       "aria": "Filtrer par {{col}}",
@@ -1632,7 +1635,8 @@
       "body": "Le mot de passe actuel de {{name}} cessera immédiatement de fonctionner et un mot de passe temporaire sera généré pour lui être transmis. À la première connexion, il devra en choisir un nouveau.",
       "cancel": "Annuler",
       "confirm": "Générer un mot de passe temporaire"
-    }
+    },
+    "groups_aria": "Groupes de l'utilisateur"
   },
   "admin_security": {
     "title": "Sécurité",
@@ -3006,6 +3010,130 @@
       "key_create_failed": "Impossible de créer la clé : {{error}}",
       "key_revoked": "Clé « {{name}} » révoquée",
       "key_revoke_failed": "Impossible de révoquer la clé : {{error}}"
+    }
+  },
+  "admin_groups": {
+    "title": "Groupes",
+    "subtitle": "Regroupez utilisateurs et comptes de service et choisissez les profils qu'ils peuvent utiliser. Qui n'est dans aucun groupe et n'a pas de règle propre n'a aucune limite.",
+    "add": "Nouveau groupe",
+    "loading": "Chargement des groupes…",
+    "error": "Impossible de charger les groupes.",
+    "retry": "Réessayer",
+    "search": "Rechercher des groupes",
+    "count_one": "{{count}} groupe",
+    "count_other": "{{count}} groupes",
+    "count_filtered": "{{shown}} sur {{total}}",
+    "members_count_one": "{{count}} membre",
+    "members_count_other": "{{count}} membres",
+    "cols": {
+      "group": "Groupe",
+      "members": "Membres",
+      "actions": "Actions"
+    },
+    "row": {
+      "members": "Membres de {{name}}",
+      "rules": "Règles d'accès de {{name}}",
+      "edit": "Modifier {{name}}",
+      "delete": "Supprimer {{name}}"
+    },
+    "empty": {
+      "title": "Aucun groupe",
+      "body": "Les groupes donnent les mêmes règles à plusieurs personnes. Tant qu'un utilisateur n'est pas dans un groupe avec une règle (ou n'a pas de règle propre), il peut utiliser tous les profils.",
+      "search": "Aucun groupe ne correspond à la recherche.",
+      "clear_filters": "Effacer la recherche"
+    },
+    "form": {
+      "create_title": "Nouveau groupe",
+      "edit_title": "Modifier le groupe",
+      "name": "Nom",
+      "name_placeholder": "Ex. Équipe commerciale",
+      "slug": "Identifiant",
+      "slug_hint": "Minuscules, chiffres, - et _. Utilisé par l'API et les journaux.",
+      "slug_invalid": "Utilisez uniquement des minuscules, chiffres, - et _ (64 max).",
+      "slug_taken": "Un groupe avec cet identifiant existe déjà.",
+      "description": "Description",
+      "cancel": "Annuler",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…"
+    },
+    "members": {
+      "title": "Membres de {{name}}",
+      "body": "Les règles du groupe s'appliquent à tous les comptes sélectionnés.",
+      "search": "Rechercher des utilisateurs",
+      "service": "Compte de service",
+      "empty": "Aucun compte trouvé.",
+      "selected": "{{count}} sélectionnés",
+      "cancel": "Annuler",
+      "save": "Enregistrer les membres",
+      "saving": "Enregistrement…"
+    },
+    "rules": {
+      "title": "Règles d'accès de {{name}}",
+      "body": "Les règles s'ajoutent à celles des autres groupes de l'utilisateur et à ses règles propres. Un groupe sans règle sur un type ne le limite pas.",
+      "profiles": "Profils utilisables",
+      "cancel": "Annuler",
+      "save": "Enregistrer les règles",
+      "saving": "Enregistrement…"
+    },
+    "rule": {
+      "aria": "Type de règle",
+      "mode": {
+        "none": "Aucune règle",
+        "all": "Tous les profils",
+        "some": "Seulement certains profils",
+        "nothing": "Aucun profil"
+      },
+      "mode_hint": {
+        "none_group": "Le groupe ne limite pas les profils de ses membres.",
+        "none_user": "Pas de règle propre : les groupes décident (sans règles, aucune limite).",
+        "all": "Accorde tous les profils, même si d'autres groupes en limitent certains.",
+        "some": "Accorde seulement les profils sélectionnés ci-dessous.",
+        "nothing": "N'accorde aucun profil."
+      },
+      "no_profiles": "Il n'y a pas encore de profils.",
+      "selected": "{{count}} profils sélectionnés",
+      "summary": {
+        "no_rule": "aucune règle",
+        "all": "tous les profils",
+        "nothing": "aucun profil",
+        "count": "{{count}} profils"
+      }
+    },
+    "access": {
+      "title": "Accès de {{name}}",
+      "loading": "Chargement…",
+      "load_failed": "Impossible de charger les accès de l'utilisateur.",
+      "groups": "Groupes",
+      "no_groups": "Il n'y a pas de groupes. Créez-les depuis la page Groupes.",
+      "direct_profiles": "Règle propre sur les profils",
+      "effective": "Profils utilisables maintenant",
+      "effective_unlimited": "Tous les profils (aucune règle).",
+      "effective_all": "Tous les profils.",
+      "effective_nothing": "Aucun profil.",
+      "effective_hint": "État enregistré : les modifications non enregistrées ne sont pas incluses.",
+      "source_user": "Règle propre",
+      "source_group": "Groupe {{name}}",
+      "close": "Fermer",
+      "save": "Enregistrer",
+      "saving": "Enregistrement…"
+    },
+    "delete": {
+      "title": "Supprimer le groupe ?",
+      "body": "Les membres perdent immédiatement les règles du groupe {{name}}.",
+      "confirm_label": "Saisissez {{name}} pour confirmer",
+      "cancel": "Annuler",
+      "confirm": "Supprimer",
+      "deleting": "Suppression…"
+    },
+    "toast": {
+      "load_failed": "Échec du chargement : {{error}}",
+      "save_failed": "Échec de l'enregistrement : {{error}}",
+      "delete_failed": "Échec de la suppression : {{error}}",
+      "created": "Groupe créé.",
+      "updated": "Groupe mis à jour.",
+      "deleted": "Groupe supprimé.",
+      "members_saved": "Membres mis à jour.",
+      "rules_saved": "Règles mises à jour."
     }
   }
 }

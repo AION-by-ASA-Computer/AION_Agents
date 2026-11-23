@@ -577,6 +577,7 @@ from .admin_auth_mode import router as admin_auth_mode_router
 from .admin_smtp import router as admin_smtp_router
 from .admin_update import router as admin_update_router
 from .admin_smb import router as admin_smb_router
+from .admin_groups import router as admin_groups_router
 from .auth_password_setup import router as auth_password_setup_router
 from .chat_ui import router as chat_ui_router
 from .chat_folders import router as chat_folders_router
@@ -589,6 +590,8 @@ app.include_router(admin_auth_mode_router)
 app.include_router(admin_smtp_router)
 app.include_router(admin_update_router)
 app.include_router(admin_smb_router)
+# User groups + access rules (/admin/groups*, /admin/users/{id}/rules|groups|effective-access).
+app.include_router(admin_groups_router)
 app.include_router(auth_password_setup_router)
 app.include_router(chat_ui_router)
 # Sidebar folders (/chat-ui/folders*, PUT /chat-ui/conversations/{id}/folder).
@@ -622,26 +625,19 @@ async def chat_stop_compat(
 
 
 async def get_allowed_profiles_for_user(user_id: Optional[str]) -> List[dict]:
+    """Profiles the user (``users.id``) may use, for profile pickers.
+
+    Delegates to ``src.access`` so listing and enforcement never diverge.
+    Also used by ``/v1/models`` (``openai_compat``).
+    """
+    from src.access.policy import filter_profiles
+    from src.access.principal import load_principal
     from src.agent_profile import profile_manager
-    from src.data.engine import get_async_session_maker
-    from src.data.models import UserProfileAccess
-    from sqlalchemy import select
 
     all_profiles = profile_manager.list_profiles()
     if not user_id or user_id == "default":
         return all_profiles
-
-    async with get_async_session_maker()() as session:
-        q = select(UserProfileAccess.profile_slug).where(
-            UserProfileAccess.user_id == user_id
-        )
-        res = await session.execute(q)
-        allowed_slugs = [r[0] for r in res.all()]
-
-    if not allowed_slugs:
-        return all_profiles
-
-    return [p for p in all_profiles if p.get("slug") in allowed_slugs]
+    return filter_profiles(await load_principal(user_id), all_profiles)
 
 
 @app.get("/profiles", response_model=List[ProfileSummary])

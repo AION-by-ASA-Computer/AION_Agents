@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { AuthGate } from "@/components/auth/AuthGate";
+import { CurrentUserProvider } from "@/lib/auth/current-user";
 import { LanguageSync } from "@/components/i18n/LanguageSync";
 import { FontSizeSync } from "@/components/theme/FontSizeSync";
 const inter = Inter({
@@ -95,7 +96,9 @@ export default function RootLayout({
       <body className="min-h-screen">
         <LanguageSync />
         <FontSizeSync />
-        <AuthGate>{children}</AuthGate>
+        <AuthGate>
+          <CurrentUserProvider>{children}</CurrentUserProvider>
+        </AuthGate>
       </body>
     </html>
   );

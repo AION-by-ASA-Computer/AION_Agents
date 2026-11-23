@@ -20,7 +20,10 @@ import { linkErrorText } from "@/components/sso/setupLinks";
 import { MigrationUsers } from "@/components/sso/MigrationUsers";
 import { TempPasswordsDialog, type TempPassword } from "@/components/sso/TempPasswordsDialog";
 import { TwoFactorPanel } from "@/components/sso/TwoFactorPanel";
-import { ProfilesDialog, type ProfileRow } from "@/components/users/ProfilesDialog";
+import { type ProfileRow } from "@/components/users/ProfilesDialog";
+import { UserAccessDialog } from "@/components/groups/UserAccessDialog";
+import { GroupsPanel } from "@/components/groups/GroupsPanel";
+import type { Group } from "@/components/groups/shared";
 
 const k = "admin_users";
 const GRIDS: Record<string, string> = {
@@ -34,7 +37,7 @@ type Filters = { user: string; email: string; access: string; migration: string;
 const NO_FILTERS: Filters = { user: "", email: "", access: "", migration: "", twofa: "" };
 const METHODS = ["password", "microsoft", "google"] as const;
 
-type Tab = "accounts" | "signin" | "migration";
+type Tab = "accounts" | "signin" | "groups" | "migration";
 type ListState = "loading" | "ready" | "error";
 
 interface UserRow {
@@ -50,6 +53,8 @@ interface UserRow {
   sso_migration_exempt?: boolean;
   migration_pending?: boolean;
   roles?: string[];
+  /** Groups the user belongs to (access control), in membership order. */
+  groups?: { id: string; name: string }[];
   can_create_api_keys?: boolean;
   max_api_keys?: number;
   api_key_max_ttl_days?: number;
@@ -561,7 +566,9 @@ export default function UsersPage() {
   const [tempResetUser, setTempResetUser] = useState<UserRow | null>(null);
   const [deleteUser, setDeleteUser] = useState<UserRow | null>(null);
   const [resetUser, setResetUser] = useState<UserRow | null>(null);
-  const [profileUser, setProfileUser] = useState<{ user: UserRow; initial: string[] } | null>(null);
+  // User whose groups / profile rule are being edited ("Access" dialog).
+  const [accessUser, setAccessUser] = useState<UserRow | null>(null);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
 
   const fail = useCallback((key: string, err: unknown) => setToast({ message: t(`${k}.toast.${key}`, { error: err instanceof Error ? err.message : String(err) }), variant: "error" }), [t]);
 
@@ -579,9 +586,19 @@ export default function UsersPage() {
     }
   }, [fail]);
 
+  // Groups feed the "Access" dialog; reloaded when the Groups tab changes them.
+  // A failure just leaves the list empty (the Groups tab shows its own error).
+  const loadGroups = useCallback(() => {
+    apiFetch(`${apiBase()}/admin/groups`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => setAllGroups(data.items || []))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     void loadUsers();
+    loadGroups();
     apiFetch(`${apiBase()}/admin/profiles`)
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data) => setAllProfiles(data || []))
@@ -590,7 +607,7 @@ export default function UsersPage() {
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data) => setSmtpConfigured(!!data.configured))
       .catch(() => {});
-  }, [loadUsers]);
+  }, [loadUsers, loadGroups]);
 
   const plural = (n: number) => t(`${k}.count_${new Intl.PluralRules(getLocale()).select(n) === "one" ? "one" : "other"}`, { count: n });
 
@@ -770,39 +787,10 @@ export default function UsersPage() {
     }
   };
 
-  const openProfiles = async (user: UserRow) => {
-    try {
-      const res = await apiFetch(`${apiBase()}/admin/users/${user.id}/profiles`);
-      if (!res.ok) throw new Error(await errorDetail(res, String(res.status)));
-      const data = await res.json();
-      setProfileUser({ user, initial: data.allowed_profiles || [] });
-    } catch (err) {
-      fail("profiles_load_failed", err);
-    }
-  };
-
-  const saveProfiles = async (slugs: string[]) => {
-    if (!profileUser) return;
-    setSaving(true);
-    try {
-      const res = await apiFetch(`${apiBase()}/admin/users/${profileUser.user.id}/profiles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allowed_profiles: slugs }),
-      });
-      if (!res.ok) throw new Error(await errorDetail(res, String(res.status)));
-      setProfileUser(null);
-      setToast({ message: t(`${k}.toast.profiles_saved`), variant: "success" });
-    } catch (err) {
-      fail("save_failed", err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const tabs: { id: Tab; label: string; count?: number; alert?: boolean }[] = [
     { id: "accounts", label: t(`${k}.tabs.accounts`), count: listState === "ready" ? users.length : undefined },
     { id: "signin", label: t(`${k}.tabs.signin`) },
+    { id: "groups", label: t(`${k}.tabs.groups`), count: allGroups.length || undefined },
     ...(showMigration
       ? [{ id: "migration" as const, label: t(`${k}.tabs.migration`), count: listState === "ready" ? users.filter((u) => migrationOf(u) === "pending").length : undefined, alert: true }]
       : []),
@@ -991,11 +979,20 @@ export default function UsersPage() {
                                     )}
                                   </div>
                                   {u.display_name && <div className="truncate font-mono text-xs text-muted-foreground">{u.identifier}</div>}
+                                  {!!u.groups?.length && (
+                                    <div className="mt-1 flex flex-wrap gap-1" aria-label={t(`${k}.groups_aria`)}>
+                                      {u.groups.map((g) => (
+                                        <span key={g.id} className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                          {g.name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
                               <div className="flex items-center justify-end gap-0.5 md:order-last">
-                                <IconAction label={t(`${k}.row.profiles`, { name })} onClick={() => void openProfiles(u)}>
+                                <IconAction label={t(`${k}.row.access`, { name })} onClick={() => setAccessUser(u)}>
                                   <UserCog className="h-4 w-4" aria-hidden />
                                 </IconAction>
                                 {u.totp_enabled && (
@@ -1085,6 +1082,17 @@ export default function UsersPage() {
           </section>
         )}
 
+        {/* Groups and their access rules; changes refresh the group chips and the "Access" dialog. */}
+        {tab === "groups" && (
+          <GroupsPanel
+            onToast={setToast}
+            onChanged={() => {
+              loadGroups();
+              void loadUsers();
+            }}
+          />
+        )}
+
         {tab === "signin" && (
           <div className="flex flex-col gap-10">
             <section aria-labelledby="users-sso" className="flex flex-col gap-4">
@@ -1131,15 +1139,19 @@ export default function UsersPage() {
         />
       )}
 
-      {profileUser && (
-        <ProfilesDialog
-          name={nameOf(profileUser.user)}
+      {accessUser && (
+        <UserAccessDialog
+          userId={accessUser.id}
+          userName={nameOf(accessUser)}
+          groups={allGroups}
           profiles={allProfiles}
-          initial={profileUser.initial}
-          busy={saving}
           t={t}
-          onSave={saveProfiles}
-          onClose={() => !saving && setProfileUser(null)}
+          onSaved={() => {
+            setToast({ message: t(`${k}.toast.access_saved`), variant: "success" });
+            void loadUsers();
+          }}
+          onError={(message) => fail("save_failed", new Error(message))}
+          onClose={() => setAccessUser(null)}
         />
       )}
 
