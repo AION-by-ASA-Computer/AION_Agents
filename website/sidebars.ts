@@ -55,6 +55,7 @@ const sidebars: SidebarsConfig = {
         'api-and-runtime/rest-api',
         'api-and-runtime/mcp-integrations-api',
         'api-and-runtime/agent-pipeline',
+        'agents/subagents',
         'api-and-runtime/session-charts',
       ],
     },

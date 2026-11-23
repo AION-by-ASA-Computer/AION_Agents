@@ -936,6 +936,22 @@ async def _realign_session_profile(
     )
 
 
+async def evict_session_agents(session_id: str) -> int:
+    """Drop every cached agent built for ``session_id`` (all profiles/users).
+
+    Used by the sub-agent runner (``src.runtime.subagent_orchestrator``) once a
+    child conversation's single turn ends: those agents will never be reused,
+    and keeping them would only push live sessions out of the LRU. Returns the
+    number of evicted entries.
+    """
+    prefix = f"{session_id}\0"
+    async with _AGENT_CACHE_LOCK:
+        stale = [key for key in _AGENT_CACHE if key.startswith(prefix)]
+        for key in stale:
+            _AGENT_CACHE.pop(key, None)
+    return len(stale)
+
+
 def clear_agent_cache() -> None:
     """Drop cached agents (e.g. after LLM provider or token limit changes)."""
     _AGENT_CACHE.clear()
@@ -1007,12 +1023,17 @@ async def build_all_tools(
     user_id: str = "default",
     timings: Optional[Dict[str, Any]] = None,
     agent_mode: Optional[str] = None,
+    llm_provider_name: Optional[str] = None,
 ):
-    """Build tools: delegation legacy, tool nativi da registry, poi MCP.
+    """Build tools: sub-agent delegation, tool nativi da registry, poi MCP.
 
     ``agent_mode`` is the resolved agent mode of the agent being built; it only
     affects the Deep Research tools, which Deep Research mode adds for every
     profile (``merge_builtin_deep_research_tools``).
+
+    ``llm_provider_name`` is the LLM provider of the chat building this agent;
+    it is handed to ``delegate_to_agent`` so sub-agents run on the same
+    provider as the parent instead of the env default.
     """
     from .runtime.orchestration_tools import (
         ORCHESTRATION_BUILTIN_SERVER,
@@ -1026,10 +1047,29 @@ async def build_all_tools(
     from src.runtime.tool_exposure import resident_mcp_servers
 
     resident_slugs = set(resident_mcp_servers(profile.mcp_servers or []))
-    if "aion_subagents" in resident_slugs:
-        from .runtime.subagent_tools import get_delegation_tool
 
-        all_tools.append(get_delegation_tool(session_id, user_id))
+    # Claude-style sub-agents: profiles with a ``subagents`` allowlist get the
+    # native ``delegate_to_agent`` tool. Child sessions (``sub_*``) never get
+    # it, which enforces delegation depth 1. See docs/agents/subagents.md.
+    from .runtime.subagent_orchestrator import is_subagent_session
+
+    if getattr(profile, "subagents", None) and not is_subagent_session(session_id):
+        try:
+            from .runtime.native_tools.factory_table import (
+                build_delegate_to_agent_tool,
+            )
+
+            all_tools.append(
+                build_delegate_to_agent_tool(
+                    session_id,
+                    user_id,
+                    profile,
+                    llm_provider_name=llm_provider_name,
+                )
+            )
+        except ValueError as e:
+            # No existing sub-agent profile left in the allowlist.
+            logger.info("delegate_to_agent not built for %s: %s", profile.slug, e)
 
     from .runtime.native_tools import load_native_tools
 
@@ -1232,8 +1272,14 @@ async def get_agent(
         + nt_groups
         + "|ntr:"
         + native_registry_content_hash()
+        # Sub-agent allowlist: the delegate_to_agent tool schema (enum +
+        # catalog) depends on it, so an edit must rebuild the agent.
+        + "|sub:"
+        + ",".join(getattr(profile, "subagents", None) or [])
     )
-    skills_hash = _skills_content_hash(profile.skills or [])
+    # Resolved list (globs + runtime system skills such as ``delegation``), so an
+    # edit to any skill body the prompt actually inlines rebuilds the agent.
+    skills_hash = _skills_content_hash(profile.resolved_skills())
     skill_prompt_mode = os.getenv("AION_SKILL_SYSTEM_PROMPT_MODE", "index").lower()
     critical_sig = ",".join(sorted(profile._resolved_critical_skill_names()))
 
@@ -1371,6 +1417,7 @@ async def _finish_get_agent_build(
         user_id=user_id,
         timings=build_timings,
         agent_mode=resolved_agent_mode,
+        llm_provider_name=llm_provider_name,
     )
 
     # 5. Plan Mode: rimuovi fisicamente i tool mutanti dalla lista passata al LLM.

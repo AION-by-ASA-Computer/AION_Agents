@@ -960,6 +960,44 @@
       },
       "rows": "{{count}} lignes",
       "aria": "Graphique : {{title}}"
+    },
+    "subagent": {
+      "label": "Sous-agent",
+      "unknown_agent": "profil",
+      "starting": "Démarrage du sous-agent…",
+      "running_step": "Exécution de {{name}}…",
+      "steps": "{{count}} étapes",
+      "activity": "Activité",
+      "earlier_steps": "…et {{count}} étapes précédentes",
+      "result": "Résultat",
+      "files": "Fichiers produits",
+      "open_transcript": "Ouvrir la transcription",
+      "show_brief": "Afficher les instructions envoyées",
+      "hide_brief": "Masquer les instructions",
+      "transcript_aria": "Origine du sous-agent",
+      "back_to_parent": "Retour à « {{title}} »",
+      "read_only_banner": "Transcription du sous-agent {{profile}} (lecture seule)",
+      "status": {
+        "running": "En cours",
+        "done": "Terminé",
+        "error": "Erreur",
+        "denied": "Non autorisé",
+        "timeout": "Délai dépassé",
+        "cancelled": "Interrompu"
+      },
+      "panel": {
+        "tab": "Sous-agent",
+        "aria": "Transcription du sous-agent : {{name}}",
+        "open_full": "Ouvrir en pleine page",
+        "brief": "Instructions de l'agent principal",
+        "brief_more": "Tout afficher",
+        "brief_less": "Afficher moins",
+        "loading": "Chargement de la transcription…",
+        "working": "En cours…",
+        "empty": "Aucune réponse enregistrée pour cette exécution.",
+        "error": "Impossible de charger la transcription : {{msg}}",
+        "read_only": "Lecture seule · rédigée par l'agent principal"
+      }
     }
   },
   "login": {

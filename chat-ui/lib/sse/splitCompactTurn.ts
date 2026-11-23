@@ -21,7 +21,17 @@ function hasLaterToolWork(segments: TurnSegment[], index: number): boolean {
   return false;
 }
 
+/**
+ * A `delegate_to_agent` call renders as a SubagentCard: it is never folded into
+ * the compact activity trail, because the user may want to follow it or open
+ * the child transcript.
+ */
+export function isSubagentToolSegment(seg: TurnSegment): boolean {
+  return seg.kind === "tool" && (Boolean(seg.subagent) || seg.name === "delegate_to_agent");
+}
+
 export function isProcessWorkSegment(seg: TurnSegment): boolean {
+  if (isSubagentToolSegment(seg)) return false;
   return (
     seg.kind === "reasoning" ||
     seg.kind === "tool" ||

@@ -187,6 +187,14 @@ class Conversation(Base):
     )
     fork_seq: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # Sub-agent run: set on the isolated child conversation created by the
+    # ``delegate_to_agent`` tool and pointing at the conversation that spawned it.
+    # Such rows are hidden from the sidebar and read-only (migration s9b1a2g039,
+    # docs/agents/subagents.md). Distinct from parent_conversation_id (side threads).
+    spawned_by_conversation_id: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True, index=True
+    )
+
     messages: Mapped[list["Message"]] = relationship(
         back_populates="conversation", cascade="all, delete-orphan"
     )

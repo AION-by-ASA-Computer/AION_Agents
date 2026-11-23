@@ -17,8 +17,8 @@ AION Agents exposes an HTTP API (FastAPI) that for each user message executes th
    - If enabled, extracts long-term memory (**LTM**) using the integration with **MemPalace v3**.
    - Applies short-term memory (**STM**) context compression if the context window exceeds the established token threshold (`AION_CONTEXT_COMPRESS_ENABLED=1`), with optional database persistence (`AION_CONTEXT_COMPRESS_PERSIST=1`). See **[Context Compaction](../memory/context-compaction.md)** for the full two-level architecture (pre-turn and mid-turn).
 
-> [!WARNING]
-> The delegation and execution module of **Sub-agents** (`SubagentOrchestrator` / `delegate_task` / `delegate_to_subagent`) is currently **under active development and not working** in this version of the codebase. It must not be configured or used in production environments.
+> [!NOTE]
+> The chat agent can delegate a self-contained task to another profile with the native `delegate_to_agent` tool (allowlist `subagents` on the parent profile, depth 1, hidden read-only child conversation). See **[Sub-agents](../agents/subagents.md)**.
 
 ```mermaid
 flowchart TB
@@ -38,7 +38,7 @@ flowchart TB
     subgraph Core["Core runtime"]
         HOOKS[HookRegistry]
         PIPE[AgentPipeline]
-        SUBAG["SubagentOrchestrator (Under Development)"]
+        SUBAG["Sub-agent runner (delegate_to_agent)"]
         PLAN[PlanModeController / PlanEngine]
         SLASH[SlashCommandRouter]
     end

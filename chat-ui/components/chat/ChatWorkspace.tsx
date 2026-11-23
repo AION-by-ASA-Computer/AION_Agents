@@ -149,6 +149,9 @@ import {
 } from "@/lib/memory/profile-capabilities";
 import { WebSourcesBar } from "@/components/chat/WebResearchViews";
 import { SideThreadPanel, type SideThreadTarget } from "@/components/dock/SideThreadPanel";
+import { SubagentPanel } from "@/components/dock/SubagentPanel";
+import { SubagentPanelContext, type SubagentPanelApi } from "@/lib/subagent/panel-context";
+import type { SubagentInfo } from "@/lib/sse/types";
 import { SelectionThreadPopover } from "@/components/chat/side-thread/SelectionThreadPopover";
 import { useSideThreadChat } from "@/lib/side-thread/use-side-thread-chat";
 import { useSideThreadHighlights } from "@/lib/side-thread/use-side-thread-highlights";
@@ -947,8 +950,24 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
     parentTitle: string | null;
     quote: string;
   } | null>(null);
+  /**
+   * Set when this conversation is a sub-agent transcript (spawned by the
+   * parent's `delegate_to_agent` tool). The backend refuses writes to it
+   * (409 subagent_conversation_read_only), so the composer is hidden and a
+   * banner links back to the parent chat. See docs/agents/subagents.md.
+   */
+  const [subagentOrigin, setSubagentOrigin] = useState<{
+    parentId: string;
+    parentTitle: string | null;
+    profile: string | null;
+  } | null>(null);
   const [sideThreads, setSideThreads] = useState<SideThreadSummary[]>([]);
   const [sideThreadTarget, setSideThreadTarget] = useState<SideThreadTarget | null>(null);
+  /**
+   * Sub-agent run whose read-only transcript is shown in the dock ("subagent"
+   * tab). Opened from a SubagentCard; the card keeps it live via `sync`.
+   */
+  const [subagentPanelInfo, setSubagentPanelInfo] = useState<SubagentInfo | null>(null);
   const [sideThreadFocusKey, setSideThreadFocusKey] = useState(0);
   const [mcpPending, setMcpPending] = useState<
     Array<{ server_slug: string; display_name: string; reason: string; message: string; integration?: Record<string, unknown> }>
@@ -3065,6 +3084,7 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
     setSqlQueryProject(readStoredSqlProject());
     setConversationTitle(null);
     setThreadOrigin(null);
+    setSubagentOrigin(null);
 
     // 1. Carica prima i valori di fallback locali (localStorage)
     const storedThinking = localStorage.getItem("aion_last_thinking_enabled");
@@ -3100,6 +3120,13 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
           }
           if (details.title) {
             setConversationTitle(details.title);
+          }
+          if (details.spawned_by_conversation_id) {
+            setSubagentOrigin({
+              parentId: String(details.spawned_by_conversation_id),
+              parentTitle: details.spawned_by_title ?? null,
+              profile: details.metadata?.profile ?? details.profile_slug ?? null,
+            });
           }
           if (details.parent_conversation_id) {
             setThreadOrigin({
@@ -3722,7 +3749,8 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
     setSideThreadsFor(conversationId);
     setSideThreads([]);
     setSideThreadTarget(null);
-    if (dockTab === "thread") setDockTab("none");
+    setSubagentPanelInfo(null);
+    if (dockTab === "thread" || dockTab === "subagent") setDockTab("none");
   }
 
   useEffect(() => {
@@ -3785,7 +3813,7 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
 
   const { selection: textSelection, dismiss: dismissTextSelection } = useTextSelectionAnchor(
     messagesContainerEl,
-    !threadOrigin && chatView.kind === "main",
+    !threadOrigin && !subagentOrigin && chatView.kind === "main",
   );
 
   const openSideThreadFromSelection = useCallback(
@@ -3820,6 +3848,23 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
     return map;
   }, [sideThreads]);
 
+  // ── Sub-agent transcripts in the dock (bridge for SubagentCard) ──
+  const subagentPanelApi = useMemo<SubagentPanelApi>(
+    () => ({
+      activeId: dockTab === "subagent" ? (subagentPanelInfo?.conversationId ?? null) : null,
+      open: (info) => {
+        setSubagentPanelInfo(info);
+        setDockTab("subagent");
+      },
+      // Only the run shown in the panel is updated; other cards' pushes are ignored.
+      sync: (info) =>
+        setSubagentPanelInfo((prev) =>
+          prev && prev.conversationId === info.conversationId ? info : prev,
+        ),
+    }),
+    [dockTab, subagentPanelInfo?.conversationId],
+  );
+
   const sideThreadPassageMissing =
     sideThreadTarget?.kind === "thread" && missingSideThreads.has(sideThreadTarget.thread.id);
 
@@ -3832,8 +3877,9 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
     if (showProjectMemory) list.push("memory");
     if (pdfUrl || khubLoading || khubError) list.push("khub_file");
     if (sideThreadTarget) list.push("thread");
+    if (subagentPanelInfo) list.push("subagent");
     return list;
-  }, [pdfUrl, khubLoading, khubError, showProjectMemory, sideThreadTarget]);
+  }, [pdfUrl, khubLoading, khubError, showProjectMemory, sideThreadTarget, subagentPanelInfo]);
 
   const planLiveMarkdown = useMemo(() => {
     if (!turnVisual) return "";
@@ -3871,6 +3917,7 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
       memory: <Database size={13} className="shrink-0" />,
       khub_file: <FileText size={13} className="shrink-0" />,
       thread: <MessageSquareQuote size={13} className="shrink-0" />,
+      subagent: <Bot size={13} className="shrink-0" />,
     };
 
     return (
@@ -3887,20 +3934,37 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
               activeColorClass = "bg-rose-500/15 text-rose-600 dark:text-rose-400 shadow-2xs ring-1 ring-rose-500/30";
             }
 
+            const label =
+              tab === "thread"
+                ? t("sideThread.tab")
+                : tab === "subagent"
+                  ? t("chat.subagent.panel.tab")
+                  : t(`${tab}.title`);
+
+            // Each tab is its own size container (`@container`): tabs share the bar
+            // equally (flex-1), so when the dock is too narrow for "icon + label"
+            // they all collapse to icon-only together instead of truncating to
+            // unreadable stubs. The label stays available as tooltip + accessible name.
             return (
               <button
                 key={tab}
                 type="button"
                 className={cn(
-                  "focus-ring relative flex flex-1 min-w-0 items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-semibold transition-all duration-200 truncate",
+                  "@container focus-ring relative flex flex-1 min-w-8 items-center justify-center gap-1.5 rounded-xl px-2 py-1.5 text-xs font-semibold transition-all duration-200",
                   isActive
                     ? activeColorClass
                     : "text-muted-foreground hover:bg-muted/50 hover:text-foreground"
                 )}
                 onClick={() => setDockTab(tab)}
+                title={label}
+                aria-label={label}
+                aria-pressed={isActive}
               >
                 {tabIcons[tab]}
-                <span className="truncate">{tab === "thread" ? t("sideThread.tab") : t(`${tab}.title`)}</span>
+                {/* 5.5rem ≈ icon + gap + a ~9-char label ("Sub-agent", "Research") at text-xs. */}
+                <span className="hidden truncate @min-[5.5rem]:inline" aria-hidden>
+                  {label}
+                </span>
               </button>
             );
           })}
@@ -3921,6 +3985,17 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
 
   const dockBody = (
     <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+      {subagentPanelInfo?.conversationId && dockTab === "subagent" ? (
+        <SubagentPanel
+          key={subagentPanelInfo.conversationId}
+          info={subagentPanelInfo}
+          userId={userId}
+          token={token}
+          toolsView={toolsView}
+          renderMarkdownLink={renderMarkdownLink}
+          formatTextWithCitations={formatTextWithCitations}
+        />
+      ) : null}
       {sideThreadTarget && dockTab === "thread" ? (
         <SideThreadPanel
           key={sideThreadTarget.kind === "thread" ? sideThreadTarget.thread.id : `draft:${sideThreadFocusKey}`}
@@ -5477,7 +5552,8 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
   };
 
   return (
-    <>
+    // Lets SubagentCards in the chat pane open their transcript in the dock.
+    <SubagentPanelContext.Provider value={subagentPanelApi}>
       <ChatDragDrop onFilesDropped={handleFilesDropped}>
         <div
           id="chat-pane"
@@ -5506,7 +5582,7 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
                   userDisplayName={currentUserDisplayName || userId}
                 />
                 <div className="w-full">
-                  {renderComposer()}
+                  {subagentOrigin ? null : renderComposer()}
                 </div>
               </div>
             </div>
@@ -5520,6 +5596,32 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
               >
                 {/* aion-chat-column: inline-size container used to center inline charts on the chat column (globals.css) */}
                 <div className="aion-chat-column mx-auto w-full max-w-3xl flex flex-col">
+                  {subagentOrigin ? (
+                    <nav
+                      aria-label={t("chat.subagent.transcript_aria")}
+                      className="mb-6 flex flex-col gap-1.5 border-b border-border/60 pb-4"
+                    >
+                      <Link
+                        href={`/c/${subagentOrigin.parentId}`}
+                        className="focus-ring inline-flex w-fit max-w-full items-center gap-1.5 rounded-md text-[13px] text-muted-foreground transition-colors hover:text-foreground"
+                      >
+                        <CornerUpLeft className="size-3.5 shrink-0" aria-hidden />
+                        <span className="truncate">
+                          {t("chat.subagent.back_to_parent", {
+                            title: subagentOrigin.parentTitle || t("sideThread.breadcrumb.untitled"),
+                          })}
+                        </span>
+                      </Link>
+                      <p className="flex items-center gap-2 text-[13px] text-foreground/80">
+                        <Bot className="size-3.5 shrink-0 text-primary/80" aria-hidden />
+                        <span>
+                          {t("chat.subagent.read_only_banner", {
+                            profile: subagentOrigin.profile || "",
+                          })}
+                        </span>
+                      </p>
+                    </nav>
+                  ) : null}
                   {threadOrigin ? (
                     <nav
                       aria-label={t("sideThread.breadcrumb.aria")}
@@ -6072,7 +6174,8 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
                       <ShimmerText>{t("chat.session_preparing")}</ShimmerText>
                     </div>
                   ) : null}
-                  {renderComposer()}
+                  {/* Sub-agent transcripts are read-only: no composer. */}
+                  {subagentOrigin ? null : renderComposer()}
                 </div>
               </div>
             </div>
@@ -6352,7 +6455,7 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
       {textSelection ? (
         <SelectionThreadPopover selection={textSelection} onOpen={openSideThreadFromSelection} />
       ) : null}
-    </>
+    </SubagentPanelContext.Provider>
   );
 }
 

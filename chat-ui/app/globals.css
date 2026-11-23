@@ -369,6 +369,38 @@ html[data-theme="light"] .agent-shimmer-text {
   }
 }
 
+/*
+ * Sub-agent card (components/chat/SubagentCard.tsx).
+ * `.subagent-orbit`: thin brand arc circling the avatar while the delegated run
+ * is live — the card's only running cue. Under reduced motion it stays as a
+ * static partial ring so the "live" state is still distinguishable.
+ * `.subagent-reveal`: short settle-in for the details panel and the brief.
+ */
+.subagent-orbit {
+  border: 1.5px solid transparent;
+  border-top-color: hsl(var(--primary) / 0.85);
+  border-right-color: hsl(var(--primary) / 0.25);
+}
+@keyframes subagent-orbit {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@keyframes subagent-reveal {
+  from {
+    opacity: 0.001;
+    transform: translateY(-3px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .subagent-orbit {
+    animation: subagent-orbit 1.4s linear infinite;
+  }
+  .subagent-reveal {
+    animation: subagent-reveal 200ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+}
+
 /* Auth screens (login, 2FA, change-password, SSO): one entrance, from an already-visible state. */
 @keyframes auth-enter {
   from {

@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} skills",
       "meta_tools_one": "{{count}} outil",
       "meta_tools_other": "{{count}} outils",
+      "meta_subagents_one": "{{count}} sous-agent",
+      "meta_subagents_other": "{{count}} sous-agents",
       "back": "Tous les profils"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Instructions",
       "tab_skills": "Skills",
       "tab_tools": "Outils",
+      "tab_subagents": "Sous-agents",
       "instructions_placeholder": "Tu es un assistant expert qui…",
       "save": "Enregistrer",
       "saving": "Enregistrement…",
@@ -340,6 +343,17 @@
       "filter_aria": "Filtrer les outils",
       "filter_all": "Tous",
       "filter_attached": "Associés"
+    },
+    "subagents": {
+      "title": "Sous-agents",
+      "hint": "L'agent peut déléguer une tâche autonome à ces profils avec l'outil delegate_to_agent. Chaque sous-agent travaille dans sa propre conversation en lecture seule et ne peut pas déléguer à son tour. Les utilisateurs n'accèdent qu'aux profils qui leur sont autorisés.",
+      "no_description": "Aucune description : ajoutez-en une, l'agent s'en sert pour choisir à qui déléguer.",
+      "missing": "Introuvable",
+      "missing_hint": "Ce profil n'existe plus : retirez-le avant d'enregistrer.",
+      "search": "Rechercher des profils",
+      "filter_aria": "Filtrer les sous-agents",
+      "none": "Aucun profil ne correspond à la recherche.",
+      "no_profiles": "Il n'y a pas encore d'autres profils : créez-en un pour l'utiliser comme sous-agent."
     },
     "wizard": {
       "title": "Créer un profil avec l’IA",

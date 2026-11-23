@@ -204,11 +204,7 @@ async def list_runtime_mcp_errors(
     user_id = _credential_user_id(auth)
     sid = (session_id or "").strip() or f"health-{user_id}"
     prof = profile_manager.get_profile(profile.strip())
-    profile_slugs = {
-        s
-        for s in (prof.mcp_servers if prof else []) or []
-        if s and s != "aion_subagents"
-    }
+    profile_slugs = {s for s in (prof.mcp_servers if prof else []) or [] if s}
 
     if probe:
         rows = await probe_profile_mcp_servers(

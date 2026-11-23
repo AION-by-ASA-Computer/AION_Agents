@@ -187,6 +187,19 @@ async def _patch_sqlite_columns(engine: AsyncEngine, conn) -> None:
             "CREATE INDEX IF NOT EXISTS ix_conversations_forked_from_id "
             "ON conversations(forked_from_id)",
         )
+        # Sub-agent child conversations (s9b1a2g039): same reason as above.
+        await _sqlite_add_column_if_missing(
+            conn,
+            "conversations",
+            "spawned_by_conversation_id",
+            "spawned_by_conversation_id VARCHAR(64)",
+        )
+        await _sqlite_create_index_if_missing(
+            conn,
+            "ix_conversations_spawned_by_conversation_id",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_spawned_by_conversation_id "
+            "ON conversations(spawned_by_conversation_id)",
+        )
 
     # Observability + timeline columns (migrate_v3 / g3h4i5j6k007). Skipped when
     # alembic stamp head marks a legacy DB as up-to-date without running migrations.

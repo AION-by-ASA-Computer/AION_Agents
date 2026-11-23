@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} skills",
       "meta_tools_one": "{{count}} tool",
       "meta_tools_other": "{{count}} tools",
+      "meta_subagents_one": "{{count}} sub-agent",
+      "meta_subagents_other": "{{count}} sub-agents",
       "back": "All profiles"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Instructions",
       "tab_skills": "Skills",
       "tab_tools": "Tools",
+      "tab_subagents": "Sub-agents",
       "instructions_placeholder": "You are an expert assistant that…",
       "save": "Save",
       "saving": "Saving…",
@@ -340,6 +343,17 @@
       "filter_aria": "Filter tools",
       "filter_all": "All",
       "filter_attached": "Attached"
+    },
+    "subagents": {
+      "title": "Sub-agents",
+      "hint": "The agent can delegate a self-contained task to these profiles with the delegate_to_agent tool. Each sub-agent runs in its own read-only conversation and cannot delegate further. Users only reach the profiles they are allowed to use.",
+      "no_description": "No description: add one, the agent uses it to choose whom to delegate to.",
+      "missing": "Missing",
+      "missing_hint": "This profile no longer exists: remove it before saving.",
+      "search": "Search profiles",
+      "filter_aria": "Filter sub-agents",
+      "none": "No profile matches the search.",
+      "no_profiles": "There are no other profiles yet: create one to use it as a sub-agent."
     },
     "wizard": {
       "title": "Create a profile with AI",

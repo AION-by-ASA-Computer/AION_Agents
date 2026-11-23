@@ -152,6 +152,7 @@ mcp_servers:
 |-------|-------------|---------|
 | `skills` | List of enabled skills | `["promql_library", "grafana_dashboard"]` |
 | `mcp_servers` | List of accessible MCP servers | `["prometheus", "grafana"]` |
+| `subagents` | Slugs of the other profiles this agent may delegate to with `delegate_to_agent` (intersected with the profiles the user may use; depth 1). A non-empty list also attaches the hidden `delegation` system skill automatically: do not list it in `skills`. See [Sub-agents](../agents/subagents.md) | `["legal_reviewer", "sql_analyst"]` |
 
 **Built-in Plan/HITL:** the `orchestration` MCP server (`draft_execution_plan`, `list_session_execution_plans`, `get_execution_plan`, `update_execution_plan`, `mark_task_completed`, `type: in_process`) is **automatically** injected into each profile by `build_all_tools` — do **not** list it in `mcp_servers` (Plan Mode is global in chat-ui). The approved plan is SSOT on DB/SQLite, not in `workspace/execution_plan_*.md` files.
 

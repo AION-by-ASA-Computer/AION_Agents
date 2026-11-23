@@ -37,6 +37,8 @@ if TYPE_CHECKING:
     from src.runtime.turn.turn_guards import TurnGuards
     from src.runtime.turn.turn_persistence import TurnPersistence
 
+from src.runtime.timeline_builder import SUBAGENT_EVENT_TYPES
+
 logger = logging.getLogger("aion.stream_loop")
 
 
@@ -574,6 +576,15 @@ class StreamLoop:
         # towards the tool-event guard nor go through the tool hooks below.
         _early = chunk.get("event") or {}
         if isinstance(_early, dict) and _early.get("type") == "chart":
+            yield self._track_sse(chunk)
+            return
+
+        # Sub-agent progress (src/runtime/subagent_orchestrator.py) is also
+        # display-only: it describes the child session, not tool calls of this
+        # turn, so it bypasses the tool-event guard. It does count as progress,
+        # since the parent is legitimately waiting on delegate_to_agent.
+        if isinstance(_early, dict) and _early.get("type") in SUBAGENT_EVENT_TYPES:
+            self.last_progress_at = self.loop.time()
             yield self._track_sse(chunk)
             return
 

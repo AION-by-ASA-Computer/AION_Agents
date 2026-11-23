@@ -22,7 +22,7 @@ DEFAULT_DEEP_RESEARCH_BLOCKED_TOOLS: FrozenSet[str] = frozenset(
         "update_execution_plan",
         "mark_task_completed",
         "complete_execution_plan",
-        "delegate_to_subagent",
+        "delegate_to_agent",
         "skill_view",
         "skill_search",
         "skill_list",
@@ -32,10 +32,19 @@ DEFAULT_DEEP_RESEARCH_BLOCKED_TOOLS: FrozenSet[str] = frozenset(
 )
 
 
+# Blocked even when AION_DEEP_RESEARCH_BLOCKED_TOOLS overrides the defaults:
+# the research job is the only allowed way to do work in this mode, and older
+# .env files still list the retired ``delegate_to_subagent`` name.
+DEEP_RESEARCH_ALWAYS_BLOCKED_TOOLS: FrozenSet[str] = frozenset({"delegate_to_agent"})
+
+
 def deep_research_blocked_tool_names() -> set[str]:
+    """Tool names removed from the agent in Deep Research mode (env override aware)."""
     raw = (os.getenv("AION_DEEP_RESEARCH_BLOCKED_TOOLS") or "").strip()
     if raw:
-        return {t.strip() for t in raw.split(",") if t.strip()}
+        return {
+            t.strip() for t in raw.split(",") if t.strip()
+        } | DEEP_RESEARCH_ALWAYS_BLOCKED_TOOLS
     return set(DEFAULT_DEEP_RESEARCH_BLOCKED_TOOLS)
 
 

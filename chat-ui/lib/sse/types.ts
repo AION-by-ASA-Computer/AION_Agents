@@ -126,6 +126,38 @@ type ReasoningSegment = {
   content: string;
 };
 
+/** One tool call made by a sub-agent, as relayed by `subagent_step` events. */
+export type SubagentStep = {
+  id: string;
+  name: string;
+  status: "running" | "done" | "error";
+};
+
+/**
+ * Live state of a sub-agent run, attached to the `delegate_to_agent` tool
+ * segment that spawned it. Built by the reducer from `subagent_*` events and
+ * persisted with the timeline (the backend timeline_builder writes the same
+ * shape), so the card renders identically after a reload.
+ * See docs/agents/subagents.md.
+ */
+export type SubagentInfo = {
+  runId?: string;
+  /** Child conversation id (`sub_*`), openable read-only at `/a/<id>`. */
+  conversationId?: string;
+  profile?: string;
+  profileName?: string;
+  task?: string;
+  status: "running" | "done" | "error" | "cancelled" | "timeout" | "denied";
+  /** Most recent child tool calls (capped, newest last). */
+  steps: SubagentStep[];
+  /** Total tool calls of the child, also counting steps dropped by the cap. */
+  stepCount: number;
+  error?: string | null;
+  resultPreview?: string | null;
+  /** Files copied back to the parent workspace (`workspace/subagents/<id>/…`). */
+  files?: string[];
+};
+
 type ToolSegment = {
   kind: "tool";
   id: string;
@@ -137,6 +169,8 @@ type ToolSegment = {
   status: ToolStepStatus;
   tokens_in?: number;
   tokens_out?: number;
+  /** Present on `delegate_to_agent` calls once the sub-agent has started. */
+  subagent?: SubagentInfo;
 };
 
 type ArtifactSegment = {

@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} Skills",
       "meta_tools_one": "{{count}} Werkzeug",
       "meta_tools_other": "{{count}} Werkzeuge",
+      "meta_subagents_one": "{{count}} Sub-Agent",
+      "meta_subagents_other": "{{count}} Sub-Agents",
       "back": "Alle Profile"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Anweisungen",
       "tab_skills": "Skills",
       "tab_tools": "Werkzeuge",
+      "tab_subagents": "Sub-Agenten",
       "instructions_placeholder": "Du bist ein erfahrener Assistent, der…",
       "save": "Speichern",
       "saving": "Speichern…",
@@ -340,6 +343,17 @@
       "filter_aria": "Tools filtern",
       "filter_all": "Alle",
       "filter_attached": "Zugewiesen"
+    },
+    "subagents": {
+      "title": "Sub-Agents",
+      "hint": "Der Agent kann diesen Profilen mit dem Tool delegate_to_agent eine eigenständige Aufgabe übertragen. Jeder Sub-Agent arbeitet in einer eigenen schreibgeschützten Unterhaltung und kann nicht weiter delegieren. Benutzer erreichen nur die Profile, die sie verwenden dürfen.",
+      "no_description": "Keine Beschreibung: Fügen Sie eine hinzu, der Agent wählt damit aus, an wen er delegiert.",
+      "missing": "Fehlt",
+      "missing_hint": "Dieses Profil existiert nicht mehr: Entfernen Sie es vor dem Speichern.",
+      "search": "Profile suchen",
+      "filter_aria": "Sub-Agenten filtern",
+      "none": "Kein Profil entspricht der Suche.",
+      "no_profiles": "Es gibt noch keine anderen Profile: Lege eines an, um es als Sub-Agent zu verwenden."
     },
     "wizard": {
       "title": "Profil mit KI erstellen",

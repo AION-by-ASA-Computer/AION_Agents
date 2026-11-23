@@ -17,9 +17,13 @@ def resolve_agent_mode(
 
     ``internal_trigger`` (orchestration_plan_approved follow-up) always forces ``normal``
     so mutating tools (sandbox_run_python_file, mark_task_completed, …) are not blocked.
+
+    ``subagent`` (a task delegated through ``delegate_to_agent``) also runs in
+    ``normal`` mode: the sub-agent must execute the task, never stop at a plan
+    waiting for an approval nobody can give from its read-only conversation.
     """
     src = (message_source or "user_input").strip()
-    if src in ("internal_trigger", "scheduled_trigger"):
+    if src in ("internal_trigger", "scheduled_trigger", "subagent"):
         return "normal"
 
     resolved = (agent_mode or "normal").strip().lower() or "normal"

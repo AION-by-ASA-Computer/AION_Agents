@@ -75,11 +75,6 @@ skills_hub:
     # 1 = skill_view/skill_list solo per skill in profile.skills (allineato a src/runtime/skill_profile_gate.py)
     AION_SKILL_VIEW_ENFORCE_PROFILE: "1"
 
-aion_subagents:
-  command: "python"
-  args: ["-u", "aion_subagents/server.py"]
-  description: "Delega a subagent con sessione isolata (delegate_to_subagent)"
-
 orchestration:
   type: in_process
   description: "Built-in Plan/HITL (draft_execution_plan + mark_task_completed; sempre merge in build_all_tools, non mettere in profili YAML)"

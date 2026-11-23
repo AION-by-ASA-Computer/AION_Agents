@@ -82,6 +82,37 @@ def _prune_junk_profile_files(*, dry_run: bool, report: Report) -> None:
             report.log_warn(f"Could not remove directory {path.name}: {exc}")
 
 
+# Runtime MCP folders (synced from mcp_servers_std/) whose server was retired.
+# sync_mcp_servers.py only adds/updates folders, so stale copies are removed here.
+_RETIRED_MCP_SERVER_DIRS: tuple[str, ...] = (
+    # Replaced by the native delegate_to_agent tool (profile key ``subagents``).
+    "aion_subagents",
+)
+
+
+def _prune_retired_mcp_server_dirs(*, dry_run: bool, report: Report) -> None:
+    """Delete local ``mcp_servers/<slug>/`` copies of retired MCP servers.
+
+    The registry entries are removed by merge_mcp_registry_from_std.py and the
+    profile loader ignores the slugs, so this is housekeeping: it keeps a stale
+    server (which would import modules that no longer exist) off the disk.
+    """
+    import shutil
+
+    for name in _RETIRED_MCP_SERVER_DIRS:
+        path = ROOT / "mcp_servers" / name
+        if not path.is_dir():
+            continue
+        if dry_run:
+            report.log_warn(f"Would remove retired MCP server folder: mcp_servers/{name}")
+            continue
+        try:
+            shutil.rmtree(path)
+            report.log_ok(f"Removed retired MCP server folder: mcp_servers/{name}")
+        except OSError as exc:
+            report.log_warn(f"Could not remove mcp_servers/{name}: {exc}")
+
+
 def _ensure_skill_packages(
     py_exec: str, dry_run: bool, report: Report, *, force_mcp: bool
 ) -> None:
@@ -519,7 +550,7 @@ _MCP_POOL_ENV_DEFAULTS: dict[str, str] = {
     "AION_MCP_USER_POOL": "1",
     "AION_MCP_SESSION_ENV_INJECT": "0",
     "AION_MCP_SESSION_SCOPED_SERVERS": (
-        "session_sandbox,promo_render,ocr,ocr_mcp,stt,skills_hub,aion_subagents"
+        "session_sandbox,promo_render,ocr,ocr_mcp,stt,skills_hub"
     ),
     "AION_MCP_STARTUP_WARM": "1",
     "AION_MCP_STARTUP_WARM_ASYNC": "0",
@@ -594,7 +625,7 @@ _AGENT_MODE_ENV_DEFAULTS = {
         "sandbox_write_workspace_file,sandbox_edit_workspace_file,"
         "sandbox_exec_allowlisted,sandbox_run_python_file,sandbox_run_node_file,"
         "sandbox_install_python_packages,sandbox_install_npm_packages,"
-        "mark_task_completed,complete_execution_plan,delegate_to_subagent,skill_view"
+        "mark_task_completed,complete_execution_plan,delegate_to_agent,skill_view"
     ),
     "AION_PLAN_MODE_MAX_RESEARCH_TOOLS": "2",
     "AION_PLAN_MODE_RESEARCH_TOOLS": (
@@ -1941,6 +1972,7 @@ def main() -> int:
             return rc
         report.log_ok("Upgrade env")
         _prune_junk_profile_files(dry_run=args.dry_run, report=report)
+        _prune_retired_mcp_server_dirs(dry_run=args.dry_run, report=report)
 
         rc = _run(
             [py_exec, str(ROOT / "scripts/init_unified_db.py")], dry_run=args.dry_run

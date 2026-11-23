@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} skill",
       "meta_tools_one": "{{count}} strumento",
       "meta_tools_other": "{{count}} strumenti",
+      "meta_subagents_one": "{{count}} sub-agent",
+      "meta_subagents_other": "{{count}} sub-agent",
       "back": "Tutti i profili"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Istruzioni",
       "tab_skills": "Skill",
       "tab_tools": "Strumenti",
+      "tab_subagents": "Sub-agent",
       "instructions_placeholder": "Sei un assistente esperto che…",
       "save": "Salva",
       "saving": "Salvataggio…",
@@ -340,6 +343,17 @@
       "filter_aria": "Filtra strumenti",
       "filter_all": "Tutti",
       "filter_attached": "Collegati"
+    },
+    "subagents": {
+      "title": "Sub-agent",
+      "hint": "L'agente può delegare a questi profili un compito autonomo con il tool delegate_to_agent. Ogni sub-agent lavora in una propria conversazione in sola lettura e non può delegare a sua volta. Gli utenti raggiungono solo i profili che possono usare.",
+      "no_description": "Nessuna descrizione: aggiungila, l'agente la usa per scegliere a chi delegare.",
+      "missing": "Mancante",
+      "missing_hint": "Questo profilo non esiste più: rimuovilo prima di salvare.",
+      "search": "Cerca profili",
+      "filter_aria": "Filtra sub-agent",
+      "none": "Nessun profilo corrisponde alla ricerca.",
+      "no_profiles": "Non ci sono altri profili: creane uno per poterlo usare come sub-agent."
     },
     "wizard": {
       "title": "Crea un profilo con l’IA",

@@ -11,7 +11,11 @@ from sqlalchemy import select, update
 
 from src.api.auth import AuthContext, Scope, require_scope
 from src.api.profile_access import enforce_profile_access
-from src.api.ownership import api_key_context_principal, owned_by
+from src.api.ownership import (
+    SUBAGENT_READ_ONLY_DETAIL,
+    api_key_context_principal,
+    owned_by,
+)
 from src.data.engine import get_async_session_maker
 from src.identity import sanitize_user_id
 from src.data.ids import new_uuid7_str
@@ -98,6 +102,8 @@ async def list_conversations(
             Conversation.tenant_id == ctx.tenant_id,
             Conversation.user_id == owner,
             Conversation.archived_at.is_(None),
+            # Sub-agent transcripts belong to their parent conversation.
+            Conversation.spawned_by_conversation_id.is_(None),
         )
         q = q.order_by(Conversation.updated_at.desc()).limit(limit)
         rows = (await session.execute(q)).scalars().all()
@@ -149,6 +155,9 @@ async def patch_conversation(
         r = await session.get(Conversation, conversation_id)
         if not owned_by(r, ctx.tenant_id, api_key_context_principal(ctx)):
             raise HTTPException(404, "Not found")
+        if r.spawned_by_conversation_id:
+            # Sub-agent transcripts are read-only (see src/api/ownership.py).
+            raise HTTPException(409, SUBAGENT_READ_ONLY_DETAIL)
         vals: Dict[str, Any] = {"updated_at": datetime.now(timezone.utc)}
         if "title" in body:
             vals["title"] = body["title"]
@@ -175,19 +184,35 @@ async def delete_conversation(
         r = await session.get(Conversation, conversation_id)
         if not owned_by(r, ctx.tenant_id, api_key_context_principal(ctx)):
             raise HTTPException(404, "Not found")
+        # Sub-agent transcripts spawned by this conversation are archived with
+        # it: they are only reachable from the parent's timeline.
+        child_ids = list(
+            (
+                await session.execute(
+                    select(Conversation.id).where(
+                        Conversation.spawned_by_conversation_id == conversation_id,
+                        Conversation.archived_at.is_(None),
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        ids = [conversation_id, *child_ids]
         await session.execute(
             update(Conversation)
-            .where(Conversation.id == conversation_id)
+            .where(Conversation.id.in_(ids))
             .values(archived_at=datetime.now(timezone.utc))
         )
         await session.commit()
     # Soft delete: remove the conversation's charts explicitly (SQLite + Redis).
     from src.charts_store import delete_conversation_charts
 
-    await delete_conversation_charts([conversation_id])
+    await delete_conversation_charts(ids)
     from src.mcp_manager import mcp_manager
 
-    await mcp_manager.release_session(conversation_id)
+    for cid in ids:
+        await mcp_manager.release_session(cid)
     return {"ok": True}
 
 

@@ -100,7 +100,7 @@ Even though they operate on the same knowledge database, automatic distillation 
 ## Hook System and Subagents
 
 **Modules:** `src/runtime/hooks.py`, `src/runtime/subagent_orchestrator.py`
-Introduced in V2 to allow extreme extensibility. Hooks allow injecting logic in each phase of the lifecycle (e.g., PII redaction, custom logging, message transformation).
+Introduced in V2 to allow extreme extensibility. Hooks allow injecting logic in each phase of the lifecycle (e.g., PII redaction, custom logging, message transformation). Sub-agents let the agent delegate a self-contained task to another profile: see [Sub-agents](../agents/subagents.md).
 
 ---
 

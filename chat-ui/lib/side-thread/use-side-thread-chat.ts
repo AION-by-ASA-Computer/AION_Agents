@@ -35,7 +35,12 @@ function isAbort(err: unknown): boolean {
   return err instanceof DOMException && err.name === "AbortError";
 }
 
-function fromHistory(rows: ChatHistoryMessage[]): SideThreadMessage[] {
+/**
+ * Convert persisted history rows into renderable messages (assistant rows get
+ * their timeline segments). Also used by the read-only sub-agent transcript
+ * panel (components/dock/SubagentPanel.tsx).
+ */
+export function fromHistory(rows: ChatHistoryMessage[]): SideThreadMessage[] {
   const out: SideThreadMessage[] = [];
   for (const h of rows) {
     if (h.role !== "user" && h.role !== "assistant") continue;

@@ -960,6 +960,44 @@
       },
       "rows": "{{count}} righe",
       "aria": "Grafico: {{title}}"
+    },
+    "subagent": {
+      "label": "Sub-agent",
+      "unknown_agent": "profilo",
+      "starting": "Avvio del sub-agent…",
+      "running_step": "Sta eseguendo {{name}}…",
+      "steps": "{{count}} passaggi",
+      "activity": "Attività",
+      "earlier_steps": "…e altri {{count}} passaggi precedenti",
+      "result": "Risultato",
+      "files": "File prodotti",
+      "open_transcript": "Apri trascrizione",
+      "show_brief": "Mostra istruzioni inviate",
+      "hide_brief": "Nascondi istruzioni",
+      "transcript_aria": "Origine del sub-agent",
+      "back_to_parent": "Torna a «{{title}}»",
+      "read_only_banner": "Trascrizione del sub-agent {{profile}} (sola lettura)",
+      "status": {
+        "running": "In corso",
+        "done": "Completato",
+        "error": "Errore",
+        "denied": "Non consentito",
+        "timeout": "Tempo scaduto",
+        "cancelled": "Interrotto"
+      },
+      "panel": {
+        "tab": "Sub-agent",
+        "aria": "Trascrizione del sub-agent: {{name}}",
+        "open_full": "Apri a pagina intera",
+        "brief": "Istruzioni dall'agente principale",
+        "brief_more": "Mostra tutto",
+        "brief_less": "Mostra meno",
+        "loading": "Caricamento trascrizione…",
+        "working": "Al lavoro…",
+        "empty": "Nessuna risposta registrata per questa esecuzione.",
+        "error": "Impossibile caricare la trascrizione: {{msg}}",
+        "read_only": "Sola lettura · scritta dall'agente principale"
+      }
     }
   },
   "login": {

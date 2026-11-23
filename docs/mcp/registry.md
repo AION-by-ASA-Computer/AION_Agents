@@ -332,7 +332,6 @@ python -m src.mcp_import -i claude_desktop_config.json -o config/mcp_registry.lo
 | `geocoding` | `mcp_servers/geocoding/` | Forward/reverse geocode via OpenStreetMap Nominatim (`geocode_place`, `reverse_geocode`) |
 | `promo_render` | `mcp_servers/promo_render/` | Promotional graphics React/HTML → PNG |
 | `agent_db` | `mcp_servers/agent_db/` | Agent SQLite database for structured memory |
-| `aion_subagents` | `mcp_servers/aion_subagents/` | Delegate tasks to isolated subagents |
 
 **`session_sandbox`:** `sandbox_list_files`, `sandbox_read_text_file`, **`sandbox_write_workspace_file`** (only `workspace/`), **`sandbox_edit_workspace_file`** (surgical replace), **`sandbox_apply_patch`** (OpenCode-style multi-file hunks), **`sandbox_install_npm_packages`** / **`sandbox_install_python_packages`** (session venv; gated by `AION_SANDBOX_ALLOW_*`; `AION_SANDBOX_NPM_MAX_PACKAGES` caps npm installs), `sandbox_run_python_file` (`workspace/*.py`), **`sandbox_run_node_file`** (`workspace/*.js` for docx-js; requires Node / `AION_NODE_PATH`). `sandbox_execute_python` is **permanently disabled** — use write + run file. Subprocess **cwd = session root**; Python from session `.venv` when `AION_SANDBOX_AUTO_VENV=1`. Isolation: **`AION_SANDBOX_BACKEND=subprocess`** (Landlock confinement when `AION_SANDBOX_SUBPROCESS_CONFINE=1`) in dev, **`container`** (Podman per session, see [Session isolation](../security/session-isolation.md)) in production. File delivery is tool-first (no `<aion_artifact>` in chat stream); see [Agent pipeline](../api-and-runtime/agent-pipeline.md#tool-first-file-delivery-opencode-style).
 
@@ -448,7 +447,7 @@ custom_server:
 | `AION_MCP_POOL` | `1` | Pool stdio persistente (obbligatorio per warm) |
 | `AION_MCP_USER_POOL` | `1` | Worker condivisi per utente/tenant tra chat |
 | `AION_MCP_SESSION_ENV_INJECT` | `0` (code) / `1` (env) | Inietta sessione/profilo a ogni `call_tool` |
-| `AION_MCP_SESSION_SCOPED_SERVERS` | `session_sandbox,promo_render,ocr_mcp,stt,skills_hub,aion_subagents` | Server con pool per chat session (sandbox isolati anche con `AION_MCP_USER_POOL=1`) |
+| `AION_MCP_SESSION_SCOPED_SERVERS` | `session_sandbox,promo_render,ocr_mcp,stt,skills_hub` | Server con pool per chat session (sandbox isolati anche con `AION_MCP_USER_POOL=1`) |
 | `AION_MCP_STARTUP_WARM` | `1` | Warm MCP al boot API |
 | `AION_MCP_STARTUP_WARM_ASYNC` | `0` | `1` = warm in background (healthcheck prima del warm) |
 | `AION_MCP_STARTUP_WARM_PROFILES` | `aion_std,generic_assistant` | CSV profili, o `*` = tutti |

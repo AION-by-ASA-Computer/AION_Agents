@@ -10,14 +10,18 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
 import httpx
-from sqlalchemy import func, select
+from sqlalchemy import func, or_, select
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from pydantic import AliasChoices, BaseModel, Field
 
 from src.api.auth_login import ChatAuthIdentity, require_chat_auth
 from src.api.auth.scopes import Scope
 from src.api.contract_models import MessagesResponse, StreamStatus, UpdatedResponse
-from src.api.ownership import chat_user_id_scope, claim_conversation_for_write
+from src.api.ownership import (
+    assert_not_subagent_conversation,
+    chat_user_id_scope,
+    claim_conversation_for_write,
+)
 from src.data.engine import get_async_session_maker
 from src.data.history_bridge import (
     fetch_message_by_id,
@@ -208,6 +212,9 @@ async def list_conversations_chat_ui(
             conds.append(Conversation.parent_conversation_id.is_(None))
         if not include_branches:
             conds.append(Conversation.forked_from_id.is_(None))
+        # Sub-agent conversations are never listed: they are reached from the
+        # delegate_to_agent card of the parent message (read-only transcript).
+        conds.append(Conversation.spawned_by_conversation_id.is_(None))
         q = (
             select(Conversation)
             .where(*conds)
@@ -340,6 +347,8 @@ async def create_side_thread_chat_ui(
     user_id: str = Depends(chat_user_id_scope(Scope.CONVERSATIONS_WRITE)),
 ):
     _require_unified()
+    # Sub-agent conversations are read-only (409, see src/api/ownership.py).
+    await assert_not_subagent_conversation(conv_id)
     tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default"
     quote = body.quote.strip()[:_THREAD_QUOTE_MAX]
     if not quote:
@@ -820,6 +829,13 @@ async def get_conversation_chat_ui(
             parent = await session.get(Conversation, r.parent_conversation_id)
             if parent is not None and parent.user_id == user_id:
                 parent_title = parent.title
+        # Sub-agent transcript: expose the conversation that spawned it so
+        # chat-ui can show a "back to parent" link, and flag it read-only.
+        spawned_by_title: Optional[str] = None
+        if r.spawned_by_conversation_id:
+            spawner = await session.get(Conversation, r.spawned_by_conversation_id)
+            if spawner is not None and spawner.user_id == user_id:
+                spawned_by_title = spawner.title
         return {
             "id": r.id,
             "user_id": r.user_id,
@@ -837,6 +853,9 @@ async def get_conversation_chat_ui(
             "forked_from_id": r.forked_from_id,
             "forked_at_message_id": r.forked_at_message_id,
             "fork_seq": r.fork_seq,
+            "spawned_by_conversation_id": r.spawned_by_conversation_id,
+            "spawned_by_title": spawned_by_title,
+            "read_only": bool(r.spawned_by_conversation_id),
         }
 
 
@@ -919,6 +938,8 @@ async def delete_turn_chat_ui(
 ):
     """Prune conversation from the specified user message, deleting it and all subsequent turns, steps, and attachments."""
     _require_unified()
+    # Sub-agent conversations are read-only (409, see src/api/ownership.py).
+    await assert_not_subagent_conversation(conv_id)
     tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default"
 
     async with get_async_session_maker()() as session:
@@ -1023,6 +1044,8 @@ async def fork_conversation_chat_ui(
     and inserts the edited user message as the first turn of the new branch.
     """
     _require_unified()
+    # Sub-agent conversations are read-only (409, see src/api/ownership.py).
+    await assert_not_subagent_conversation(conv_id)
     tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default"
 
     async with get_async_session_maker()() as session:
@@ -1276,6 +1299,8 @@ async def save_partial_message_chat_ui(
 ):
     """Salva (o ignora se già presente) un messaggio assistente — usato per risposta parziale su Stop."""
     _require_unified()
+    # Sub-agent conversations are read-only (409, see src/api/ownership.py).
+    await assert_not_subagent_conversation(conv_id)
     tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default"
 
     async with get_async_session_maker()() as session:
@@ -1356,6 +1381,8 @@ async def patch_message_timeline_chat_ui(
 ):
     """Aggiorna solo timeline_json (es. backup client a fine stream)."""
     _require_unified()
+    # Sub-agent conversations are read-only (409, see src/api/ownership.py).
+    await assert_not_subagent_conversation(conv_id)
     tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default"
 
     async with get_async_session_maker()() as session:
@@ -1408,6 +1435,8 @@ async def save_partial_steps_chat_ui(
 ):
     """Salva in bulk step parziali (tool call) associati a un messaggio assistente."""
     _require_unified()
+    # Sub-agent conversations are read-only (409, see src/api/ownership.py).
+    await assert_not_subagent_conversation(conv_id)
     tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default"
 
     async with get_async_session_maker()() as session:
@@ -1483,7 +1512,12 @@ async def delete_conversation_chat_ui(
             (
                 await session.execute(
                     select(Conversation).where(
-                        Conversation.parent_conversation_id == conv_id,
+                        # Side threads and sub-agent transcripts go with
+                        # their parent conversation.
+                        or_(
+                            Conversation.parent_conversation_id == conv_id,
+                            Conversation.spawned_by_conversation_id == conv_id,
+                        ),
                         Conversation.archived_at.is_(None),
                     )
                 )

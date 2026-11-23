@@ -11,4 +11,6 @@ export type DockTab =
   | "prompt_debug"
   | "research"
   /** Side thread (child conversation opened from a highlighted passage). */
-  | "thread";
+  | "thread"
+  /** Read-only transcript of a sub-agent run (opened from its SubagentCard). */
+  | "subagent";

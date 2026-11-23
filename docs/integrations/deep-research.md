@@ -52,7 +52,7 @@ When the agent is placed in Deep Research Mode:
   - `web_search` and `web_fetch_page` (replaced by the autonomous loop)
   - Plan execution tools (`draft_execution_plan`, `get_execution_plan`, `update_execution_plan`, `mark_task_completed`)
   - Sandbox command execution and file editors (`sandbox_write_workspace_file`, `sandbox_edit_workspace_file`, `sandbox_exec_allowlisted`, etc.)
-  - Subagent delegation (`delegate_to_subagent`)
+  - Sub-agent delegation (`delegate_to_agent`, always blocked)
   - Skill tools (`skill_view`, `skill_search`, `skill_list`), which otherwise distracted the model before starting the job
 
 ### Mode Comparison Matrix

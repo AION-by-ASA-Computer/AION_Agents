@@ -88,7 +88,6 @@ _DEFAULT_SESSION_SCOPED_SERVERS = frozenset(
         "stt",  # registry slug (folder: stt_mcp/); writes derived/audio/ in the session
         "skills_hub",
         "query_memory",
-        "aion_subagents",
         "smb_files",  # session workspace copy/upload + per-user Windows credentials
     }
 )
