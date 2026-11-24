@@ -18,7 +18,8 @@ DEFAULT_PLAN_MODE_BLOCKED_TOOLS: FrozenSet[str] = frozenset(
         "mark_task_completed",
         # Plan-closing tool: only meaningful after an approved plan ran.
         "complete_execution_plan",
-        "delegate_to_subagent",
+        # Sub-agents can mutate files and run tools: never during planning.
+        "delegate_to_agent",
         # Full skill bodies are large; load them in post-approval tasks only.
         "skill_view",
     }
@@ -72,10 +73,19 @@ PLAN_MODE_CANONICAL_EXAMPLE = """<plan title="Descriptive project title">
 PLAN_MODE_DRAFT_TOOL_NAMES: FrozenSet[str] = frozenset({"draft_execution_plan"})
 
 
+# Blocked in Plan Mode even when AION_PLAN_MODE_BLOCKED_TOOLS overrides the
+# defaults: older .env files list the retired ``delegate_to_subagent`` name, and
+# a delegated sub-agent would execute work before the plan is approved.
+PLAN_MODE_ALWAYS_BLOCKED_TOOLS: FrozenSet[str] = frozenset({"delegate_to_agent"})
+
+
 def plan_mode_blocked_tool_names() -> set[str]:
+    """Tool names removed from the agent while in Plan Mode (env override aware)."""
     raw = (os.getenv("AION_PLAN_MODE_BLOCKED_TOOLS") or "").strip()
     if raw:
-        return {t.strip() for t in raw.split(",") if t.strip()}
+        return {
+            t.strip() for t in raw.split(",") if t.strip()
+        } | PLAN_MODE_ALWAYS_BLOCKED_TOOLS
     return set(DEFAULT_PLAN_MODE_BLOCKED_TOOLS)
 
 

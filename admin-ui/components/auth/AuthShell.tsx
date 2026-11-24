@@ -37,7 +37,7 @@ export function AuthShell({
         className="pointer-events-none absolute inset-x-0 top-0 h-[26rem] bg-[radial-gradient(55%_100%_at_50%_0%,hsl(var(--primary)/0.09),transparent)]"
       />
       <div className="auth-enter relative flex w-full max-w-[24rem] flex-col items-center gap-7">
-        <AdminBrand className="h-12 max-w-[160px] sm:h-14 sm:max-w-[180px]" />
+        <AdminBrand align="center" placement="auth" className="h-12 max-w-[160px] sm:h-14 sm:max-w-[180px]" />
         <section
           className={cn(
             "w-full rounded-2xl border border-border/70 bg-card/80 p-6 shadow-[0_10px_32px_-16px_hsl(var(--foreground)/0.22)] backdrop-blur-sm sm:p-7",

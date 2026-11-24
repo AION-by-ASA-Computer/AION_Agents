@@ -310,11 +310,7 @@ def format_session_mcp_errors(
 ) -> List[Dict[str, Any]]:
     """Errori MCP registrati per sessione, filtrati sul profilo (payload chat-ui)."""
     profile = profile_manager.get_profile(profile_name)
-    profile_slugs = {
-        s
-        for s in (profile.mcp_servers if profile else []) or []
-        if s and s != "aion_subagents"
-    }
+    profile_slugs = {s for s in (profile.mcp_servers if profile else []) or [] if s}
     rows: List[Dict[str, Any]] = []
     for slug, err in get_last_mcp_load_errors(session_id).items():
         if slug not in profile_slugs:
@@ -352,7 +348,7 @@ async def probe_profile_mcp_servers(
         ]
     out: List[Dict[str, Any]] = []
     for slug in profile.mcp_servers or []:
-        if not slug or slug == "aion_subagents":
+        if not slug:
             continue
         out.append(
             await probe_mcp_server(

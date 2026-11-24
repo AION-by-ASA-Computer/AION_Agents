@@ -41,6 +41,10 @@ RESIDENT_TOOL_NAMES = frozenset(
         "memory_note",
         "memory_forget",
         "sql_memory_search",
+        # Sub-agent delegation (src/runtime/subagent_orchestrator.py): only
+        # built for profiles with a ``subagents`` allowlist; it must always be
+        # callable directly, never hidden behind tool_search.
+        "delegate_to_agent",
     }
 )
 

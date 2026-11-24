@@ -62,7 +62,7 @@ def _collect_startup_server_slugs() -> List[str]:
             else:
                 logger.warning("MCP startup warm: profilo %r non trovato, skip", slug)
 
-    out = sorted(s for s in servers if s and s != "aion_subagents")
+    out = sorted(s for s in servers if s)
     return out
 
 

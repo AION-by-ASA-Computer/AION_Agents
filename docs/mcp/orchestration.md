@@ -106,21 +106,13 @@ Access to the internal API is controlled at two levels in `orchestration_auth`:
 
 ---
 
-## 6. Sub-agents and delegation (under active development)
+## 6. Sub-agents and delegation
 
-:::warning
-The sub-agent module (`aion_subagents` and delegation functions such as `delegate_task` / `delegate_to_subagent`) **does not currently work and is under active development**. Do not configure or use it in production.
-:::
+The chat agent can delegate a self-contained task to another profile with the native `delegate_to_agent(agent, task)` tool. The parent profile lists the callable profiles in its `subagents` key (an allowlist, intersected with the profiles the user may use). Each delegation runs in a hidden, read-only child conversation `sub_<slug>_<hex>`, with a maximum depth of 1, live `subagent_*` events on the parent stream, and the files it produces copied to `workspace/subagents/<id>/`.
 
-### Planned sub-agent architecture
+The former `aion_subagents` MCP server and the `delegate_task` / `delegate_to_subagent` functions have been removed.
 
-The original design uses cascading isolation:
-
-- **Entry point**: `delegate_to_subagent_async` in [delegate_subagent.py](src/runtime/delegate_subagent.py), which calls `run_subagent_task` in [subagent_orchestrator.py](src/runtime/subagent_orchestrator.py).
-- **Child sessions**: each delegation creates a temporary isolated session named `sub_{profile_slug}_{uuid}`.
-- **File copy**: files uploaded by the user in the parent session (under `uploads/`) are copied automatically into the child session folder before the sub-agent starts (`sync_parent_uploads_to_child` in [session_workspace.py](src/session_workspace.py)).
-- **Resource limits**: file sync between parent and child sessions is capped by configurable limits to avoid filling the disk (`AION_SUBAGENT_UPLOAD_SYNC_MAX_TOTAL_MB` and `AION_SUBAGENT_UPLOAD_SYNC_MAX_FILE_MB`).
-- **Integration**: the sub-agent's text result is condensed/truncated according to `AION_ORCH_DISTILL_MAX_CHARS` and returned to the calling agent.
+Architecture, configuration and limits: **[Sub-agents](../agents/subagents.md)**.
 
 ---
 
@@ -141,7 +133,10 @@ These variables configure orchestration and HITL behavior:
 | `AION_REDIS_FALLBACK_LOCAL` | `0` | When `1`, uses a local in-memory queue instead of Redis for the Wait Registry (single-worker development only). |
 | `AION_SUBAGENT_UPLOAD_SYNC_MAX_TOTAL_MB` | `50` | Maximum total size of files copied to a sub-agent session. |
 | `AION_SUBAGENT_UPLOAD_SYNC_MAX_FILE_MB` | `25` | Maximum size of a single file copied to a sub-agent session. |
-| `AION_ORCH_DISTILL_MAX_CHARS` | — | Maximum number of characters used to condense a sub-agent's output. |
+| `AION_SUBAGENT_MAX_PARALLEL` | `3` | Sub-agents running at the same time per parent session. |
+| `AION_SUBAGENT_TIMEOUT_SEC` | `300` | Time budget of one sub-agent turn. |
+| `AION_SUBAGENT_RESULT_MAX_CHARS` | `8000` | Maximum characters of the sub-agent answer returned to the parent. |
+| `AION_ORCH_DISTILL_MAX_CHARS` | `8000` | Maximum number of characters used to condense the output of an A2A agent (`src/a2a/context_distill.py`). |
 
 ---
 

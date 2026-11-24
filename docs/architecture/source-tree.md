@@ -95,7 +95,7 @@ The package [src/runtime/](src/runtime/) contains the internal logic of the agen
   - [llm_probe.py](src/runtime/llm_probe.py), [llm_call_audit.py](src/runtime/llm_call_audit.py), [litellm_errors.py](src/runtime/litellm_errors.py): Admin probe, per-step LLM audit, safe error mapping.
 - [llm_providers.py](src/api/llm_providers.py): Admin CRUD + `POST /admin/llm-providers/probe`.
 - **Sub-agents Delegation**:
-  - [delegate_subagent.py](src/runtime/delegate_subagent.py), [subagent_orchestrator.py](src/runtime/subagent_orchestrator.py) and [subagent_tools.py](src/runtime/subagent_tools.py): Protocol to spawn isolated hierarchical sub-agents with a dedicated file workspace.
+  - [subagent_orchestrator.py](src/runtime/subagent_orchestrator.py): Runs a task delegated by the parent agent in a hidden child conversation (allowlist, parallel cap, timeout, stop propagation, `subagent_*` events). The `delegate_to_agent` tool is built in [factory_table.py](src/runtime/native_tools/factory_table.py). See [Sub-agents](../agents/subagents.md).
 - **Database & Query Memory Integration**:
   - [sql_query_memory_tools.py](src/runtime/sql_query_memory_tools.py) and [query_memory_hooks.py](src/runtime/query_memory_hooks.py): Automatically register and optimize SQL queries that returned correct data in order to reuse them semantically.
 - **Mnemos tools**:
@@ -175,23 +175,22 @@ The AION runtime does not start the servers directly from `mcp_servers_std/` but
 
 Below is the list of standard submodules ready for use:
 
-1. **`aion_subagents/`**: Performs spawning and communication with per-session hierarchical sub-agents.
-2. **`charts/`**: Calculates and returns structured data formats to display area, line, or bar charts in the chat UI.
-3. **`code_executor/`**: Provides an isolated sandbox for script execution.
-4. **`geocoding/`**: Forward geocoding via OpenStreetMap Nominatim.
-5. **`grafana/`**: Allows querying Grafana monitoring dashboards.
-6. **`legacy_rag/`**: Bridge for backward compatibility with RAG components from previous versions.
-7. **`mcp_toolbox_for_databases/`**: Git submodule with Google's MCP Toolbox for Databases (`googleapis/genai-toolbox`).
-8. **`ocr_mcp/`**: Processes PDF files or images, extracting structured text blocks (GPU/CPU heavy).
-9. **`odoo_mcp_server/`**: Connector to the Odoo ERP.
-10. **`orchestration/`**: Allows third-party agents or sub-agents to interface with the task scheduler.
-11. **`prometheus/`**: Query interface for system monitoring metrics.
-12. **`promo_render/`**: Generates graphic previews in PNG format starting from HTML or React templates (dashboards and promos).
-13. **`query_memory/`**: Maintains the semantic index of successful queries and enables their inter-session retrieval.
-14. **`session_sandbox/`**: Controls secure access and filesystem isolation for each chat.
-15. **`skills_hub/`**: Manages the alignment of loaded skills in the agent's active profile.
-16. **`smb_files/`**: Reads and writes files on company Windows shares with the user's own credentials (see [SMB files](../mcp/smb-files.md)).
-17. **`stt_mcp/`**: Transcribes session audio files (speech-to-text) via a remote OpenAI-compatible Whisper service or local faster-whisper; logic in `src/tools/audio_transcribe.py`.
+1. **`charts/`**: Calculates and returns structured data formats to display area, line, or bar charts in the chat UI.
+2. **`code_executor/`**: Provides an isolated sandbox for script execution.
+3. **`geocoding/`**: Forward geocoding via OpenStreetMap Nominatim.
+4. **`grafana/`**: Allows querying Grafana monitoring dashboards.
+5. **`legacy_rag/`**: Bridge for backward compatibility with RAG components from previous versions.
+6. **`mcp_toolbox_for_databases/`**: Git submodule with Google's MCP Toolbox for Databases (`googleapis/genai-toolbox`).
+7. **`ocr_mcp/`**: Processes PDF files or images, extracting structured text blocks (GPU/CPU heavy).
+8. **`odoo_mcp_server/`**: Connector to the Odoo ERP.
+9. **`orchestration/`**: Allows third-party agents or sub-agents to interface with the task scheduler.
+10. **`prometheus/`**: Query interface for system monitoring metrics.
+11. **`promo_render/`**: Generates graphic previews in PNG format starting from HTML or React templates (dashboards and promos).
+12. **`query_memory/`**: Maintains the semantic index of successful queries and enables their inter-session retrieval.
+13. **`session_sandbox/`**: Controls secure access and filesystem isolation for each chat.
+14. **`skills_hub/`**: Manages the alignment of loaded skills in the agent's active profile.
+15. **`smb_files/`**: Reads and writes files on company Windows shares with the user's own credentials (see [SMB files](../mcp/smb-files.md)).
+16. **`stt_mcp/`**: Transcribes session audio files (speech-to-text) via a remote OpenAI-compatible Whisper service or local faster-whisper; logic in `src/tools/audio_transcribe.py`.
 
 :::note
 The former `agent_db/` (per-user SQLite databases) and `memory/` (`mem0_server.py`) servers have been removed from `mcp_servers_std/`.

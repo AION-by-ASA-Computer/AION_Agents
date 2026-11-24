@@ -692,7 +692,7 @@ export default function FirstSetupPage() {
       <div className="auth-enter relative mx-auto flex w-full max-w-3xl flex-col gap-8">
         {/* Header */}
         <header className="flex flex-col items-center gap-5 text-center">
-          <AdminBrand className="h-11 max-w-[150px] sm:h-12 sm:max-w-[160px]" />
+          <AdminBrand align="center" placement="auth" className="h-11 max-w-[150px] sm:h-12 sm:max-w-[160px]" />
           <div className="space-y-2">
             <h1 className="text-2xl font-semibold tracking-[-0.02em] text-balance sm:text-3xl">Configure AION System</h1>
             <p className="mx-auto max-w-md text-sm leading-relaxed text-pretty text-muted-foreground">

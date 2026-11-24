@@ -79,6 +79,41 @@ def test_error_frame_schema():
         chat_stream_event_adapter.validate_python({"type": "not_a_type"})
 
 
+def test_subagent_events_match_schema():
+    """The ``subagent_*`` payloads emitted by run_subagent are part of the contract."""
+    base = {
+        "parent_tool_call_id": "call-1",
+        "run_id": "run-1",
+        "child_conversation_id": "sub_research_abc",
+        "profile": "research",
+    }
+    for payload in (
+        {**base, "type": "subagent_start", "profile_name": "Research", "task": "t"},
+        {
+            **base,
+            "type": "subagent_step",
+            "step": {"id": "s1", "name": "web_search", "status": "running"},
+        },
+        {
+            **base,
+            "type": "subagent_end",
+            "status": "done",
+            "steps": 1,
+            "error": None,
+            "result_preview": "ok",
+            "files": ["workspace/subagents/sub_research_abc/report.md"],
+        },
+    ):
+        chat_stream_event_adapter.validate_python(
+            {"type": "tool_event", "event": payload}
+        )
+    # ``status`` is mandatory on the end event: the card needs it to stop spinning.
+    with pytest.raises(ValidationError):
+        chat_stream_event_adapter.validate_python(
+            {"type": "tool_event", "event": {**base, "type": "subagent_end"}}
+        )
+
+
 def _fake_agent():
     from haystack.dataclasses import ChatMessage, StreamingChunk
 

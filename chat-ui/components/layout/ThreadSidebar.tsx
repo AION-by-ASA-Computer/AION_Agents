@@ -449,7 +449,7 @@ export function ThreadSidebar({
         <button
           type="button"
           onClick={startNewChat}
-          className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white shadow-lg shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
+          className="mb-3 inline-flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-r from-rose-500 to-brand-end hover:from-rose-600 hover:to-brand-end-hover text-white shadow-lg shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-105 active:scale-95 cursor-pointer"
           aria-label={t("sidebar.new_conversation")}
           title={t("sidebar.new_conversation")}
         >
@@ -499,7 +499,7 @@ export function ThreadSidebar({
       <div className="shrink-0">
         <div className="flex items-center justify-between px-4 pb-3 pt-3.5">
           <div className="min-w-0 flex-1">
-            <ChatBrand className="max-w-[120px]" />
+            <ChatBrand className="max-w-[120px]" placement="sidebar" />
           </div>
           <button
             type="button"
@@ -516,7 +516,7 @@ export function ThreadSidebar({
           <button
             type="button"
             onClick={startNewChat}
-            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 py-2.5 px-3.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+            className="group relative flex w-full items-center justify-center gap-2 overflow-hidden rounded-2xl bg-gradient-to-r from-rose-500 to-brand-end hover:from-rose-600 hover:to-brand-end-hover py-2.5 px-3.5 text-sm font-bold text-white shadow-lg shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
           >
             <div
               className="pointer-events-none absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/25 to-transparent transition-transform duration-700 ease-out group-hover:translate-x-full"

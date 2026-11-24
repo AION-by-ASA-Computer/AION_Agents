@@ -27,6 +27,7 @@ from haystack.dataclasses import ChatMessage, FileContent, ImageContent
 from .haystack_chat import chat_message_text
 from .main import set_event_loop
 from .runtime.tool_events import tool_event_bus
+from .runtime.timeline_builder import SUBAGENT_EVENT_TYPES
 from .runtime.redis_client import (
     redis_clear_stream_active,
     redis_consume_stream_cancel,
@@ -1354,6 +1355,7 @@ class AgentPipeline:
         _skip_plan_turn_early = (message_source or "").strip() in (
             "internal_trigger",
             "scheduled_trigger",
+            "subagent",
         )
         plan_controller = None
         if effective_agent_mode == "plan" and not _skip_plan_turn_early:
@@ -1479,9 +1481,12 @@ class AgentPipeline:
                 yield _track_sse(plan_controller.sse_phase("clarifying"))
 
             _msg_src = (message_source or "user_input").strip()
+            # ``subagent``: the delegated task is the first (and only) user
+            # message of a sub-agent conversation, so it must be visible in the
+            # read-only transcript like a normal user message.
             user_role = (
                 "user"
-                if _msg_src in ("user_input", "scheduled_trigger")
+                if _msg_src in ("user_input", "scheduled_trigger", "subagent")
                 else "internal"
             )
             _merged_meta = {}
@@ -2922,6 +2927,14 @@ class AgentPipeline:
                                 # Display-only chart event (see StreamLoop):
                                 # forward immediately, not counted as a tool event.
                                 yield _track_sse(chunk)
+                            elif chunk.get("type") == "tool_event" and (
+                                (chunk.get("event") or {}).get("type")
+                                in SUBAGENT_EVENT_TYPES
+                            ):
+                                # Sub-agent progress (see StreamLoop): display
+                                # only, but it proves the turn is alive.
+                                last_progress_at = loop.time()
+                                yield _track_sse(chunk)
                             elif chunk.get("type") == "tool_event":
                                 tool_events += 1
                                 last_progress_at = loop.time()
@@ -4110,36 +4123,41 @@ class AgentPipeline:
                     await persist_pending_turn_records(
                         assistant_message_id if assistant_message_persisted else None
                     )
-                try:
-                    loop.create_task(
-                        ltm_orchestrator.extract_and_persist(
-                            self.session_id,
-                            self.user_id,
-                            user_input,
-                            final_text,
-                            mode="turn",
-                            active_project=_qm_project,
-                            profile_slug=self.profile_name,
-                            user_message_id=user_message_id,
-                            assistant_message_id=assistant_message_id,
-                        )
-                    )
+                # Sub-agent turns never feed long-term memory nor skill
+                # distillation: the task text is written by the parent agent
+                # (not the user) and the result already flows back into the
+                # parent turn, which runs these steps itself.
+                if _msg_src != "subagent":
                     try:
-                        from .learning.skill_distiller import skill_distiller
-
                         loop.create_task(
-                            skill_distiller.maybe_distill(
+                            ltm_orchestrator.extract_and_persist(
                                 self.session_id,
-                                self.profile_name,
+                                self.user_id,
                                 user_input,
                                 final_text,
-                                tool_calls_log,
+                                mode="turn",
+                                active_project=_qm_project,
+                                profile_slug=self.profile_name,
+                                user_message_id=user_message_id,
+                                assistant_message_id=assistant_message_id,
                             )
                         )
-                    except Exception:
-                        pass
-                except Exception as post_err:
-                    logger.error("Failed post-turn tasks: %s", post_err)
+                        try:
+                            from .learning.skill_distiller import skill_distiller
+
+                            loop.create_task(
+                                skill_distiller.maybe_distill(
+                                    self.session_id,
+                                    self.profile_name,
+                                    user_input,
+                                    final_text,
+                                    tool_calls_log,
+                                )
+                            )
+                        except Exception:
+                            pass
+                    except Exception as post_err:
+                        logger.error("Failed post-turn tasks: %s", post_err)
 
             # Calculate duration
             _turn_duration = time.monotonic() - _turn_start_time

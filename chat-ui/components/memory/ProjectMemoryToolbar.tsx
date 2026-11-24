@@ -113,7 +113,7 @@ export function ProjectMemoryToolbar({
           {/* Prominent Database Icon Container */}
           <div
             className={cn(
-              "flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/20 to-red-600/20 text-rose-500 dark:text-rose-400 border border-rose-500/30 group-hover:scale-105 transition-transform shadow-xs",
+              "flex shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-rose-500/20 to-brand-end/20 text-rose-500 dark:text-rose-400 border border-rose-500/30 group-hover:scale-105 transition-transform shadow-xs",
               isHero ? "size-10" : "size-7"
             )}
           >

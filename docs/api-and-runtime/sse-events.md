@@ -111,6 +111,11 @@ says whether a turn is running.
 | `tool_end` | `id`, `name`, `input`, `output`, `tokens_in`, `tokens_out` (a skipped tool has `result` and `error: true` instead) |
 | `tool_error` | `id`, `name`, `input`, `error` |
 | `orchestration_plan_pending` | same fields as the top-level event below |
+| `subagent_start` | `parent_tool_call_id`, `run_id`, `child_conversation_id`, `profile`, `profile_name`, `task` |
+| `subagent_step` | same ids + `step`: `id`, `name`, `status` (`running` \| `done` \| `error`) |
+| `subagent_end` | same ids + `status` (`done` \| `error` \| `denied` \| `timeout` \| `cancelled`), `steps`, `error`, `result_preview`, `files` |
+
+`subagent_*` events report the progress of a `delegate_to_agent` call: `parent_tool_call_id` is the `id` of that call's `tool_start`, and clients attach the events to its tool card. See [Sub-agents](../agents/subagents.md).
 
 ### Artifacts
 

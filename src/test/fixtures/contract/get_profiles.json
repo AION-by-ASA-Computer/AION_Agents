@@ -6,6 +6,7 @@
     "name": "Contract Profile",
     "native_tool_groups": [],
     "skills": [],
-    "slug": "contract_profile"
+    "slug": "contract_profile",
+    "subagents": []
   }
 ]

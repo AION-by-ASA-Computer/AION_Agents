@@ -268,7 +268,7 @@ export function ToolResultsPanel({
                   </div>
                 ) : null}
                 {previewError ? (
-                  <p className="text-xs text-rose-500 px-1 py-2">{previewError}</p>
+                  <p className="text-xs text-destructive px-1 py-2">{previewError}</p>
                 ) : null}
                 {!previewLoading && !previewError && previewText ? (
                   <pre

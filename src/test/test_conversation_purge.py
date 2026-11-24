@@ -2,7 +2,8 @@
 
 Covers ``DELETE /chat-ui/conversations/{id}`` (``delete_conversation_chat_ui``)
 backed by ``src/runtime/conversation_purge.py``: DB rows (messages, steps,
-attachments, feedbacks, FTS), branches and side threads, the session folder
+attachments, feedbacks, FTS), branches, side threads and sub-agent
+transcripts, the session folder
 ``data/sessions/<id>/``, object storage files and in-memory runtime state.
 """
 
@@ -197,6 +198,37 @@ def test_delete_branch_keeps_root(monkeypatch, tmp_path):
         assert res["deleted_ids"] == ["conv-branch"]
         assert await _count(Conversation, id="conv-root") == 1
         assert await _count(Conversation, id="conv-branch") == 0
+
+    asyncio.run(scenario())
+
+
+def test_delete_purges_subagent_transcripts(monkeypatch, tmp_path):
+    """Deleting a chat also removes the sub-agent transcripts it spawned
+    (``spawned_by_conversation_id``), including those spawned from its side
+    threads, while sub-agent transcripts of other chats are kept."""
+    from src.api.chat_ui import delete_conversation_chat_ui
+    from src.data.models import Conversation
+
+    async def scenario():
+        await _reset_db(monkeypatch, tmp_path)
+        await _seed_chat("conv-root", "u1")
+        await _seed_chat("conv-thread", "u1", parent_conversation_id="conv-root")
+        await _seed_chat("sub-root", "u1", spawned_by_conversation_id="conv-root")
+        await _seed_chat("sub-thread", "u1", spawned_by_conversation_id="conv-thread")
+        await _seed_chat("conv-other", "u1")
+        await _seed_chat("sub-other", "u1", spawned_by_conversation_id="conv-other")
+
+        res = await delete_conversation_chat_ui("conv-root", user_id="u1")
+        assert set(res["deleted_ids"]) == {
+            "conv-root",
+            "conv-thread",
+            "sub-root",
+            "sub-thread",
+        }
+        for cid in ("conv-root", "conv-thread", "sub-root", "sub-thread"):
+            assert await _count(Conversation, id=cid) == 0
+        assert await _count(Conversation, id="conv-other") == 1
+        assert await _count(Conversation, id="sub-other") == 1
 
     asyncio.run(scenario())
 

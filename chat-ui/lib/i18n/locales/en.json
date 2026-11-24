@@ -980,6 +980,44 @@
       },
       "rows": "{{count}} rows",
       "aria": "Chart: {{title}}"
+    },
+    "subagent": {
+      "label": "Sub-agent",
+      "unknown_agent": "profile",
+      "starting": "Starting sub-agent…",
+      "running_step": "Running {{name}}…",
+      "steps": "{{count}} steps",
+      "activity": "Activity",
+      "earlier_steps": "…and {{count}} earlier steps",
+      "result": "Result",
+      "files": "Files produced",
+      "open_transcript": "Open transcript",
+      "show_brief": "Show instructions sent",
+      "hide_brief": "Hide instructions",
+      "transcript_aria": "Sub-agent origin",
+      "back_to_parent": "Back to “{{title}}”",
+      "read_only_banner": "Transcript of sub-agent {{profile}} (read-only)",
+      "status": {
+        "running": "Running",
+        "done": "Done",
+        "error": "Error",
+        "denied": "Not allowed",
+        "timeout": "Timed out",
+        "cancelled": "Stopped"
+      },
+      "panel": {
+        "tab": "Sub-agent",
+        "aria": "Sub-agent transcript: {{name}}",
+        "open_full": "Open full page",
+        "brief": "Instructions from the main agent",
+        "brief_more": "Show all",
+        "brief_less": "Show less",
+        "loading": "Loading transcript…",
+        "working": "Working…",
+        "empty": "No answer recorded for this run.",
+        "error": "Could not load the transcript: {{msg}}",
+        "read_only": "Read-only · written by the main agent"
+      }
     }
   },
   "login": {

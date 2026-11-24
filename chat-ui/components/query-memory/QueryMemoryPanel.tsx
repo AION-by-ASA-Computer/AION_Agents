@@ -385,7 +385,7 @@ export function QueryMemoryPanel({
                           <button
                             type="button"
                             disabled={saving}
-                            className="focus-ring rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
+                            className="focus-ring rounded-2xl bg-gradient-to-r from-rose-500 to-brand-end hover:from-rose-600 hover:to-brand-end-hover px-4 py-1.5 text-xs font-bold text-white shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] disabled:opacity-50 cursor-pointer"
                             onClick={() => void onSaveEdit()}
                           >
                             {t("btn.save") || "Salva"}
