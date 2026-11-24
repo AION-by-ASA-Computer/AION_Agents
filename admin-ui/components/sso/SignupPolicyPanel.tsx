@@ -10,6 +10,7 @@ import { ChoiceList, Note } from "@/components/settings/ui";
 import { inputCls, solidBtn } from "@/components/ui/classes";
 import { cn } from "@/lib/cn";
 import type { ToastState } from "@/components/PageToast";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 const k = "admin_users.signup_policy";
 const POLICIES = ["open", "allowlist", "closed"] as const;
@@ -53,6 +54,8 @@ export function SignupPolicyPanel({ onToast }: { onToast: (toast: ToastState) =>
   const [text, setText] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Read-only users ("access" at read level) see the policy and the allowlist without editing them.
+  const canWrite = useCanWrite("access");
 
   const apply = useCallback((data: SignupPolicy) => {
     setSaved(data);
@@ -103,7 +106,8 @@ export function SignupPolicyPanel({ onToast }: { onToast: (toast: ToastState) =>
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="overflow-hidden rounded-2xl border border-border/70 bg-card">
+      {/* A disabled fieldset turns the radio rows and the allowlist textarea read-only. */}
+      <fieldset disabled={!canWrite} className="min-w-0 overflow-hidden rounded-2xl border border-border/70 bg-card">
         <ChoiceList<Policy>
           value={policy}
           onChange={setPolicy}
@@ -134,7 +138,7 @@ export function SignupPolicyPanel({ onToast }: { onToast: (toast: ToastState) =>
             </p>
           </div>
         )}
-      </div>
+      </fieldset>
 
       {policy === "allowlist" && entries.length === 0 && <Note tone="warn">{t(`${k}.empty_warning`)}</Note>}
       {error && (
@@ -143,12 +147,14 @@ export function SignupPolicyPanel({ onToast }: { onToast: (toast: ToastState) =>
         </p>
       )}
 
-      <div>
-        <button type="button" className={solidBtn} disabled={!dirty || saving} onClick={save}>
-          {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
-          {saving ? t(`${k}.saving`) : t(`${k}.save`)}
-        </button>
-      </div>
+      {canWrite && (
+        <div>
+          <button type="button" className={solidBtn} disabled={!dirty || saving} onClick={save}>
+            {saving && <Loader2 className="h-4 w-4 animate-spin" aria-hidden />}
+            {saving ? t(`${k}.saving`) : t(`${k}.save`)}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { AlertTriangle, Loader2, ShieldCheck } from "lucide-react";
 import { apiBase } from "@/lib/api";
 import { apiFetch } from "@/lib/api/headers";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 interface TwoFactorStatus {
   required: boolean;
@@ -20,6 +21,8 @@ export function TwoFactorPanel() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Read-only users ("access" at read level) see the setting as text, not as a switch.
+  const canWrite = useCanWrite("access");
 
   const load = async () => {
     try {
@@ -89,6 +92,7 @@ export function TwoFactorPanel() {
             </div>
           </div>
         </div>
+        {canWrite ? (
         <button
           type="button"
           role="switch"
@@ -106,6 +110,11 @@ export function TwoFactorPanel() {
             }`}
           />
         </button>
+        ) : (
+          <span className="shrink-0 text-sm text-muted-foreground" role="status">
+            {status.required ? "Attivo" : "Non attivo"}
+          </span>
+        )}
       </div>
       {!status.available && (
         <div className="flex items-start gap-2 px-1 text-xs text-warning" role="status">

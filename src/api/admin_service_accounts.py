@@ -36,7 +36,7 @@ from src.data import api_keys as api_keys_db
 from src.data import service_accounts as svc
 from src.data.audit import record_admin_action
 from src.data.engine import get_async_session_maker
-from src.data.models import ApiKey, User, UserProfileAccess
+from src.data.models import ApiKey, User
 
 logger = logging.getLogger("aion.api.admin_service_accounts")
 
@@ -113,17 +113,11 @@ async def _account_view(session, u: User) -> Dict[str, Any]:
             select(func.max(ApiKey.last_used_at)).where(ApiKey.user_id == u.id)
         )
     ).scalar()
-    profiles = list(
-        (
-            await session.execute(
-                select(UserProfileAccess.profile_slug).where(
-                    UserProfileAccess.user_id == u.id
-                )
-            )
-        )
-        .scalars()
-        .all()
-    )
+    # Direct profile rule of the account (access_grants + legacy rows).
+    from src.access.store import SUBJECT_USER, get_rules
+
+    rules = await get_rules(SUBJECT_USER, u.id, tenant_id=u.tenant_id or "default")
+    profiles = rules.get("profile", [])
     return _serialize_account(
         u, active_keys=active, last_used_at=last_used, profiles=profiles
     )
@@ -157,14 +151,13 @@ async def list_service_accounts() -> Dict[str, Any]:
                 )
             ).all():
                 last_used[uid] = ts
-            for uid, slug in (
-                await session.execute(
-                    select(
-                        UserProfileAccess.user_id, UserProfileAccess.profile_slug
-                    ).where(UserProfileAccess.user_id.in_(ids))
-                )
-            ).all():
-                profiles.setdefault(uid, []).append(slug)
+    # Direct profile rules (access_grants + legacy rows); few service accounts.
+    from src.access.store import SUBJECT_USER, get_rules
+
+    for uid in ids:
+        rules = await get_rules(SUBJECT_USER, uid, tenant_id=tenant)
+        if "profile" in rules:
+            profiles[uid] = rules["profile"]
     return {
         "items": [
             _serialize_account(
@@ -297,7 +290,8 @@ async def delete_service_account(
     async with get_async_session_maker()() as session:
         u = await _load_or_404(session, account_id)
         identifier = u.identifier
-    await delete_user(account_id)
+    # Same caller: the anti-escalation checks of delete_user see who acts.
+    await delete_user(account_id, auth=auth)
     svc.invalidate_ltm_cache(identifier)
     await record_admin_action(
         tenant_id=tenant,

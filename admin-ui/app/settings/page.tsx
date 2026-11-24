@@ -20,6 +20,8 @@ import { RetentionSection } from "@/components/settings/RetentionSection";
 import { SmtpSection } from "@/components/settings/SmtpSection";
 import { SmbSection } from "@/components/settings/SmbSection";
 import { K, type Notify, type SectionCtx, type Settings } from "@/components/settings/types";
+import { SettingsReadOnly } from "@/components/settings/ui";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 const k = K;
 
@@ -48,6 +50,9 @@ const positive = (v: string | undefined) => {
 
 export default function SettingsPage() {
   const t = useT();
+  // Read-only admins ("settings" area at read level) see every value but inputs are locked
+  // (via <SettingsReadOnly>), and save / add / delete / test controls are hidden.
+  const canWrite = useCanWrite("settings");
   const [settings, setSettings] = useState<Settings>({});
   const [baseline, setBaseline] = useState<{ settings: Settings; ocrMode: OcrMode; sttMode: SttMode } | null>(null);
   const [ocrMode, setOcrMode] = useState<OcrMode>("local");
@@ -192,7 +197,7 @@ export default function SettingsPage() {
   };
 
   // Ctrl/Cmd+S saves the page instead of the browser's "save page".
-  const canSave = dirty && !saving && !restarting;
+  const canSave = canWrite && dirty && !saving && !restarting;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === "s") {
@@ -269,6 +274,7 @@ export default function SettingsPage() {
           </ul>
         </nav>
 
+        <SettingsReadOnly readOnly={!canWrite}>
         <div className="min-w-0">
           {/* All sections stay mounted so connection tests and drafts survive switching tabs. */}
           <div hidden={active !== "models"}><ModelsSection t={t} notify={notify} /></div>
@@ -281,9 +287,10 @@ export default function SettingsPage() {
           <div hidden={active !== "smtp"}><SmtpSection t={t} notify={notify} /></div>
           <div hidden={active !== "smb"}><SmbSection t={t} notify={notify} /></div>
         </div>
+        </SettingsReadOnly>
       </div>
 
-      {usesBar && dirty && (
+      {canWrite && usesBar && dirty && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 lg:left-[var(--sidebar-width,0px)]">
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-end gap-3">
             <span className="mr-auto text-sm text-muted-foreground" role="status">{t(`${k}.page.unsaved`)}</span>

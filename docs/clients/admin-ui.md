@@ -300,9 +300,17 @@ router = APIRouter(
 
 `require_admin_role` (in `src/api/auth_login.py`):
 
-1. Resolves identity by calling `require_chat_auth` (Bearer / internal BFF secret). API keys never carry the `admin` role and are rejected on every `/admin/*` endpoint (`403`); see [API keys](../security/api-keys.md).
-2. Verifies that the token payload contains the `admin` role.
-3. Responds with `401` if the token is missing, `403` if the `admin` role is not present.
+1. Resolves identity by calling `require_chat_auth` (Bearer / internal BFF secret). API keys and the internal secret never carry roles or panel areas and are rejected on every `/admin/*` endpoint (`403`); see [API keys](../security/api-keys.md).
+2. Looks up the request (method + path) in the route table of `src/access/admin_areas.py`: an admin **area** at `read` (`GET`) or `write` (other methods), the dashboard (any user who may open the panel) or super-admin only.
+3. Reads the caller's areas from the database (super-admins: all areas in write) and responds with `401` if the token is missing, `403 permission_denied` if the area or level is missing.
+
+Every user can open the panel unless they are "chat UI only"; what they see
+depends on their areas (menu filtered, pages of other areas replaced by a
+"no access" message, *Read only* banner on read-only areas). The login (password
+or SSO) does not require the admin role; from chat-ui the **Pannello admin**
+menu item opens the panel already signed in (one-time handoff code,
+`POST /auth/sso/admin-handoff`). See
+[Admin panel permissions](../security/groups-and-permissions.md#admin-panel-permissions).
 
 Override variable (escape hatch in dev):
 

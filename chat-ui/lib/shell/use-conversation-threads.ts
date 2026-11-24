@@ -95,6 +95,7 @@ export function useConversationThreads() {
   const activeSection = useMemo(() => {
     if (pathname.startsWith("/integrations")) return "integrations" as const;
     if (pathname.startsWith("/schedules")) return "schedules" as const;
+    if (pathname.startsWith("/profiles")) return "profiles" as const;
     return "chat" as const;
   }, [pathname]);
 

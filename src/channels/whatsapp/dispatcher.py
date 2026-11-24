@@ -755,14 +755,17 @@ class TurnResult:
 async def _resolve_profile(user_row_id: str, preferred: Optional[str]) -> str:
     from fastapi import HTTPException
 
-    from src.api.profile_access import allowed_profile_slugs, enforce_profile_access
+    from src.access.principal import load_principal
+    from src.api.profile_access import enforce_profile_access
 
     profile = (preferred or "").strip() or DEFAULT_PROFILE_SLUG
     try:
         return await enforce_profile_access(user_row_id, profile)
     except HTTPException:
-        allowed = await allowed_profile_slugs(user_row_id)
-        return allowed[0] if allowed else profile
+        # Preferred profile no longer allowed: use the first allowed one. With
+        # a rule granting no profile the turn is refused later by get_agent.
+        grants = (await load_principal(user_row_id)).profile_grants
+        return grants[0] if grants else profile
 
 
 def _resolve_thinking(cfg: ChannelConfig) -> str:

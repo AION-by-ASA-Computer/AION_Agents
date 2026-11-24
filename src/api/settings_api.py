@@ -3,8 +3,16 @@ import asyncio
 import logging
 from pathlib import Path
 from typing import Dict
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
+
+from src.access.admin_areas import (
+    LEVEL_WRITE,
+    level_allows,
+    readable_setting,
+    setting_area,
+)
+from src.api.auth_login import ChatAuthIdentity, admin_caller_areas, require_admin_role
 
 from src.runtime.env_sync import (
     load_base_env,
@@ -130,14 +138,52 @@ class SettingsUpdate(BaseModel):
 
 
 @router.get("")
-async def get_settings():
-    """Retrieve current .env settings (segreti mascherati)."""
+async def get_settings(auth: ChatAuthIdentity = Depends(require_admin_role)):
+    """Retrieve current .env settings (segreti mascherati).
+
+    Open to every panel user (dashboard, Hub, Metrics read it), but a caller
+    without the ``agents`` area only gets the keys of their own areas plus a
+    few non-secret keys shown on the dashboard (``readable_setting``).
+    """
     env_dict = _parse_env()
     provider_type = _resolve_provider_type(env_dict)
+    areas = await admin_caller_areas(auth)
+    if areas is not None:
+        env_dict = {k: v for k, v in env_dict.items() if readable_setting(k, areas)}
     return {
         "settings": _mask_settings_for_get(env_dict),
         "provider_type": provider_type,
     }
+
+
+def _ensure_can_write_settings(
+    areas: Dict[str, str] | None, updates: Dict[str, str], existing: Dict[str, str]
+) -> None:
+    """403 unless the caller may write the area of every *changed* key.
+
+    The Settings page re-sends all values it loaded, so unchanged keys are
+    ignored: only keys whose value differs from the current one count.
+    Observability keys need ``observability:write``, the scheduler switch
+    ``agents:write``, the rest ``settings:write`` (``setting_area``).
+    """
+    if areas is None:
+        return
+    needed = {
+        setting_area(k)
+        for k, v in updates.items()
+        if (existing.get(k) or "") != (v or "")
+    }
+    denied = sorted(a for a in needed if not level_allows(areas.get(a), LEVEL_WRITE))
+    if denied:
+        raise HTTPException(
+            403,
+            detail={
+                "code": "permission_denied",
+                "message": "Admin permission required",
+                "areas": denied,
+                "action": LEVEL_WRITE,
+            },
+        )
 
 
 def _is_container_env() -> bool:
@@ -164,11 +210,22 @@ def _reload_env():
 
 
 @router.post("")
-async def update_settings(update: SettingsUpdate):
-    """Update .env settings."""
+async def update_settings(
+    update: SettingsUpdate, auth: ChatAuthIdentity = Depends(require_admin_role)
+):
+    """Update .env settings (each changed key checked against its area)."""
     try:
         existing_env = _parse_env()
         merged = _filter_settings_post(dict(update.settings), existing=existing_env)
+        _ensure_can_write_settings(
+            await admin_caller_areas(auth), dict(merged), existing_env
+        )
+        # Partial update: keys the client did not send keep their current
+        # value. ``write_admin_overrides`` drops every override missing from
+        # its input, so without this a page that sends only its own keys
+        # (observability dialog, scheduler switch, or any caller that got a
+        # per-area filtered GET) would wipe all other admin settings.
+        merged = {**existing_env, **merged}
         base = load_base_env(repo_root=_get_repo_root())
         for key, value in base.items():
             if key not in merged and key not in RUNTIME_STICKY_KEYS:

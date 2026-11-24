@@ -13,6 +13,8 @@ import {
   isChangePwSkipped,
 } from "@/lib/auth/storage";
 import { fetchAuthStatus, resetAuthStatusCache } from "@/lib/auth/status";
+import { canAccessAdmin, type AdminAccessInfo } from "@/lib/auth/permissions";
+import { AdminAccessProvider } from "@/lib/auth/admin-access";
 import {
   initLocaleFromStorage,
   setLocale,
@@ -42,6 +44,8 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
   const [state, setState] = useState<GateState>("checking");
+  // `/auth/me` access fields shared with the shell (menu, page gate, read-only).
+  const [me, setMe] = useState<AdminAccessInfo | null>(null);
 
   const skip =
     pathname === "/login" ||
@@ -89,8 +93,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
           router.replace(next ? `/login?next=${next}` : "/login");
           return;
         }
-        const me = (await r.json()) as {
-          roles?: string[];
+        const me = (await r.json()) as AdminAccessInfo & {
           must_change_password?: boolean;
           password_change_required?: boolean;
           metadata?: { language?: string };
@@ -98,8 +101,10 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
         if (me.metadata?.language && isValidLocale(me.metadata.language)) {
           setLocale(me.metadata.language);
         }
-        const roles = Array.isArray(me.roles) ? me.roles : [];
-        if (!roles.includes("admin")) {
+        setMe(me);
+        // Super-admin, any admin area, or the base panel access not excluded
+        // ("Solo chat UI"); see lib/auth/permissions.ts.
+        if (!canAccessAdmin(me)) {
           setState("no_admin_role");
           return;
         }
@@ -135,7 +140,7 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
     };
   }, [pathname, router, skip]);
 
-  if (state === "ok") return <>{children}</>;
+  if (state === "ok") return <AdminAccessProvider me={me}>{children}</AdminAccessProvider>;
 
   if (state === "no_admin_role") {
     return (
@@ -146,10 +151,9 @@ export function AdminAuthGate({ children }: { children: React.ReactNode }) {
           title="Accesso negato"
           description={
             <>
-              Il tuo account non ha il ruolo{" "}
-              <code className="rounded-md border border-border/60 bg-muted px-1.5 py-0.5 font-mono text-[0.95em] text-foreground">admin</code>.
-              Chiedi a un amministratore di assegnarti il ruolo, oppure effettua
-              login con un altro utente.
+              Il tuo account può usare solo la chat. Chiedi a un amministratore
+              di darti accesso al pannello, oppure effettua login con un altro
+              utente.
             </>
           }
         />

@@ -21,7 +21,7 @@ import {
   slugFromModelId,
   validateMaxChatTokens,
 } from "@/lib/llm-probe";
-import { Field, ModelField, Note, ProbeBar, SecretInput, SectionHead, Switch, TextInput } from "./ui";
+import { Field, ModelField, Note, ProbeBar, SecretInput, SectionHead, Switch, TextInput, useSettingsReadOnly } from "./ui";
 import { useProbe } from "./useProbe";
 import { K, type SectionCtx } from "./types";
 
@@ -65,6 +65,8 @@ const PROVIDER_OPTIONS = [
 const m = `${K}.models`;
 
 export function ModelsSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
+  // Read-only admins see the provider list only: add / edit / default / delete are hidden.
+  const readOnly = useSettingsReadOnly();
   const [providers, setProviders] = useState<Provider[] | null>(null);
   const [loadFailed, setLoadFailed] = useState(false);
   const [formOpen, setFormOpen] = useState(false);
@@ -305,10 +307,12 @@ export function ModelsSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
         title={t(`${m}.title`)}
         description={t(`${m}.description`)}
         action={
-          <button type="button" onClick={openCreate} className={solidBtn}>
-            <Plus className="h-3.5 w-3.5" aria-hidden />
-            {t(`${m}.add`)}
-          </button>
+          !readOnly && (
+            <button type="button" onClick={openCreate} className={solidBtn}>
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              {t(`${m}.add`)}
+            </button>
+          )
         }
       />
 
@@ -326,10 +330,12 @@ export function ModelsSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
         <div className="flex flex-col items-start gap-3 rounded-3xl border border-dashed border-border px-6 py-12">
           <h3 className="text-base font-semibold tracking-[-0.015em]">{t(`${m}.empty_title`)}</h3>
           <p className="max-w-[48ch] text-sm text-muted-foreground">{t(`${m}.empty_body`)}</p>
-          <button type="button" onClick={openCreate} className={solidBtn}>
-            <Plus className="h-3.5 w-3.5" aria-hidden />
-            {t(`${m}.add_first`)}
-          </button>
+          {!readOnly && (
+            <button type="button" onClick={openCreate} className={solidBtn}>
+              <Plus className="h-3.5 w-3.5" aria-hidden />
+              {t(`${m}.add_first`)}
+            </button>
+          )}
         </div>
       ) : (
         <ul className="divide-y divide-border/40 overflow-hidden rounded-3xl border border-border/60 bg-card/40">
@@ -361,6 +367,8 @@ export function ModelsSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
                 <span className={cn("h-2 w-2 rounded-full", p.enabled ? "bg-success" : "bg-muted-foreground/60")} aria-hidden />
                 {t(p.enabled ? `${m}.active` : `${m}.disabled`)}
               </span>
+              {/* Set default / edit / delete all write: hidden for read-only admins. */}
+              {!readOnly && (
               <div className="flex items-center justify-end gap-0.5">
                 <IconBtn label={t(`${m}.set_default`)} disabled={!!p.is_default} onClick={() => void makeDefault(p.slug)}>
                   <Star className="h-4 w-4" aria-hidden />
@@ -372,12 +380,13 @@ export function ModelsSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
                   <Trash2 className="h-4 w-4" aria-hidden />
                 </IconBtn>
               </div>
+              )}
             </li>
           ))}
         </ul>
       )}
 
-      {formOpen && (
+      {!readOnly && formOpen && (
         <Dialog title={t(editing ? `${m}.form_edit` : `${m}.form_new`)} closeLabel={t(`${m}.cancel`)} onClose={closeForm} className="max-w-2xl overflow-y-auto max-h-[92vh]">
           <form
             className="flex flex-col gap-5"
@@ -489,7 +498,7 @@ export function ModelsSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
         </Dialog>
       )}
 
-      {toDelete && <DeleteDialog name={toDelete.slug} busy={deleting} ns={`${m}.delete_dialog`} t={t} onConfirm={() => void remove()} onClose={() => setToDelete(null)} />}
+      {!readOnly && toDelete && <DeleteDialog name={toDelete.slug} busy={deleting} ns={`${m}.delete_dialog`} t={t} onConfirm={() => void remove()} onClose={() => setToDelete(null)} />}
     </div>
   );
 }

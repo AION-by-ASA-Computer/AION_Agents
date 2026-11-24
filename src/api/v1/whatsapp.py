@@ -18,7 +18,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from src.api.auth_login import ChatAuthIdentity, require_chat_auth
+from src.api.auth_login import ChatAuthIdentity, ensure_capability, require_chat_auth
 from src.channels.whatsapp import config_service, dispatcher, linking, store
 from src.channels.whatsapp.payload import parse_webhook
 from src.channels.whatsapp.signature import verify_signature
@@ -129,6 +129,8 @@ async def me_whatsapp_status(auth: ChatAuthIdentity = Depends(_me)):
 
 @router.post("/me/whatsapp/link-code", tags=["v1-me-whatsapp"])
 async def me_whatsapp_link_code(auth: ChatAuthIdentity = Depends(_me)):
+    # Phase 5: admins may switch this feature off (capability rule).
+    await ensure_capability(auth, "whatsapp.use")
     tenant_id = config_service.default_tenant_id()
     cfg = await config_service.get_channel(tenant_id)
     if cfg is None or not cfg.active:

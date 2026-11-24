@@ -1,12 +1,13 @@
 "use client";
 
 import { Select } from "@/components/ui/Select";
-import { Field, FieldGrid, Group, SecretInput, SectionHead, TextInput, ToggleList, ToggleRow } from "./ui";
+import { Field, FieldGrid, Group, SecretInput, SectionHead, TextInput, ToggleList, ToggleRow, useSettingsReadOnly } from "./ui";
 import { K, type SectionCtx } from "./types";
 
 const m = `${K}.web`;
 
 export function WebSection({ t, settings, set }: SectionCtx) {
+  const readOnly = useSettingsReadOnly();
   const tog = (key: string) => (v: boolean) => set(key, v ? "1" : "0");
   const on = (key: string) => settings[key] === "1";
   const txt = (key: string, fallback = "") => settings[key] ?? fallback;
@@ -61,6 +62,7 @@ export function WebSection({ t, settings, set }: SectionCtx) {
             <Select
               value={txt("AION_WEB_SEARCH_DEFAULT_PROVIDER", "tavily")}
               onChange={(v) => set("AION_WEB_SEARCH_DEFAULT_PROVIDER", v)}
+              disabled={readOnly}
               aria-label={t(`${m}.default_engine`)}
               options={[
                 { value: "tavily", label: "Tavily", show: tavily },

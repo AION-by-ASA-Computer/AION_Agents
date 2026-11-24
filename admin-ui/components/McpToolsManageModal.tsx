@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 interface ToolItem {
   name: string;
@@ -41,6 +42,9 @@ export function McpToolsManageModal({
   const [tools, setTools] = useState<ToolItem[]>([]);
   const [selectedNames, setSelectedNames] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  // Saving the tool selection needs "external" write; read-only users see the
+  // list but cannot change it (the Hub also hides the menu entry for them).
+  const canWrite = useCanWrite("external");
 
   useEffect(() => {
     if (!open || !serverSlug) {
@@ -105,6 +109,7 @@ export function McpToolsManageModal({
   }, [tools, searchQuery]);
 
   const toggleTool = (name: string) => {
+    if (!canWrite) return;
     setSelectedNames((prev) => {
       const next = new Set(prev);
       if (next.has(name)) {
@@ -230,7 +235,7 @@ export function McpToolsManageModal({
                     className="w-full pl-9 pr-3 py-1.5 rounded-lg bg-neutral-900 border border-neutral-800 text-xs text-white placeholder-neutral-500 focus:outline-none focus:border-violet-500"
                   />
                 </div>
-                <div className="flex items-center gap-2 shrink-0">
+                {canWrite && <div className="flex items-center gap-2 shrink-0">
                   <button
                     type="button"
                     onClick={handleSelectAll}
@@ -247,7 +252,7 @@ export function McpToolsManageModal({
                     <Square className="w-3.5 h-3.5 text-neutral-400" />
                     Deselect All
                   </button>
-                </div>
+                </div>}
               </div>
 
               {/* Status Badge */}
@@ -295,6 +300,7 @@ export function McpToolsManageModal({
                         checked={isChecked}
                         onChange={() => toggleTool(tool.name)}
                         onClick={(e) => e.stopPropagation()}
+                        disabled={!canWrite}
                         className="mt-0.5 rounded border-neutral-700 text-violet-600 focus:ring-violet-500 cursor-pointer"
                       />
                       <div className="min-w-0 flex-1">
@@ -339,7 +345,7 @@ export function McpToolsManageModal({
             >
               Cancel
             </button>
-            <button
+            {canWrite && <button
               type="button"
               onClick={handleSave}
               disabled={saving || loading}
@@ -356,7 +362,7 @@ export function McpToolsManageModal({
                   Save Active Tools
                 </>
               )}
-            </button>
+            </button>}
           </div>
         </div>
       </div>

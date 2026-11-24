@@ -336,8 +336,9 @@ The `/admin/*` router is **always protected** independent of chat auth:
 | `AION_SETUP_ADMIN_DEFAULT_IDENTIFIER` | `admin` | Default admin username                                        |
 | `AION_SETUP_ADMIN_DEFAULT_PASSWORD`   | `admin` | Default admin password (must change at first login)           |
 
-- `require_admin_role` in `src/api/auth_login.py` enforces Bearer token + role
-  `admin` on every `/admin/*` endpoint.
+- `require_admin_role` in `src/api/auth_login.py` enforces a Bearer chat token
+  and the admin **area** of each `/admin/*` route (route table in
+  `src/access/admin_areas.py`; super-admin role = all areas).
 - The user model has a `users.roles` JSON-list column and a
   `users.must_change_password` flag (migration `d1a23b4f0001`).
 - The chat token is HMAC-signed with `user_row_id:identifier:roles_csv:exp:sig`
@@ -380,6 +381,34 @@ Admin-toggled (`PUT /admin/auth/2fa`), applies only to the password login while 
 `POST /auth/login` returns `mfa_required` + `mfa_token`; the session token is issued by `/auth/2fa/*`
 (`src/api/auth_mfa.py`, logic in `src/auth/mfa/totp.py`). Recovery: admin reset, `python -m src.auth.mfa reset <user>`
 or `AION_2FA_FORCE_DISABLE=1`. See `docs/security/two-factor-auth.md`.
+
+### Access control (groups and rules)
+
+Single decision point in `src/access/` (`principal.py` caller + cached rules,
+`policy.py` decisions, `store.py` writes); never query `access_grants` /
+`user_profile_access` directly. Admin-managed `user_groups` + members carry
+rules in `access_grants` (`/admin/groups*`, `/admin/users/{id}/rules|groups|effective-access`
+in `src/api/admin_groups.py`). "No rule = no limit" per resource type, union of
+the subjects that have a rule; no default group. Roles are read from the DB
+per request (cache `AION_ACCESS_CACHE_TTL_SEC`). Rule types: `profile`, `skill`,
+`mcp_server`, `native_tool_group` (catalogue in `src/access/catalog.py`,
+`GET /admin/access/catalog`, user view `GET /v1/me/access`). Skill/MCP/tool
+rules never strip an assigned profile: they gate only what users turn on
+themselves (`/v1/integrations` via `configurable_mcp_servers`, private profiles
+later). Private profiles (Phase 3): table `user_profiles`, logic in
+`src/access/private_profiles.py`, API `/v1/me/profiles*`, chat-ui page `/profiles`;
+`usr_*` slugs are owner-only, mirrored in `profile_manager` (overlay loaded at
+startup) and filtered by the owner's current rules in `get_agent`. Capability
+rules (`capability:private_profiles.create`) gate creation. Admin panel
+(Phase 5): 5 areas `access`/`agents`/`settings`/`external`/`observability` × read/write
+(`admin_section` rules, ids `<area>:<level>`, no rule = no area, sum of rules,
+`admin` role = everything); every `/admin/*` route must be in the table of
+`src/access/admin_areas.py` (checked by `require_admin_role`, test
+`test_admin_rbac.py`); anti-escalation in `src/access/escalation.py`;
+capabilities `admin_panel.access` ("chat UI only"), `telegram.use`,
+`whatsapp.use`, `api_keys.create`. Roadmap in
+`PLAN_access_control.md`. See `docs/security/groups-and-permissions.md` and
+`docs/clients/private-profiles.md`.
 
 ### Service accounts
 

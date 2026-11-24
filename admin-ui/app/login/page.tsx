@@ -27,7 +27,8 @@ const LOGIN_ERRORS: Record<string, string> = {
   temp_password_expired: "La password temporanea è scaduta. Chiedi a un amministratore una nuova password temporanea o un nuovo link.",
   sso_required: "Questo account accede tramite SSO: usa il pulsante SSO.",
   password_login_disabled: "L'accesso con password non è disponibile per questo account.",
-  not_admin: "Questo account non ha il ruolo 'admin'.",
+  not_admin: "Questo account non può accedere al pannello admin.",
+  admin_panel_not_allowed: "Questo account può usare solo la chat: chiedi a un amministratore l'accesso al pannello.",
   sso_not_linked: "Questo account SSO non è collegato a nessun utente AION.",
   sso_domain_not_allowed: "Questo account non è abilitato all'accesso. Stai usando l'account sbagliato: accedi con quello aziendale.",
   sso_failed: "Accesso SSO non riuscito. Riprova.",
@@ -85,12 +86,10 @@ export default function AdminLoginPage() {
       setErr("Token mancante nella risposta.");
       return;
     }
-    const roles = Array.isArray(j.roles) ? j.roles : [];
-    if (!roles.includes("admin")) {
-      setErr("Questo utente non ha il ruolo 'admin'. Chiedi all'amministratore di assegnartelo.");
-      setMfa(null);
-      return;
-    }
+    // No role check here: the panel is open to every user with admin areas
+    // or base access (Phase 5). The backend already refused "chat UI only"
+    // users (403 admin_panel_not_allowed) and AdminAuthGate checks
+    // `admin_access` from /auth/me on every page.
     setStoredAuth(j.access_token, j.user_id ?? null);
     resetAuthStatusCache();
     if (j.must_change_password) {

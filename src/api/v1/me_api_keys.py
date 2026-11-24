@@ -21,7 +21,7 @@ from src.api.auth.api_key_view import (
     validated_scopes,
 )
 from src.api.auth.scopes import Scope
-from src.api.auth_login import ChatAuthIdentity, require_chat_auth
+from src.api.auth_login import ChatAuthIdentity, ensure_capability, require_chat_auth
 from src.data import api_keys as api_keys_db
 from src.data.engine import get_async_session_maker
 from src.data.models import User
@@ -71,6 +71,8 @@ async def list_my_api_keys(auth: ChatAuthIdentity = Depends(_me)):
 async def create_my_api_key(
     body: ApiKeyCreateBody, auth: ChatAuthIdentity = Depends(_me)
 ):
+    # Phase 5: admins may switch this feature off (capability rule).
+    await ensure_capability(auth, "api_keys.create")
     scopes = validated_scopes(body.scopes)
     async with get_async_session_maker()() as session:
         user = await _load_user(session, auth.user_row_id)

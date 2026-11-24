@@ -405,7 +405,13 @@ async def test_delete_user_drops_tokens(monkeypatch, tmp_path):
     from src.data.models import PasswordSetupToken
 
     uid = (await _create())["id"]
-    await delete_user(uid)
+    from src.api.auth_login import ChatAuthIdentity
+
+    # Called directly: a super-admin caller for the Phase 5 escalation checks.
+    root = ChatAuthIdentity(
+        user_row_id=None, identifier="root", via="chat_token", roles=["admin"]
+    )
+    await delete_user(uid, auth=root)
     async with sm() as session:
         n = (
             await session.execute(select(func.count()).select_from(PasswordSetupToken))

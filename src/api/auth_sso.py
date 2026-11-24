@@ -23,6 +23,7 @@ from sqlalchemy import select, update
 from src.api.auth_login import (
     ChatAuthIdentity,
     issue_chat_token,
+    require_chat_auth,
     require_chat_token_only,
 )
 from src.api.public_urls import admin_base_url, chat_base_url, oauth_redirect_api_base
@@ -350,8 +351,9 @@ async def sso_callback(
         )
 
     # -----------------------------------------------------------------------
-    # admin_login: login SSO dal pannello admin. Solo utenti esistenti con
-    # ruolo admin (niente auto-provisioning), ritorno su admin-ui.
+    # admin_login: login SSO dal pannello admin. Solo utenti esistenti (niente
+    # auto-provisioning) che possono entrare nel pannello: super-admin, chi ha
+    # almeno un'area o chi non e' "solo chat UI" (Phase 5, src/access/policy).
     # -----------------------------------------------------------------------
     if purpose == "admin_login":
         admin_base = admin_base_url(request).rstrip("/")
@@ -376,8 +378,11 @@ async def sso_callback(
             return RedirectResponse(f"{admin_base}/login?error=sso_failed")
 
         roles = list(user_dict.get("roles") or [])
-        if "admin" not in roles:
-            return RedirectResponse(f"{admin_base}/login?error=not_admin")
+        from src.access.policy import can_enter_admin_panel
+        from src.access.principal import load_principal
+
+        if not can_enter_admin_panel(await load_principal(str(user_dict["id"]))):
+            return RedirectResponse(f"{admin_base}/login?error=admin_panel_not_allowed")
         tok = issue_chat_token(
             user_row_id=str(user_dict["id"]),
             user_identifier=str(user_dict["identifier"]),
@@ -456,6 +461,66 @@ async def sso_callback(
 
 class ExchangeBody(BaseModel):
     code: str
+
+
+class AdminHandoffBody(BaseModel):
+    """Page of the admin panel to open after the handoff (relative path)."""
+
+    return_to: Optional[str] = "/"
+
+
+@router.post("/admin-handoff")
+async def admin_handoff(
+    request: Request,
+    body: AdminHandoffBody,
+    auth: ChatAuthIdentity = Depends(require_chat_auth),
+):
+    """Open the admin panel from chat-ui without a second login (Phase 5).
+
+    The caller is already signed in to chat-ui: if they may enter the admin
+    panel (``can_enter_admin_panel``), a fresh token is put in a one-time
+    handoff code (60 s, same mechanism as the SSO login) and the response
+    carries the admin-ui URL ``/login/sso#code=...``; the admin-ui page
+    exchanges it with ``POST /auth/sso/exchange`` and stores its own session.
+    The token never travels in a URL. ``403 admin_panel_not_allowed`` for
+    "chat UI only" users.
+    """
+    from src.access.policy import can_enter_admin_panel
+    from src.access.principal import load_principal
+    from src.data.models import User
+    from src.data.user_password import get_roles
+
+    # Only a real chat session (not API keys or the internal secret) may be
+    # turned into an admin-panel session; the usual chat gates (pending SSO
+    # link, 2FA enrollment) already ran in require_chat_auth.
+    if auth.via != "chat_token" or not auth.user_row_id:
+        raise HTTPException(403, detail={"code": "user_token_required"})
+    principal = await load_principal(auth.user_row_id)
+    if not can_enter_admin_panel(principal):
+        raise HTTPException(403, detail={"code": "admin_panel_not_allowed"})
+    async with get_async_session_maker()() as session:
+        user = await session.get(User, auth.user_row_id)
+    if user is None:
+        raise HTTPException(401, detail={"code": "user_not_found"})
+    roles = list(get_roles(user))
+    return_to = _validate_return_to(body.return_to)
+    payload = {
+        "access_token": issue_chat_token(
+            user_row_id=user.id, user_identifier=user.identifier, roles=roles
+        ),
+        "user_id": sanitize_user_id(user.identifier),
+        "identifier": user.identifier,
+        "display_name": user.display_name or user.identifier,
+        "roles": roles,
+        "sso_link_required": False,
+        "return_to": return_to,
+    }
+    code_raw = await _create_handoff_code(payload, _tenant_id())
+    admin_base = admin_base_url(request).rstrip("/")
+    return {
+        "url": f"{admin_base}/login/sso#code={quote(code_raw, safe='')}"
+        f"&return_to={quote(return_to, safe='/')}"
+    }
 
 
 @router.post("/exchange")

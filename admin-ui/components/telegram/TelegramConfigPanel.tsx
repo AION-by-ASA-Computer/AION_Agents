@@ -17,6 +17,9 @@
  * The page shows the form one tab at a time (`section`), but this component stays mounted
  * on every tab: the edits, the unsaved-changes bar and the Ctrl/Cmd+S shortcut belong to
  * the whole form, so switching tab (or opening the lists) never discards what was typed.
+ *
+ * Read-only users ("external" area at read level) see every value in disabled fields; the
+ * token test, the save bar and the Ctrl/Cmd+S shortcut are not offered to them.
  */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
@@ -27,6 +30,7 @@ import { cn } from "@/lib/cn";
 import { Field, FieldGrid, Group, Mono, Note, SecretInput, TextInput, ToggleList, ToggleRow } from "@/components/settings/ui";
 import { outlineBtn, solidBtn } from "@/components/ui/classes";
 import { Select } from "@/components/ui/Select";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { k, type Notify, type T } from "./shared";
 
 const c = `${k}.config`;
@@ -266,6 +270,7 @@ export function TelegramConfigPanel({
   const [statusFailed, setStatusFailed] = useState(false);
   const [checking, setChecking] = useState(false);
   const [check, setCheck] = useState<TokenCheck | null>(null);
+  const canWrite = useCanWrite("external");
 
   const loadSettings = useCallback(async () => {
     try {
@@ -332,7 +337,7 @@ export function TelegramConfigPanel({
     for (const key of keys) if ((baseline[key] ?? "") !== (settings[key] ?? "")) return true;
     return false;
   }, [baseline, settings]);
-  const canSave = dirty && !saving;
+  const canSave = canWrite && dirty && !saving;
 
   // Tell the page which tabs hold edits, so their labels can carry an "unsaved" dot.
   const dirtySections = useMemo(() => {
@@ -573,6 +578,8 @@ export function TelegramConfigPanel({
           </div>
         </Group>
 
+        {/* A disabled fieldset makes every field, select and toggle non-editable. */}
+        <fieldset disabled={!canWrite} className="min-w-0">
         <Group title={t(`${c}.manager`)} description={t(`${c}.manager_hint`)}>
           <ToggleList>
             <ToggleRow
@@ -595,7 +602,8 @@ export function TelegramConfigPanel({
                   {...secret}
                 />
               </Field>
-              <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:col-span-2">
+              {/* Token test is a POST to the backend: write level only. */}
+              {canWrite && <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:col-span-2">
                 <button type="button" onClick={() => void testToken()} disabled={checking} className={outlineBtn}>
                   {checking ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Zap className="h-3.5 w-3.5" aria-hidden />}
                   {t(`${c}.test`)}
@@ -609,7 +617,7 @@ export function TelegramConfigPanel({
                       : t(`${c}.test_${check.error}`)}
                   </span>
                 ) : null}
-              </div>
+              </div>}
               <Field label={t(`${c}.proxy`)} hint={t(`${c}.proxy_hint`)} wide>
                 <TextInput
                   value={txt("proxy_url")}
@@ -633,6 +641,7 @@ export function TelegramConfigPanel({
             </FieldGrid>
           </div>
         </Group>
+        </fieldset>
 
         <Note>
           {t(`${c}.apply_note`)} <Mono>AION_CREDENTIAL_ENCRYPTION_KEY</Mono>
@@ -641,6 +650,7 @@ export function TelegramConfigPanel({
 
       {/* Policies: what personal assistants may be created and by how many. */}
       <div hidden={section !== "policies"} className="flex flex-col gap-5">
+        <fieldset disabled={!canWrite} className="flex min-w-0 flex-col gap-5">
         <Group title={t(`${c}.assistants`)} description={t(`${c}.assistants_hint`)}>
           <FieldGrid>
             <Field label={t(`${c}.default_profile`)} hint={t(`${c}.default_profile_hint`)}>
@@ -714,10 +724,12 @@ export function TelegramConfigPanel({
             </ToggleList>
           </div>
         </Group>
+        </fieldset>
       </div>
 
       {/* Chat: how replies look in Telegram, plus the low-level timings. */}
       <div hidden={section !== "chat"} className="flex flex-col gap-5">
+        <fieldset disabled={!canWrite} className="flex min-w-0 flex-col gap-5">
         <Group title={t(`${c}.chat`)} description={t(`${c}.chat_hint`)}>
           <FieldGrid>
             <Field label={t(`${c}.concurrency`)} hint={t(`${c}.concurrency_hint`)}>
@@ -785,10 +797,11 @@ export function TelegramConfigPanel({
             </Field>
           </FieldGrid>
         </Group>
+        </fieldset>
       </div>
 
       {/* Same unsaved-changes bar as Settings: it spans the content area, right of the sidebar. */}
-      {dirty && (
+      {canWrite && dirty && (
         <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 py-3 lg:left-[var(--sidebar-width,0px)]">
           <div className="mx-auto flex max-w-4xl flex-wrap items-center justify-end gap-3">
             <span className="mr-auto text-sm text-muted-foreground" role="status">{t(`${c}.unsaved`)}</span>

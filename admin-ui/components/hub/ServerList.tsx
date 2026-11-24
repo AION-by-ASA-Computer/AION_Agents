@@ -22,6 +22,7 @@ import {
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/i18n/use-t";
 import { outlineBtn } from "@/components/ui/classes";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import type { IntegrationPolicyRow } from "@/lib/mcpIntegrationPolicy";
 import type { McpIntegrityIssue } from "@/components/McpIntegrityBanner";
 import { serverStatus, STATUS_RANK, type ServerStatus } from "@/components/hub/useHub";
@@ -75,6 +76,9 @@ function RowMenu({ item, h, probing }: { item: McpItemRow; h: Handlers; probing:
   const { name, config } = item;
   const isBase = !!config.is_base;
   const remote = config.type === "sse" || config.type === "remote-bridge";
+  // Tools / probe / wizard / advisor / uninstall all POST or DELETE on the
+  // backend ("external" write level): read-only users only keep the chat link.
+  const canWrite = useCanWrite("external");
 
   const toggle = () => {
     if (!open && btn.current) {
@@ -144,28 +148,30 @@ function RowMenu({ item, h, probing }: { item: McpItemRow; h: Handlers; probing:
             style={{ position: "fixed", top: pos.top, left: pos.left }}
             className="z-[100] w-[232px] rounded-2xl border border-border bg-popover p-1.5 text-popover-foreground shadow-[0_18px_40px_-16px_rgba(0,0,0,0.5)]"
           >
-            {!isBase && (
+            {canWrite && !isBase && (
               <button type="button" role="menuitem" className={itemCls} disabled={h.loading} onClick={run(() => h.onManageTools(name))}>
                 <Wrench className="h-4 w-4 text-muted-foreground" aria-hidden />
                 {t("admin_hub.menu.tools")}
               </button>
             )}
-            {!isBase && (
+            {canWrite && !isBase && (
               <button type="button" role="menuitem" className={itemCls} disabled={h.loading || probing} onClick={run(() => h.onProbe(name))}>
                 {probing ? <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden /> : <Activity className="h-4 w-4 text-muted-foreground" aria-hidden />}
                 {probing ? t("admin_hub.menu.probing") : t("admin_hub.menu.probe")}
               </button>
             )}
-            {!isBase && !remote && (
+            {canWrite && !isBase && !remote && (
               <button type="button" role="menuitem" className={itemCls} disabled={h.loading} onClick={run(() => h.onWizard(name))}>
                 <Wand2 className="h-4 w-4 text-muted-foreground" aria-hidden />
                 {t("admin_hub.menu.wizard")}
               </button>
             )}
-            <button type="button" role="menuitem" className={itemCls} onClick={run(() => h.onAdvisor(name))}>
-              <MessageSquare className="h-4 w-4 text-muted-foreground" aria-hidden />
-              {t("admin_hub.menu.advisor")}
-            </button>
+            {canWrite && (
+              <button type="button" role="menuitem" className={itemCls} onClick={run(() => h.onAdvisor(name))}>
+                <MessageSquare className="h-4 w-4 text-muted-foreground" aria-hidden />
+                {t("admin_hub.menu.advisor")}
+              </button>
+            )}
             <a
               role="menuitem"
               href={h.advisorUrl(name)}
@@ -177,7 +183,7 @@ function RowMenu({ item, h, probing }: { item: McpItemRow; h: Handlers; probing:
               <ExternalLink className="h-4 w-4 text-muted-foreground" aria-hidden />
               {t("admin_hub.menu.chat")}
             </a>
-            {!isBase && (
+            {canWrite && !isBase && (
               <>
                 <div className="my-1 h-px bg-border" />
                 <button

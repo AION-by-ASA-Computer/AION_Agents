@@ -14,6 +14,7 @@ import { Select } from "@/components/ui/Select";
 import { outlineBtn, solidBtn } from "@/components/ui/classes";
 import { profileSlug } from "@/components/profiles/useProfiles";
 import { rich } from "@/components/sso/MicrosoftSsoGuide";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { CopyField, MetaLink, WhatsAppGuideDialog } from "./WhatsAppGuideDialog";
 
 const k = "admin_whatsapp";
@@ -73,6 +74,9 @@ export function WhatsAppConfigPanel({ notify }: { notify: Notify }) {
   const [toggling, setToggling] = useState(false);
   const [checks, setChecks] = useState<CheckResult[] | null>(null);
   const [guideOpen, setGuideOpen] = useState(false);
+  // Read-only users ("external" at read level) see the configuration and the
+  // channel status, but not save / token generation / verification / toggle.
+  const canWrite = useCanWrite("external");
 
   const sync = useCallback((c: WhatsAppChannel) => {
     setCfg(c);
@@ -267,6 +271,8 @@ export function WhatsAppConfigPanel({ notify }: { notify: Notify }) {
       {cfg.force_disabled && <Note tone="warn">{t(`${k}.force_disabled`)}</Note>}
 
       <Group title={t(`${k}.fields.title`)} description={t(`${k}.fields.desc`)}>
+        {/* A disabled fieldset makes every field (selects and secrets included) non-editable. */}
+        <fieldset disabled={!canWrite} className="min-w-0">
         <FieldGrid>
           <Field label={t(`${k}.fields.waba_id`)}>
             <TextInput value={wabaId} onChange={setWabaId} mono inputMode="numeric" placeholder={t(`${k}.fields.waba_ph`)} />
@@ -318,12 +324,15 @@ export function WhatsAppConfigPanel({ notify }: { notify: Notify }) {
             />
           </Field>
         </FieldGrid>
-        <div className="flex justify-end border-t border-border/60 px-5 py-3.5">
-          <button type="button" className={solidBtn} onClick={() => void save()} disabled={!canSave}>
-            {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Save className="h-3.5 w-3.5" aria-hidden />}
-            {saving ? t(`${k}.fields.saving`) : t(`${k}.fields.save`)}
-          </button>
-        </div>
+        </fieldset>
+        {canWrite && (
+          <div className="flex justify-end border-t border-border/60 px-5 py-3.5">
+            <button type="button" className={solidBtn} onClick={() => void save()} disabled={!canSave}>
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Save className="h-3.5 w-3.5" aria-hidden />}
+              {saving ? t(`${k}.fields.saving`) : t(`${k}.fields.save`)}
+            </button>
+          </div>
+        )}
       </Group>
 
       <Group title={t(`${k}.webhook.title`)} description={t(`${k}.webhook.desc`)}>
@@ -342,10 +351,12 @@ export function WhatsAppConfigPanel({ notify }: { notify: Notify }) {
               copyLabel={t(`${k}.webhook.copy`, { what: t(`${k}.webhook.verify_token`) })}
               copiedLabel={t(`${k}.webhook.copied`)}
               action={
-                <button type="button" className={cn(outlineBtn, "shrink-0")} onClick={() => void generate()} disabled={generating}>
-                  {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <KeyRound className="h-3.5 w-3.5" aria-hidden />}
-                  {t(`${k}.webhook.${verifyToken ? "regenerate" : "generate"}`)}
-                </button>
+                canWrite ? (
+                  <button type="button" className={cn(outlineBtn, "shrink-0")} onClick={() => void generate()} disabled={generating}>
+                    {generating ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <KeyRound className="h-3.5 w-3.5" aria-hidden />}
+                    {t(`${k}.webhook.${verifyToken ? "regenerate" : "generate"}`)}
+                  </button>
+                ) : undefined
               }
             />
             <p className="text-xs text-muted-foreground">{t(`${k}.webhook.verify_token_hint`)}</p>
@@ -355,13 +366,16 @@ export function WhatsAppConfigPanel({ notify }: { notify: Notify }) {
 
       <Group title={t(`${k}.verify.title`)} description={t(`${k}.verify.desc`)}>
         <div className="flex flex-col gap-4 px-5 py-5">
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
-            <button type="button" className={outlineBtn} onClick={() => void validate()} disabled={validating || !!verifyBlocked}>
-              {validating ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <ShieldCheck className="h-3.5 w-3.5" aria-hidden />}
-              {validating ? t(`${k}.verify.running`) : t(`${k}.verify.run`)}
-            </button>
-            {verifyBlocked && <span className="text-sm text-muted-foreground">{verifyBlocked}</span>}
-          </div>
+          {/* Verification POSTs to Meta and stores the result: write level only. */}
+          {canWrite && (
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <button type="button" className={outlineBtn} onClick={() => void validate()} disabled={validating || !!verifyBlocked}>
+                {validating ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <ShieldCheck className="h-3.5 w-3.5" aria-hidden />}
+                {validating ? t(`${k}.verify.running`) : t(`${k}.verify.run`)}
+              </button>
+              {verifyBlocked && <span className="text-sm text-muted-foreground">{verifyBlocked}</span>}
+            </div>
+          )}
 
           {checks && checks.length > 0 && (
             <ul className="flex flex-col divide-y divide-border/40 rounded-xl border border-border/70" aria-live="polite">
@@ -403,12 +417,19 @@ export function WhatsAppConfigPanel({ notify }: { notify: Notify }) {
             </p>
           </div>
           {toggling && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
-          <Switch
-            checked={cfg.enabled}
-            onChange={(v) => void toggle(v)}
-            label={t(`${k}.enable.label`)}
-            disabled={toggling || (!cfg.enabled && !canEnable)}
-          />
+          {canWrite ? (
+            <Switch
+              checked={cfg.enabled}
+              onChange={(v) => void toggle(v)}
+              label={t(`${k}.enable.label`)}
+              disabled={toggling || (!cfg.enabled && !canEnable)}
+            />
+          ) : (
+            // Read-only: show the current state as text instead of the toggle.
+            <span className="shrink-0 text-sm text-muted-foreground" role="status">
+              {t(`${k}.enable.${cfg.enabled ? "on" : "off"}`)}
+            </span>
+          )}
         </div>
       </Group>
 

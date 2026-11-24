@@ -12,7 +12,7 @@ import {
 import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
 import { Select } from "@/components/ui/Select";
-import { Field, FieldGrid, Group, ModelField, Mono, ProbeBar, SecretInput, SectionHead, TextInput, ToggleList, ToggleRow } from "./ui";
+import { Field, FieldGrid, Group, ModelField, Mono, ProbeBar, SecretInput, SectionHead, TextInput, ToggleList, ToggleRow, useSettingsReadOnly } from "./ui";
 import { useProbe } from "./useProbe";
 import { K, type SectionCtx } from "./types";
 
@@ -27,6 +27,7 @@ const URL_PLACEHOLDER: Record<string, string> = {
 };
 
 export function MemorySection({ t, settings, set, setMany, notify }: SectionCtx) {
+  const readOnly = useSettingsReadOnly();
   const provider = settings.AION_EMBEDDINGS_PROVIDER || "openai";
   const savedModel = (settings.AION_EMBEDDING_MODEL || "").trim();
   const savedUrl = (settings.AION_EMBEDDING_URL || "").trim();
@@ -100,6 +101,7 @@ export function MemorySection({ t, settings, set, setMany, notify }: SectionCtx)
             <Select
               value={provider}
               onChange={changeProvider}
+              disabled={readOnly}
               aria-label={t(`${m}.provider`)}
               options={[
                 { value: "openai", label: t(`${m}.p_openai`) },

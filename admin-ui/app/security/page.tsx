@@ -14,6 +14,7 @@ import { ghostBtn, inputCls, outlineBtn, solidBtn } from "@/components/ui/classe
 import { fullWhen, shortWhen, toMs } from "@/lib/datetime";
 import { FindingsList } from "@/components/security/FindingsList";
 import { ReportPanel } from "@/components/security/ReportPanel";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import {
   baseName,
   extractInvestigation,
@@ -29,6 +30,8 @@ type Tab = "findings" | "scans" | "reports";
 
 export default function SecurityPage() {
   const t = useT();
+  // Read-only users ("access" at read level) browse scans and saved reports only.
+  const canWrite = useCanWrite("access");
   const [tab, setTab] = useState<Tab>("findings");
   const [targetPath, setTargetPath] = useState("");
   const [scan, setScan] = useState<ScanResult | null>(null);
@@ -224,9 +227,13 @@ export default function SecurityPage() {
         className="flex flex-wrap items-end gap-2"
         onSubmit={(e) => {
           e.preventDefault();
-          if (!scanning) runScan();
+          if (!scanning && canWrite) runScan();
         }}
       >
+        {/* Scan path, investigator and "Run scan" exist only to start scans /
+            investigations: hidden for read-only users, who keep the last-scan summary. */}
+        {canWrite && (
+        <>
         <label className="flex min-w-[14rem] flex-1 flex-col gap-1.5 sm:max-w-md">
           <span className="text-xs font-medium text-muted-foreground">{t(`${k}.scan.path_label`)}</span>
           <span className="relative">
@@ -251,6 +258,8 @@ export default function SecurityPage() {
           {scanning ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <ScanSearch className="h-4 w-4" aria-hidden />}
           {scanning ? t(`${k}.scan.running`) : t(`${k}.scan.run`)}
         </button>
+        </>
+        )}
         {scan && (
           <p className="ml-auto flex min-w-0 items-center gap-2 pb-2.5 text-sm text-muted-foreground">
             {scan.is_safe ? <ShieldCheck className="h-4 w-4 shrink-0 text-success" aria-hidden /> : <ShieldAlert className="h-4 w-4 shrink-0 text-destructive" aria-hidden />}

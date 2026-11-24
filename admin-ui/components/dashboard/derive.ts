@@ -111,7 +111,9 @@ export function deriveDashboard(d: DashboardData, t: T, locale: string) {
   // ── Models ─────────────────────────────────────────────
   const enabled = d.providers.filter((p) => p.enabled);
   const offline = enabled.filter((p) => d.probes[p.slug]?.status === "offline");
-  const checkingModels = enabled.some((p) => !d.probes[p.slug] || d.probes[p.slug].status === "checking");
+  // Read-only users skip the probes (see `probesSkipped`): models are "not checked", not "checking" forever.
+  const unchecked = d.probesSkipped;
+  const checkingModels = !unchecked && enabled.some((p) => !d.probes[p.slug] || d.probes[p.slug].status === "checking");
   const def = enabled.find((p) => p.is_default) ?? enabled[0];
   let modelStatus: NodeStatus = "ok";
   let modelDetail = "";
@@ -144,6 +146,9 @@ export function deriveDashboard(d: DashboardData, t: T, locale: string) {
   } else if (checkingModels || d.loading) {
     modelStatus = "checking";
     modelDetail = def ? def.display_name || def.model_name : t(`${k}.status.checking`);
+  } else if (def && unchecked) {
+    modelStatus = "idle";
+    modelDetail = def.display_name || def.model_name;
   } else if (def) {
     const ms = d.probes[def.slug]?.latency_ms;
     modelDetail = ms ? t(`${k}.nodes.with_latency`, { name: def.display_name || def.model_name, ms }) : def.display_name;
@@ -158,6 +163,18 @@ export function deriveDashboard(d: DashboardData, t: T, locale: string) {
     const p = d.probes[key];
     let status: NodeStatus = "checking";
     let detail = t(`${k}.status.checking`);
+    if (!p && unchecked) {
+      return {
+        id: key,
+        icon,
+        label: t(`${k}.nodes.${key}`),
+        value: null,
+        detail: okDetail,
+        status: "idle",
+        href: "/settings",
+        statusLabel: t(`${k}.status.unchecked`),
+      };
+    }
     if (p?.status === "online") {
       status = "ok";
       detail = p.local ? t(`${k}.nodes.ocr_local`) : p.latency_ms ? `${okDetail} · ${p.latency_ms} ms` : okDetail;
@@ -398,7 +415,11 @@ export function deriveDashboard(d: DashboardData, t: T, locale: string) {
       id: "model",
       label: t(`${k}.map.col_model`),
       nodes: [
-        node("models", Cpu, "/settings", d.loading ? undefined : enabled.length, modelDetail, d.loading ? "checking" : modelStatus),
+        {
+          ...node("models", Cpu, "/settings", d.loading ? undefined : enabled.length, modelDetail, d.loading ? "checking" : modelStatus),
+          // "idle" normally reads "Not configured": here the models exist but were not probed.
+          ...(unchecked && !d.loading && modelStatus === "idle" ? { statusLabel: t(`${k}.status.unchecked`) } : {}),
+        },
       ],
     },
     {

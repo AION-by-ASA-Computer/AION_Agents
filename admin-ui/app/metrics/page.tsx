@@ -16,6 +16,7 @@ import { ErrorsPanel, ModelsPanel } from "@/components/metrics/Panels";
 import { ObservabilityDialog } from "@/components/metrics/ObservabilityDialog";
 import { RestartOverlay } from "@/components/RestartOverlay";
 import { TIME_RANGES } from "@/components/metrics/types";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 const k = "admin_metrics";
 
@@ -25,6 +26,9 @@ export default function MetricsPage() {
   const fmt = useMemo(() => makeFormat(locale), [locale]);
   const d = useMetrics();
   const m = d.metrics;
+  // Observability settings (save + test-connection probe) need write on the area;
+  // read-only users only see the metrics, without the "Configure" dialog.
+  const canWrite = useCanWrite("observability");
 
   const obs = useObservability(d.reload, {
     restarted: t(`${k}.config.restarted`),
@@ -72,10 +76,12 @@ export default function MetricsPage() {
             )}
           </p>
         </div>
-        <button type="button" className={outlineBtn} onClick={obs.show}>
-          <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
-          {t(`${k}.configure`)}
-        </button>
+        {canWrite && (
+          <button type="button" className={outlineBtn} onClick={obs.show}>
+            <SlidersHorizontal className="h-3.5 w-3.5" aria-hidden />
+            {t(`${k}.configure`)}
+          </button>
+        )}
       </header>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -163,7 +169,7 @@ export default function MetricsPage() {
         </>
       )}
 
-      {obs.open && <ObservabilityDialog obs={obs} t={t} />}
+      {canWrite && obs.open && <ObservabilityDialog obs={obs} t={t} />}
 
       {obs.restarting && (
         <RestartOverlay

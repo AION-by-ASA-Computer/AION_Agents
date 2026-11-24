@@ -27,6 +27,7 @@ import { Dialog } from "@/components/profiles/Dialog";
 import { Select } from "@/components/ui/Select";
 import { DeleteDialog, nameSlot } from "@/components/ui/ConfirmDialogs";
 import { ghostBtn, inputCls, outlineBtn, solidBtn, dangerBtn } from "@/components/ui/classes";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 interface ProjectMember {
   user_identifier: string;
@@ -88,6 +89,9 @@ interface ProfileRow {
 
 export default function MemoryPage() {
   const t = useT();
+  // Read-only admins ("agents" area at read level) can list projects and open their details
+  // and members, but create / edit / delete / add-member / revoke controls are hidden.
+  const canWrite = useCanWrite("agents");
   const [toast, setToast] = useState<ToastState>(null);
   const show = useCallback((message: string, variant: "success" | "error" = "success") => {
     setToast({ message, variant });
@@ -365,16 +369,18 @@ export default function MemoryPage() {
             Manage query memory contexts and control per-project member access for isolated SQL results.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            className={solidBtn}
-            onClick={() => setIsCreateOpen(true)}
-          >
-            <FolderPlus className="h-4 w-4" aria-hidden />
-            {t("admin_memory.new_project")}
-          </button>
-        </div>
+        {canWrite && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              className={solidBtn}
+              onClick={() => setIsCreateOpen(true)}
+            >
+              <FolderPlus className="h-4 w-4" aria-hidden />
+              {t("admin_memory.new_project")}
+            </button>
+          </div>
+        )}
       </header>
 
       {/* Projects list */}
@@ -386,12 +392,14 @@ export default function MemoryPage() {
             <p className="mt-1.5 max-w-[46ch] text-sm text-muted-foreground">
               Create a Memory Project to start isolating SQL query contexts per team or workflow.
             </p>
-            <div className="mt-6 flex flex-wrap justify-center gap-2">
-              <button type="button" className={solidBtn} onClick={() => setIsCreateOpen(true)}>
-                <Plus className="h-4 w-4" aria-hidden />
-                {t("admin_memory.new_project")}
-              </button>
-            </div>
+            {canWrite && (
+              <div className="mt-6 flex flex-wrap justify-center gap-2">
+                <button type="button" className={solidBtn} onClick={() => setIsCreateOpen(true)}>
+                  <Plus className="h-4 w-4" aria-hidden />
+                  {t("admin_memory.new_project")}
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="overflow-hidden rounded-3xl border border-border/70 bg-card">
@@ -459,17 +467,19 @@ export default function MemoryPage() {
                           >
                             <Eye className="h-4 w-4" aria-hidden />
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setProjectToDelete(project);
-                              setIsDeleteProjOpen(true);
-                            }}
-                            title="Delete project"
-                            className={cn(ghostBtn, "hover:text-destructive")}
-                          >
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                          </button>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setProjectToDelete(project);
+                                setIsDeleteProjOpen(true);
+                              }}
+                              title="Delete project"
+                              className={cn(ghostBtn, "hover:text-destructive")}
+                            >
+                              <Trash2 className="h-4 w-4" aria-hidden />
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -484,7 +494,7 @@ export default function MemoryPage() {
       {/* MODAL: Project details & members */}
       {isDetailsOpen && projectDetails && (
         <Dialog
-          title={isEditingDetails ? "Edit project" : projectDetails.display_name}
+          title={canWrite && isEditingDetails ? "Edit project" : projectDetails.display_name}
           closeLabel="Close"
           onClose={closeDetails}
           className="max-w-2xl"
@@ -520,7 +530,7 @@ export default function MemoryPage() {
 
             <div className="max-h-[56vh] overflow-y-auto pr-1" role="tabpanel">
               {detailsTab === "overview" &&
-                (isEditingDetails ? (
+                (canWrite && isEditingDetails ? (
                   <form onSubmit={handleEditProject} className="flex flex-col gap-4">
                     <label className="flex flex-col gap-1.5">
                       <span className="text-sm font-medium">Display name</span>
@@ -578,6 +588,7 @@ export default function MemoryPage() {
                       ))}
                     </dl>
 
+                    {canWrite && (
                     <div className="flex flex-wrap items-center gap-2 border-t border-border/60 pt-4">
                       <button
                         type="button"
@@ -595,11 +606,13 @@ export default function MemoryPage() {
                         Edit details
                       </button>
                     </div>
+                    )}
                   </div>
                 ))}
 
               {detailsTab === "members" && (
                 <div className="flex flex-col gap-4">
+                  {canWrite && (
                   <form onSubmit={(e) => handleAddMember(e, projectDetails.slug)} className="flex flex-col gap-2 sm:flex-row sm:items-end">
                     <label className="flex min-w-0 flex-1 flex-col gap-1.5">
                       <span className="text-sm font-medium">Add a member</span>
@@ -619,6 +632,7 @@ export default function MemoryPage() {
                       Add
                     </button>
                   </form>
+                  )}
 
                   {!projectDetails.members || projectDetails.members.length === 0 ? (
                     <div className="rounded-2xl border border-dashed border-border px-6 py-10 text-center">
@@ -654,18 +668,20 @@ export default function MemoryPage() {
                           >
                             {member.role === "owner" ? "Owner" : "Member"}
                           </span>
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setMemberToDelete({ projectSlug: projectDetails.slug, userIdentifier: member.user_identifier });
-                              setIsDeleteMemberOpen(true);
-                            }}
-                            aria-label={`Revoke access for ${member.user_identifier}`}
-                            title="Revoke access"
-                            className={cn(ghostBtn, "h-8 w-8 shrink-0 justify-center px-0 hover:text-destructive")}
-                          >
-                            <UserMinus className="h-3.5 w-3.5" aria-hidden />
-                          </button>
+                          {canWrite && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setMemberToDelete({ projectSlug: projectDetails.slug, userIdentifier: member.user_identifier });
+                                setIsDeleteMemberOpen(true);
+                              }}
+                              aria-label={`Revoke access for ${member.user_identifier}`}
+                              title="Revoke access"
+                              className={cn(ghostBtn, "h-8 w-8 shrink-0 justify-center px-0 hover:text-destructive")}
+                            >
+                              <UserMinus className="h-3.5 w-3.5" aria-hidden />
+                            </button>
+                          )}
                         </li>
                       ))}
                     </ul>
@@ -678,7 +694,7 @@ export default function MemoryPage() {
       )}
 
       {/* MODAL: Create Project */}
-      {isCreateOpen && (
+      {canWrite && isCreateOpen && (
         <Dialog
           title="New Memory Project"
           closeLabel="Cancel"
@@ -751,7 +767,7 @@ export default function MemoryPage() {
       )}
 
       {/* CONFIRM: Delete Project (type the name to confirm) */}
-      {isDeleteProjOpen && projectToDelete && (
+      {canWrite && isDeleteProjOpen && projectToDelete && (
         <DeleteDialog
           name={projectToDelete.display_name}
           busy={loading}
@@ -766,7 +782,7 @@ export default function MemoryPage() {
       )}
 
       {/* CONFIRM: Revoke Member Access */}
-      {isDeleteMemberOpen && memberToDelete && (
+      {canWrite && isDeleteMemberOpen && memberToDelete && (
         <Dialog
           title="Revoke Access"
           closeLabel="Cancel"

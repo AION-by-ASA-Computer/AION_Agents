@@ -32,7 +32,11 @@ function Switch({ on, disabled }: { on: boolean; disabled?: boolean }) {
   );
 }
 
-/** One row per item: a single switch to attach it, an optional star to mark it critical. */
+/**
+ * One row per item: a single switch to attach it, an optional star to mark it critical.
+ * With `readOnly` (admin with read-only access to the "agents" area) the switches only show
+ * the current state and the critical star is hidden; the preview button stays available.
+ */
 export function PickerList({
   items,
   onToggle,
@@ -41,6 +45,7 @@ export function PickerList({
   criticalOff,
   onPreview,
   previewLabel,
+  readOnly = false,
 }: {
   items: PickerItem[];
   onToggle: (id: string) => void;
@@ -49,6 +54,7 @@ export function PickerList({
   criticalOff?: string;
   onPreview?: (id: string) => void;
   previewLabel?: string;
+  readOnly?: boolean;
 }) {
   return (
     <ul className="divide-y divide-border/50 overflow-hidden rounded-2xl border border-border/70 bg-card">
@@ -58,9 +64,12 @@ export function PickerList({
             type="button"
             role="switch"
             aria-checked={it.on}
+            aria-readonly={readOnly || undefined}
+            disabled={readOnly}
             onClick={() => onToggle(it.id)}
             className={cn(
-              "focus-ring flex min-w-0 flex-1 items-center gap-3.5 px-4 py-3 text-left transition-colors hover:bg-secondary/50 focus-visible:bg-secondary/50",
+              "focus-ring flex min-w-0 flex-1 items-center gap-3.5 px-4 py-3 text-left transition-colors",
+              !readOnly && "hover:bg-secondary/50 focus-visible:bg-secondary/50",
               it.blockedLabel && !it.on && "cursor-not-allowed opacity-60",
             )}
           >
@@ -79,7 +88,17 @@ export function PickerList({
               </span>
             </span>
           </button>
-          {onCritical && it.on && (
+          {/* Read-only: a static star still tells which attached items are critical. */}
+          {onCritical && it.on && readOnly && it.critical && (
+            <span
+              title={criticalOn}
+              aria-label={criticalOn}
+              className="mr-1 last:mr-2 inline-flex h-9 w-9 shrink-0 items-center justify-center"
+            >
+              <Star className="h-4 w-4 fill-warning text-warning" aria-hidden />
+            </span>
+          )}
+          {onCritical && it.on && !readOnly && (
             <button
               type="button"
               onClick={() => onCritical(it.id)}

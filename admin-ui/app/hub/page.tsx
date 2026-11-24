@@ -17,6 +17,7 @@ import { Catalog } from "@/components/hub/Catalog";
 import { ConfigDialog } from "@/components/hub/ConfigDialog";
 import { ServerList } from "@/components/hub/ServerList";
 import { useHub, type HubTab, type StatusFilter } from "@/components/hub/useHub";
+import { WriteOnly } from "@/lib/auth/admin-access";
 
 function chatUiAdvisorUrl(slug: string): string {
   if (typeof window === "undefined") return "/";
@@ -68,6 +69,8 @@ export default function HubPage() {
             </p>
           )}
         </div>
+        {/* Install entry points: hidden for read-only users of the "external" area. */}
+        <WriteOnly area="external">
         <div className="flex flex-wrap items-center gap-2">
           <button type="button" className={outlineBtn} onClick={() => hub.setGithubOpen(true)}>
             <GitBranch className="h-3.5 w-3.5" aria-hidden />
@@ -84,6 +87,7 @@ export default function HubPage() {
             </button>
           )}
         </div>
+        </WriteOnly>
       </header>
 
       <div role="tablist" aria-label={t(`${k}.tabs.aria`)} className="flex gap-1 border-b border-border">
@@ -122,6 +126,7 @@ export default function HubPage() {
               <Package className="mb-4 h-8 w-8 text-muted-foreground" strokeWidth={1.5} aria-hidden />
               <h2 className="text-lg font-semibold tracking-[-0.015em]">{t(`${k}.empty.title`)}</h2>
               <p className="mt-1.5 max-w-[46ch] text-sm text-muted-foreground">{t(`${k}.empty.body`)}</p>
+              <WriteOnly area="external">
               <div className="mt-6 flex flex-wrap justify-center gap-2">
                 <button type="button" className={solidBtn} onClick={() => hub.setTab("catalog")}>
                   <Plus className="h-4 w-4" aria-hidden />
@@ -136,6 +141,7 @@ export default function HubPage() {
                   {t(`${k}.add_remote`)}
                 </button>
               </div>
+              </WriteOnly>
             </div>
           ) : (
             <>

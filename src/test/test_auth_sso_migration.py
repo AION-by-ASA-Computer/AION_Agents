@@ -39,6 +39,14 @@ async def _env(tmp_path: Path, monkeypatch):
 
     for mod in (lm, prov, ca, cs):
         monkeypatch.setattr(mod, "get_async_session_maker", lambda: sm)
+    # The access package binds the session maker at import time: when another
+    # test file imported it first, delete_user would hit that file's database.
+    import src.access.escalation as acc_esc
+    import src.access.private_profiles as acc_private
+    import src.access.store as acc_store
+
+    for mod in (acc_esc, acc_private, acc_store):
+        monkeypatch.setattr(mod, "get_async_session_maker", lambda: sm)
     patch_session_makers(monkeypatch, sm)
     lm._SETTINGS_CACHE.clear()
     lm._PENDING_CACHE.clear()
@@ -566,7 +574,14 @@ async def test_delete_user_completes_migration_and_drops_identities(env, monkeyp
         await s.commit()
     assert await lm.is_migration_active("default")
 
-    await admin_api.delete_user(bob)
+    from src.api.auth_login import ChatAuthIdentity
+
+    # Called directly: pass a super-admin caller (Phase 5 anti-escalation
+    # checks need to know who acts).
+    root = ChatAuthIdentity(
+        user_row_id=None, identifier="root", via="chat_token", roles=["admin"]
+    )
+    await admin_api.delete_user(bob, auth=root)
 
     # Bob era l'ultimo da migrare: la migrazione si chiude subito.
     assert not await lm.is_migration_active("default")

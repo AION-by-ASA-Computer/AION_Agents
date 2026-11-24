@@ -25,7 +25,6 @@
     "version_unknown": "Versión desconocida",
     "groups": {
       "agents": "Agentes",
-      "operations": "Operaciones",
       "observability": "Observabilidad",
       "access": "Acceso",
       "platform": "Plataforma"
@@ -34,7 +33,10 @@
     "theme_dark": "Cambiar al tema oscuro",
     "whatsapp": "WhatsApp",
     "telegram": "Telegram",
-    "service_accounts": "Cuentas de servicio"
+    "service_accounts": "Cuentas de servicio",
+    "no_access_title": "No tienes acceso a esta sección",
+    "no_access_body": "Pide a un administrador que te conceda esta área del panel.",
+    "read_only": "Solo lectura: puedes consultar esta sección pero no modificarla."
   },
   "admin_dashboard": {
     "title": "Resumen",
@@ -49,7 +51,8 @@
       "warn": "Revisar",
       "error": "No funciona",
       "checking": "Comprobando…",
-      "idle": "No configurado"
+      "idle": "No configurado",
+      "unchecked": "Sin comprobar"
     },
     "command": {
       "label": "Buscar en la administración",
@@ -1270,6 +1273,7 @@
       "aria": "Secciones de usuarios",
       "accounts": "Cuentas",
       "signin": "Acceso",
+      "groups": "Grupos",
       "migration": "Migración"
     },
     "cols": {
@@ -1305,7 +1309,8 @@
       "delete": "Eliminar a {{name}}",
       "send_reset": "Enviar a {{name}} un enlace de restablecimiento de contraseña",
       "resend_invite": "Reenviar la invitación a {{name}}",
-      "issue_temp": "Generar una contraseña temporal para {{name}}"
+      "issue_temp": "Generar una contraseña temporal para {{name}}",
+      "access": "Accesos de {{name}}"
     },
     "form": {
       "title_new": "Nuevo usuario",
@@ -1414,7 +1419,8 @@
       "invite_failed": "Usuario creado, pero la invitación a {{email}} no se envió: {{error}}. Puedes reenviarla desde la lista.",
       "link_failed": "No se pudo enviar el enlace: {{error}}",
       "link_sent_reset": "Enlace de restablecimiento enviado a {{email}}.",
-      "link_sent_invite": "Invitación enviada a {{email}}."
+      "link_sent_invite": "Invitación enviada a {{email}}.",
+      "access_saved": "Accesos actualizados."
     },
     "filter": {
       "aria": "Filtrar por {{col}}",
@@ -1632,7 +1638,8 @@
       "body": "La contraseña actual de {{name}} dejará de funcionar de inmediato y se generará una contraseña temporal para comunicársela. En el primer inicio de sesión deberá elegir una nueva.",
       "cancel": "Cancelar",
       "confirm": "Generar contraseña temporal"
-    }
+    },
+    "groups_aria": "Grupos del usuario"
   },
   "admin_security": {
     "title": "Seguridad",
@@ -3006,6 +3013,300 @@
       "key_create_failed": "No se pudo crear la clave: {{error}}",
       "key_revoked": "Clave \"{{name}}\" revocada",
       "key_revoke_failed": "No se pudo revocar la clave: {{error}}"
+    }
+  },
+  "admin_groups": {
+    "title": "Grupos",
+    "subtitle": "Agrupa usuarios y cuentas de servicio y decide qué perfiles, skills, MCP y herramientas nativas pueden usar. Quien no está en ningún grupo y no tiene reglas propias no tiene límites.",
+    "add": "Nuevo grupo",
+    "loading": "Cargando grupos…",
+    "error": "No se pudieron cargar los grupos.",
+    "retry": "Reintentar",
+    "search": "Buscar grupos",
+    "count_one": "{{count}} grupo",
+    "count_other": "{{count}} grupos",
+    "count_filtered": "{{shown}} de {{total}}",
+    "members_count_one": "{{count}} miembro",
+    "members_count_other": "{{count}} miembros",
+    "cols": {
+      "group": "Grupo",
+      "members": "Miembros",
+      "actions": "Acciones"
+    },
+    "row": {
+      "members": "Miembros de {{name}}",
+      "rules": "Reglas de acceso de {{name}}",
+      "edit": "Editar {{name}}",
+      "delete": "Eliminar {{name}}"
+    },
+    "empty": {
+      "title": "Sin grupos",
+      "body": "Los grupos dan las mismas reglas a varias personas. Mientras un usuario no esté en un grupo con una regla (o no tenga una regla propia) puede usar todos los perfiles.",
+      "search": "Ningún grupo coincide con la búsqueda.",
+      "clear_filters": "Borrar búsqueda"
+    },
+    "form": {
+      "create_title": "Nuevo grupo",
+      "edit_title": "Editar grupo",
+      "name": "Nombre",
+      "name_placeholder": "P. ej. Equipo de ventas",
+      "slug": "Identificador",
+      "slug_hint": "Minúsculas, números, - y _. Lo usan la API y los registros.",
+      "slug_invalid": "Usa solo minúsculas, números, - y _ (máx. 64).",
+      "slug_taken": "Ya existe un grupo con este identificador.",
+      "description": "Descripción",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saving": "Guardando…"
+    },
+    "members": {
+      "title": "Miembros de {{name}}",
+      "body": "Las reglas del grupo se aplican a todas las cuentas seleccionadas.",
+      "search": "Buscar usuarios",
+      "service": "Cuenta de servicio",
+      "empty": "No se encontró ninguna cuenta.",
+      "selected": "{{count}} seleccionados",
+      "cancel": "Cancelar",
+      "save": "Guardar miembros",
+      "saving": "Guardando…"
+    },
+    "rules": {
+      "title": "Reglas de acceso de {{name}}",
+      "body": "Las reglas se suman a las de los demás grupos del usuario y a sus reglas propias. Un grupo sin regla sobre un tipo no lo limita.",
+      "cancel": "Cancelar",
+      "save": "Guardar reglas",
+      "saving": "Guardando…"
+    },
+    "rule": {
+      "aria": "Tipo de regla",
+      "mode_none": "Sin regla",
+      "no_rule_short": "sin regla",
+      "tabs_aria": "Tipos de recurso",
+      "scope_note": "Estas reglas no limitan los perfiles asignados: un perfil que el usuario puede usar funciona por completo. Deciden qué puede activar el usuario por su cuenta (Integraciones) y, más adelante, usar en sus perfiles privados.",
+      "not_in_catalog": "No está en el catálogo (patrón o elemento eliminado)",
+      "no_match": "Sin resultados."
+    },
+    "types": {
+      "profile": {
+        "tab": "Perfiles",
+        "title": "Perfiles utilizables",
+        "all": "Todos los perfiles",
+        "some": "Solo algunos perfiles",
+        "nothing": "Ningún perfil",
+        "all_hint": "Concede todos los perfiles, aunque otros grupos los limiten.",
+        "some_hint": "Concede solo los seleccionados abajo.",
+        "nothing_hint": "Tiene una regla, pero no concede nada.",
+        "none_group": "El grupo no pone límites a este tipo.",
+        "none_user": "Sin regla personal: deciden los grupos (sin reglas, sin límites).",
+        "search": "Buscar perfiles",
+        "empty": "No hay elementos.",
+        "selected": "{{count}} seleccionados",
+        "summary_count": "{{count}} perfiles",
+        "effective_title": "Perfiles utilizables ahora",
+        "effective_unlimited": "Todos los perfiles (sin reglas).",
+        "effective_all": "Todos los perfiles.",
+        "effective_nothing": "Ningún perfil.",
+        "summary_all": "todos los perfiles",
+        "summary_nothing": "ningún perfil",
+        "some_empty_hint": "Ningún perfil seleccionado: equivale a «Ningún perfil»."
+      },
+      "skill": {
+        "tab": "Skills",
+        "title": "Skills utilizables",
+        "all": "Todas las skills",
+        "some": "Solo algunas skills",
+        "nothing": "Ninguna skill",
+        "all_hint": "Concede todas las skills, aunque otros grupos los limiten.",
+        "some_hint": "Concede solo los seleccionados abajo.",
+        "nothing_hint": "Tiene una regla, pero no concede nada.",
+        "none_group": "El grupo no pone límites a este tipo.",
+        "none_user": "Sin regla personal: deciden los grupos (sin reglas, sin límites).",
+        "search": "Buscar skills",
+        "empty": "No hay elementos.",
+        "selected": "{{count}} seleccionados",
+        "summary_count": "{{count}} skills",
+        "effective_title": "Skills utilizables ahora",
+        "effective_unlimited": "Todas las skills (sin reglas).",
+        "effective_all": "Todas las skills.",
+        "effective_nothing": "Ninguna skill.",
+        "summary_all": "todas las skills",
+        "summary_nothing": "ninguna skill",
+        "some_empty_hint": "Ninguna skill seleccionada: equivale a «Ninguna skill»."
+      },
+      "mcp_server": {
+        "tab": "MCP",
+        "title": "Servidores MCP utilizables",
+        "all": "Todos los servidores MCP",
+        "some": "Solo algunos servidores MCP",
+        "nothing": "Ningún servidor MCP",
+        "all_hint": "Concede todos los servidores MCP, aunque otros grupos los limiten.",
+        "some_hint": "Concede solo los seleccionados abajo.",
+        "nothing_hint": "Tiene una regla, pero no concede nada.",
+        "none_group": "El grupo no pone límites a este tipo.",
+        "none_user": "Sin regla personal: deciden los grupos (sin reglas, sin límites).",
+        "search": "Buscar servidores MCP",
+        "empty": "No hay elementos.",
+        "selected": "{{count}} seleccionados",
+        "summary_count": "{{count}} servidores MCP",
+        "effective_title": "Servidores MCP utilizables ahora",
+        "effective_unlimited": "Todos los servidores MCP (sin reglas).",
+        "effective_all": "Todos los servidores MCP.",
+        "effective_nothing": "Ningún servidor MCP.",
+        "summary_all": "todos los servidores MCP",
+        "summary_nothing": "ningún servidor MCP",
+        "some_empty_hint": "Ningún servidor MCP seleccionado: equivale a «Ningún servidor MCP»."
+      },
+      "native_tool_group": {
+        "tab": "Herramientas nativas",
+        "title": "Herramientas nativas utilizables",
+        "all": "Todas las herramientas nativas",
+        "some": "Solo algunas herramientas nativas",
+        "nothing": "Ninguna herramienta nativa",
+        "all_hint": "Concede todas las herramientas nativas, aunque otros grupos los limiten.",
+        "some_hint": "Concede solo los seleccionados abajo.",
+        "nothing_hint": "Tiene una regla, pero no concede nada.",
+        "none_group": "El grupo no pone límites a este tipo.",
+        "none_user": "Sin regla personal: deciden los grupos (sin reglas, sin límites).",
+        "search": "Buscar herramientas nativas",
+        "empty": "No hay elementos.",
+        "selected": "{{count}} seleccionados",
+        "summary_count": "{{count}} herramientas nativas",
+        "effective_title": "Herramientas nativas utilizables ahora",
+        "effective_unlimited": "Todas las herramientas nativas (sin reglas).",
+        "effective_all": "Todas las herramientas nativas.",
+        "effective_nothing": "Ninguna herramienta nativa.",
+        "summary_all": "todas las herramientas nativas",
+        "summary_nothing": "ninguna herramienta nativa",
+        "some_empty_hint": "Ninguna herramienta nativa seleccionada: equivale a «Ninguna herramienta nativa»."
+      },
+      "capability": {
+        "tab": "Funciones",
+        "title": "Funciones utilizables",
+        "all": "Todas las funciones",
+        "some": "Solo algunas funciones",
+        "nothing": "Ninguna función",
+        "all_hint": "Concede todas las funciones, aunque otros grupos las limiten.",
+        "some_hint": "Concede solo las seleccionadas abajo.",
+        "nothing_hint": "Tiene una regla, pero no concede nada.",
+        "none_group": "El grupo no pone límites a este tipo.",
+        "none_user": "Sin regla personal: deciden los grupos (sin reglas, sin límites).",
+        "search": "Buscar funciones",
+        "empty": "No hay elementos.",
+        "selected": "{{count}} seleccionadas",
+        "summary_count": "{{count}} funciones",
+        "effective_title": "Funciones utilizables ahora",
+        "effective_unlimited": "Todas las funciones (sin reglas).",
+        "effective_all": "Todas las funciones.",
+        "effective_nothing": "Ninguna función.",
+        "summary_all": "todas las funciones",
+        "summary_nothing": "ninguna función",
+        "some_empty_hint": "Ninguna función seleccionada: equivale a «Ninguna función»."
+      },
+      "admin_section": {
+        "tab": "Panel admin",
+        "title": "Áreas del panel admin",
+        "all": "Todas las áreas",
+        "some": "Algunas áreas",
+        "nothing": "Ninguna área",
+        "all_hint": "",
+        "some_hint": "",
+        "nothing_hint": "",
+        "none_group": "El grupo no concede áreas del panel.",
+        "none_user": "Sin regla personal: deciden los grupos.",
+        "search": "Buscar",
+        "empty": "Ninguna área.",
+        "selected": "{{count}} áreas",
+        "summary_count": "{{count}} permisos",
+        "effective_title": "Panel admin ahora",
+        "effective_unlimited": "Ninguna área: solo ve el Resumen.",
+        "effective_all": "Todas las áreas.",
+        "effective_nothing": "Ninguna área.",
+        "summary_all": "todas las áreas",
+        "summary_nothing": "ninguna área",
+        "some_empty_hint": "Ninguna área seleccionada."
+      }
+    },
+    "access": {
+      "title": "Accesos de {{name}}",
+      "loading": "Cargando…",
+      "load_failed": "No se pudieron cargar los accesos del usuario.",
+      "groups": "Grupos",
+      "no_groups": "No hay grupos. Créalos desde la página Grupos.",
+      "direct_rules": "Reglas personales",
+      "effective_hint": "Estado guardado: no incluye cambios sin guardar.",
+      "source_user": "Regla propia",
+      "source_group": "Grupo {{name}}",
+      "close": "Cerrar",
+      "save": "Guardar",
+      "saving": "Guardando…"
+    },
+    "delete": {
+      "title": "¿Eliminar el grupo?",
+      "body": "Los miembros pierden de inmediato las reglas del grupo {{name}}.",
+      "confirm_label": "Escribe {{name}} para confirmar",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar",
+      "deleting": "Eliminando…"
+    },
+    "toast": {
+      "load_failed": "Error al cargar: {{error}}",
+      "save_failed": "Error al guardar: {{error}}",
+      "delete_failed": "Error al eliminar: {{error}}",
+      "created": "Grupo creado.",
+      "updated": "Grupo actualizado.",
+      "deleted": "Grupo eliminado.",
+      "members_saved": "Miembros actualizados.",
+      "rules_saved": "Reglas actualizadas."
+    },
+    "capabilities": {
+      "private_profiles_create": {
+        "name": "Perfiles personales",
+        "description": "Crear perfiles de agente personales desde el chat (Mis perfiles)."
+      },
+      "admin_panel_access": {
+        "name": "Panel admin",
+        "description": "Entrar en el panel admin (Resumen). Excluirlo = solo chat; las áreas concedidas por otras reglas siguen visibles."
+      },
+      "telegram_use": {
+        "name": "Telegram",
+        "description": "Crear y vincular bots de Telegram personales."
+      },
+      "whatsapp_use": {
+        "name": "WhatsApp",
+        "description": "Vincular el propio número de WhatsApp."
+      },
+      "api_keys_create": {
+        "name": "API keys",
+        "description": "Crear API keys personales."
+      }
+    },
+    "areas": {
+      "access": {
+        "name": "Gestión de accesos",
+        "description": "Menú Accesos: usuarios, login y SSO, grupos, cuentas de servicio, seguridad."
+      },
+      "agents": {
+        "name": "Gestión de agentes",
+        "description": "Menú Agentes: perfiles, skills, memoria, tareas programadas."
+      },
+      "settings": {
+        "name": "Configuración",
+        "description": "Página Configuración: modelos, memoria, web, voz, sandbox, SMTP, servidor de archivos. Afecta a toda la plataforma."
+      },
+      "external": {
+        "name": "Aplicaciones externas",
+        "description": "MCP Hub, WhatsApp y Telegram."
+      },
+      "observability": {
+        "name": "Observabilidad",
+        "description": "Métricas, feedback, diagnóstico y sistema."
+      },
+      "hint": "Las reglas del usuario y de sus grupos se suman: en cada área vale el nivel más alto. Sin áreas solo se ve el Resumen; los superadmins siempre lo tienen todo."
+    },
+    "levels": {
+      "none": "Ninguno",
+      "read": "Lectura",
+      "write": "Escritura"
     }
   }
 }

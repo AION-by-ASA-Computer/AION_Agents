@@ -1063,50 +1063,13 @@ async def build_all_tools(
 
     all_tools.extend(build_settlement_tools())
 
-    from .data.engine import get_async_session_maker
-    from .data.models import McpServerConfig
-    from sqlalchemy import select
-
-    skip_slugs: set[str] = set()
-    try:
-        from .runtime.mcp_integration_helpers import (
-            get_user_mcp_preference_map,
-            user_mcp_effective_active,
-        )
-
-        tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip()
-        pref_map = await get_user_mcp_preference_map(user_id, tenant_id=tenant)
-        async with get_async_session_maker()() as session:
-            cfg_rows = (
-                (
-                    await session.execute(
-                        select(McpServerConfig).where(
-                            McpServerConfig.server_slug.in_(profile.mcp_servers or [])
-                        )
-                    )
-                )
-                .scalars()
-                .all()
-            )
-        policy_by_slug = {r.server_slug: r for r in cfg_rows}
-        for server_name in profile.mcp_servers or []:
-            pol = policy_by_slug.get(server_name)
-            if pol and not user_mcp_effective_active(
-                server_name,
-                pref_map=pref_map,
-                user_may_disable=bool(getattr(pol, "user_may_disable", True)),
-            ):
-                skip_slugs.add(server_name)
-    except Exception as ex:
-        logger.debug("MCP user preference filter skipped: %s", ex)
-
-    profile_slugs = resident_slugs
-
+    # Servers the user switched off are already removed from ``profile`` by
+    # ``src.access.mcp_filter.effective_profile_for_user`` (called in
+    # get_agent); direct callers (tests) get the profile as given.
     mcp_discover_names = [
         server_name
-        for server_name in profile_slugs
+        for server_name in resident_slugs
         if server_name not in (ORCHESTRATION_BUILTIN_SERVER, CRON_BUILTIN_SERVER)
-        and server_name not in skip_slugs
     ]
 
     async def _discover_mcp_server(server_name: str) -> list:
@@ -1204,39 +1167,49 @@ async def get_agent(
 
     try:
         if user_id and user_id != "default":
-            from .api.profile_access import allowed_profile_slugs, user_row_id_for
+            from .access.policy import ProfileAccessDenied, resolve_profile_for
+            from .access.principal import load_principal_for
 
-            # ``user_profile_access.user_id`` è ``users.id``, non l'identificativo.
-            allowed_slugs = await allowed_profile_slugs(
-                await user_row_id_for(user_id, tenant_id)
-            )
-
-            if allowed_slugs:
-                try:
-                    resolved_p = profile_manager.resolve_profile(profile_name)
-                    resolved_slug = resolved_p.slug
-                except ProfileNotFoundError:
-                    resolved_slug = profile_name
-
-                if resolved_slug not in allowed_slugs:
-                    if resolved_slug == "aion_std":
-                        profile_name = allowed_slugs[0]
-                        logger.info(
-                            "Default profile aion_std not allowed. Falling back to %s for user %s",
-                            profile_name,
-                            user_id,
-                        )
-                    else:
-                        logger.warning(
-                            "User %s denied access to profile %s",
-                            user_id,
-                            resolved_slug,
-                        )
-                        raise ProfileNotFoundError(profile_name, allowed_slugs)
+            # Same rule as every HTTP endpoint (src.access): user_id may be the
+            # identifier or the row id; the default profile falls back to the
+            # first allowed one.
+            principal = await load_principal_for(user_id, tenant_id)
+            try:
+                profile_name = resolve_profile_for(principal, profile_name)
+            except ProfileAccessDenied as denied:
+                raise ProfileNotFoundError(profile_name, denied.allowed) from None
 
         profile = profile_manager.resolve_profile(profile_name)
     except ProfileNotFoundError:
         raise
+
+    # Per-user view of the MCP servers (integrations the user switched off),
+    # applied before profile_sig so it is part of the agent cache key and is
+    # honoured by resident, deferred and prompt-manifest paths alike.
+    from .access.mcp_filter import effective_profile_for_user
+
+    # Preferences are stored under the deployment tenant (as in
+    # /v1/integrations), not the per-call tenant_id.
+    profile = await effective_profile_for_user(
+        profile,
+        user_id,
+        (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default",
+    )
+
+    # Private profile (Phase 3): only its owner may run it, and only with the
+    # skills / MCP servers / native tools the owner's rules allow *now*
+    # (revocations apply at once). Global profiles are never filtered here.
+    if profile_manager.private_profile_owner(profile.slug) is not None:
+        from .access.policy import ProfileAccessDenied, resolve_profile_for
+        from .access.principal import load_principal_for
+        from .access.private_profiles import effective_private_profile
+
+        owner_principal = await load_principal_for(user_id, tenant_id)
+        try:
+            resolve_profile_for(owner_principal, profile.slug)
+        except ProfileAccessDenied as denied:
+            raise ProfileNotFoundError(profile.slug, denied.allowed) from None
+        profile = effective_private_profile(profile, owner_principal)
 
     skill_registry.reload_if_stale()
 

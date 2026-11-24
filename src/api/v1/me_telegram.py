@@ -13,7 +13,7 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 
-from src.api.auth_login import ChatAuthIdentity, require_chat_auth
+from src.api.auth_login import ChatAuthIdentity, ensure_capability, require_chat_auth
 from src.channels.telegram import runtime
 from src.channels.telegram.accounts import LinkInfo, TelegramAccounts
 from src.channels.telegram.config import get_telegram_settings
@@ -99,6 +99,8 @@ async def get_my_telegram(auth: ChatAuthIdentity = Depends(_me)):
 
 @router.post("/link", status_code=201)
 async def create_my_telegram_link(auth: ChatAuthIdentity = Depends(_me)):
+    # Phase 5: admins may switch this feature off (capability rule).
+    await ensure_capability(auth, "telegram.use")
     _require_enabled()
     settings = get_telegram_settings()
     bot_username = runtime.manager_username()

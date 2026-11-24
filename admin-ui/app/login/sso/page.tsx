@@ -63,9 +63,10 @@ export default function AdminSsoExchangePage() {
           return;
         }
         const data = await res.json();
-        const roles: string[] = Array.isArray(data.roles) ? data.roles : [];
-        if (!data.access_token || !roles.includes("admin")) {
-          go("/login?error=not_admin");
+        // Who may enter is decided by the backend (SSO callback and chat-ui
+        // handoff check `can_enter_admin_panel`) and by AdminAuthGate.
+        if (!data.access_token) {
+          go("/login?error=sso_failed");
           return;
         }
         setStoredAuth(data.access_token, data.user_id ?? null);

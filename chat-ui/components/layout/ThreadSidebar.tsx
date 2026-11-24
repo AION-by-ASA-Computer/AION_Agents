@@ -8,6 +8,7 @@ import {
   Check,
   ChevronRight,
   Clock,
+  UserRound,
   Edit3,
   Folder,
   FolderInput,
@@ -36,7 +37,6 @@ import {
   type ConversationSummary,
   type SideThreadSummary,
 } from "@/lib/api/aion";
-import { apiBase } from "@/lib/config";
 import type { ShellSection } from "@/lib/shell/use-conversation-threads";
 import { useChatFolders } from "@/lib/shell/use-chat-folders";
 import { useCollapsedSections, type SidebarSectionId } from "@/lib/shell/use-collapsed-sections";
@@ -46,6 +46,7 @@ import { TelegramIcon } from "../brand/TelegramIcon";
 import { WhatsAppIcon } from "../brand/WhatsAppIcon";
 import { SidebarProfileMenu } from "./SidebarProfileMenu";
 import { useStoredToken } from "@/lib/auth/use-stored-auth";
+import { useCurrentUser } from "@/lib/auth/current-user";
 import { useT } from "@/lib/i18n/use-t";
 import { usePathname } from "next/navigation";
 import { randomUUID } from "@/lib/uuid";
@@ -207,53 +208,13 @@ export function ThreadSidebar({
     };
   }, [currentId, currentIsTopLevel, hasThreads, userId, token]);
   const activeParentId = parentLookup?.id === currentId ? parentLookup.parentId : null;
-  const [profileLabel, setProfileLabel] = useState(userId);
-  const [profileSubtitle, setProfileSubtitle] = useState("");
-  const [avatarUrl, setAvatarUrl] = useState("");
-  const [profileColor, setProfileColor] = useState("violet");
-  const [isAdmin, setIsAdmin] = useState(false);
-
-  const loadProfile = useCallback(() => {
-    if (!token) return;
-    void fetch(`${apiBase()}/auth/me`, {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => (res.ok ? res.json() : null))
-      .then(
-        (
-          data: {
-            display_name?: string;
-            identifier?: string;
-            email?: string;
-            roles?: string[];
-            metadata?: { avatar_url?: string; profile_color?: string };
-          } | null,
-        ) => {
-          if (!data) {
-            setIsAdmin(false);
-            return;
-          }
-          setIsAdmin(Array.isArray(data.roles) && data.roles.includes("admin"));
-          setProfileLabel(data.display_name || data.identifier || userId);
-          setProfileSubtitle(data.email || data.identifier || "");
-          setAvatarUrl(data.metadata?.avatar_url || "");
-          setProfileColor(data.metadata?.profile_color || "violet");
-        },
-      )
-      .catch(() => {
-        /* ignore */
-      });
-  }, [token, userId]);
-
-  useEffect(() => {
-    loadProfile();
-  }, [loadProfile]);
-
-  useEffect(() => {
-    const onProfileUpdated = () => loadProfile();
-    window.addEventListener("aion-profile-updated", onProfileUpdated);
-    return () => window.removeEventListener("aion-profile-updated", onProfileUpdated);
-  }, [loadProfile]);
+  // Account data comes from the shared current-user context (one /auth/me
+  // fetch for the whole app, reloaded on "aion-profile-updated").
+  const { user: me, isAdmin } = useCurrentUser();
+  const profileLabel = me?.display_name || me?.identifier || userId;
+  const profileSubtitle = me?.email || me?.identifier || "";
+  const avatarUrl = me?.metadata?.avatar_url || "";
+  const profileColor = me?.metadata?.profile_color || "violet";
 
   const query = searchQuery.trim().toLowerCase();
   const filteredItems = useMemo(() => {
@@ -340,6 +301,8 @@ export function ThreadSidebar({
       { section: "chat", href: chatHomeHref, icon: MessageSquare, label: t("sidebar.chat") },
       { section: "integrations", href: "/integrations", icon: Plug, label: t("sidebar.integrations") },
       { section: "schedules", href: "/schedules", icon: Clock, label: t("sidebar.schedules") },
+      // Private agent profiles (access control Phase 3).
+      { section: "profiles", href: "/profiles", icon: UserRound, label: t("sidebar.my_profiles") },
     ];
 
   // Sections are force-opened while searching (results must be visible) and

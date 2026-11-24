@@ -4069,6 +4069,19 @@ async def list_users(include_service: bool = False):
         identities: Dict[str, list] = {}
         for ident in (await session.execute(select(UserSsoIdentity))).scalars().all():
             identities.setdefault(ident.user_id, []).append(ident)
+        # Group memberships for the "Groups" column (one query, membership order).
+        from ..data.models import UserGroup, UserGroupMember
+
+        user_groups: Dict[str, List[Dict[str, str]]] = {}
+        for uid, gid, gname in (
+            await session.execute(
+                select(UserGroupMember.user_id, UserGroup.id, UserGroup.name)
+                .join(UserGroup, UserGroup.id == UserGroupMember.group_id)
+                .where(UserGroup.tenant_id == tenant)
+                .order_by(UserGroupMember.id)
+            )
+        ).all():
+            user_groups.setdefault(uid, []).append({"id": gid, "name": gname})
 
         def auth_info(r) -> Dict[str, Any]:
             idents = identities.get(r.id, [])
@@ -4125,6 +4138,7 @@ async def list_users(include_service: bool = False):
                     "display_name": r.display_name,
                     "email": r.email,
                     "roles": get_roles(r),
+                    "groups": user_groups.get(r.id, []),
                     "must_change_password": bool(
                         getattr(r, "must_change_password", False)
                     ),
@@ -4161,6 +4175,10 @@ async def create_user(
     from ..notifications.smtp_settings import smtp_configured
     from .public_urls import chat_base_url
 
+    # Only super-admins create super-admins (Phase 5 anti-escalation).
+    from ..access import escalation
+
+    escalation.ensure_can_set_roles(auth, body.roles or [])
     # The "svc-" prefix is reserved for service accounts, so an identifier
     # always tells which kind of account it is (and LTM gating can rely on it).
     if is_reserved_identifier(body.identifier):
@@ -4263,11 +4281,17 @@ async def send_password_link(
 ):
     """Invia all'utente un link per (re)impostare la password.
 
+    Phase 5: not on the caller's own account nor on a super-admin unless the
+    caller is a super-admin (``src.access.escalation``).
+
     ``reset`` se ha gia' una password, altrimenti ``invite`` (o ``migration``
     con SSO attivo). La password attuale resta valida finche' l'utente non
     ne sceglie una nuova. Senza SMTP la password viene sostituita subito da
     una temporanea, restituita solo in questa risposta.
     """
+    from ..access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     from ..auth.password_setup import deliver_password_setup, user_link_block_reason
     from ..auth.sso.login_mode import get_login_settings, reopen_migration
     from ..data.audit import record_admin_action
@@ -4319,9 +4343,17 @@ async def update_user(
     body: UserUpdate,
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ):
-    """Update an existing user."""
+    """Update an existing user.
+
+    Phase 5: a non-super-admin cannot edit their own account or a super-admin
+    and cannot give the ``admin`` role (``src.access.escalation``).
+    """
+    from ..access import escalation
     from ..data.models import User
     from ..data.user_password import get_roles, set_roles
+
+    await escalation.ensure_can_manage_user(auth, user_id)
+    escalation.ensure_can_set_roles(auth, body.roles)
 
     async with get_async_session_maker()() as session:
         u = await session.get(User, user_id)
@@ -4373,14 +4405,38 @@ async def update_user(
         if body.api_key_max_ttl_days is not None:
             u.api_key_max_ttl_days = body.api_key_max_ttl_days
 
+        tenant_id = u.tenant_id or "default"
         await session.commit()
 
+    # Roles are read from the DB per request (src.access): drop the cached
+    # principal so a promotion/demotion applies at the next call, not after
+    # the cache TTL.
+    from ..access.principal import invalidate_principal
+    from ..data.audit import record_admin_action
+
+    invalidate_principal(user_id)
+    if body.roles is not None:
+        await record_admin_action(
+            tenant_id=tenant_id,
+            actor=auth.identifier,
+            operation="user.roles.update",
+            resource_type="user",
+            resource_id=user_id,
+            payload={"roles": list(body.roles)},
+        )
     return {"status": "success"}
 
 
 @router.delete("/users/{user_id}")
-async def delete_user(user_id: str):
-    """Delete a user."""
+async def delete_user(
+    user_id: str,
+    auth: ChatAuthIdentity = Depends(require_admin_role),
+):
+    """Delete a user (Phase 5: not oneself, not a super-admin, unless the
+    caller is a super-admin)."""
+    from ..access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     from ..auth.sso.login_mode import (
         _check_migration_completion,
         _invalidate_cache,
@@ -4420,6 +4476,17 @@ async def delete_user(user_id: str):
         )
         await session.commit()
 
+    # Group memberships and direct access rules (also invalidates the cache).
+    from ..access.store import delete_user_access
+
+    await delete_user_access(user_id)
+
+    # Private profiles of the user (Phase 3): the FK cascade is not reliable
+    # on SQLite, and the in-memory overlay must forget them too.
+    from ..access.private_profiles import delete_all_for_user
+
+    await delete_all_for_user(user_id)
+
     # Se era l'ultimo utente da migrare, la migrazione SSO si chiude adesso:
     # altrimenti resta "attiva" e blocca i nuovi account con sso_not_linked.
     _invalidate_cache(tenant_id)
@@ -4431,45 +4498,58 @@ async def delete_user(user_id: str):
 
 @router.get("/users/{user_id}/profiles")
 async def get_user_profiles(user_id: str):
-    """Get the list of profiles allowed for a user."""
-    from ..data.models import UserProfileAccess
+    """Legacy view of the user's direct profile rule (``[]`` = no rule).
 
-    async with get_async_session_maker()() as session:
-        q = select(UserProfileAccess.profile_slug).where(
-            UserProfileAccess.user_id == user_id
-        )
-        rows = (await session.execute(q)).scalars().all()
-        return {"allowed_profiles": list(rows)}
+    Kept for the service-accounts page; the full model (groups, "no profile"
+    rules) lives under ``/admin/users/{id}/rules`` (``src/api/admin_groups.py``).
+    """
+    from ..access.store import SUBJECT_USER, get_rules
+
+    rules = await get_rules(SUBJECT_USER, user_id)
+    return {"allowed_profiles": rules.get("profile", [])}
 
 
 @router.post("/users/{user_id}/profiles")
-async def update_user_profiles(user_id: str, body: UserProfilesUpdate):
-    """Update the list of profiles allowed for a user."""
-    from ..data.models import User, UserProfileAccess
+async def update_user_profiles(
+    user_id: str,
+    body: UserProfilesUpdate,
+    auth: ChatAuthIdentity = Depends(require_admin_role),
+):
+    """Legacy setter of the user's direct profile rule (empty list = no rule).
+
+    Writes through ``src.access.store`` (``access_grants``; legacy rows are
+    cleared), which invalidates the cached principal; audited as
+    ``user.profiles.update``.
+    """
+    from ..access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
+    from ..access.store import SUBJECT_USER, set_rules
+    from ..data.audit import record_admin_action
+    from ..data.models import User
 
     async with get_async_session_maker()() as session:
-        # Check user exists
         u = await session.get(User, user_id)
         if not u:
             raise HTTPException(status_code=404, detail="User not found")
-
-        # Clear existing access
-        await session.execute(
-            delete(UserProfileAccess).where(UserProfileAccess.user_id == user_id)
-        )
-
-        # Add new access rules
         tenant_id = u.tenant_id or "default"
-        for slug in body.allowed_profiles:
-            new_access = UserProfileAccess(
-                tenant_id=tenant_id,
-                user_id=user_id,
-                profile_slug=slug,
-            )
-            session.add(new_access)
 
-        await session.commit()
-
+    slugs = [s for s in body.allowed_profiles if s]
+    await set_rules(
+        SUBJECT_USER,
+        user_id,
+        {"profile": slugs or None},
+        tenant_id=tenant_id,
+        actor=auth.identifier,
+    )
+    await record_admin_action(
+        tenant_id=tenant_id,
+        actor=auth.identifier,
+        operation="user.profiles.update",
+        resource_type="user",
+        resource_id=user_id,
+        payload={"allowed_profiles": slugs},
+    )
     return {"status": "success"}
 
 

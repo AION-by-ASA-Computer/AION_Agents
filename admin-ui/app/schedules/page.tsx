@@ -15,6 +15,7 @@ import { Select } from "@/components/ui/Select";
 import { SearchField } from "@/components/ui/SearchField";
 import { ghostBtn, inputCls, outlineBtn, solidBtn } from "@/components/ui/classes";
 import { fullWhen, shortWhen, toMs } from "@/lib/datetime";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 const k = "admin_schedules";
 const ALL = "__all";
@@ -221,6 +222,9 @@ function RunsDialog({ job, runs, loading, now, t, onClose }: { job: CronJob; run
 
 export default function SchedulesPage() {
   const t = useT();
+  // Read-only admins ("agents" area at read level) see jobs and their run history; the
+  // enable switches are shown locked and run / edit / delete actions are hidden.
+  const canWrite = useCanWrite("agents");
   const [jobs, setJobs] = useState<CronJob[]>([]);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [now, setNow] = useState(() => Date.now());
@@ -517,7 +521,7 @@ export default function SchedulesPage() {
           </div>
           <div className="flex items-center gap-3">
             {updatingGlobal && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
-            <Switch checked={schedulerOn} disabled={updatingGlobal || restarting} onChange={(v) => setPendingGlobal(v)} label={t(`${k}.scheduler.title`)} />
+            <Switch checked={schedulerOn} disabled={!canWrite || updatingGlobal || restarting} onChange={(v) => setPendingGlobal(v)} label={t(`${k}.scheduler.title`)} />
           </div>
         </section>
       )}
@@ -629,20 +633,27 @@ export default function SchedulesPage() {
                       </div>
 
                       <div className="flex items-center justify-start gap-0.5 md:justify-end">
-                        <Switch checked={j.enabled} onChange={(v) => setEnabled(j, v)} label={t(`${k}.actions.${j.enabled ? "disable" : "enable"}`, { name: j.name })} />
+                        {/* Locked (not hidden) when read-only: the switch still shows whether the job is active. */}
+                        <Switch checked={j.enabled} disabled={!canWrite} onChange={(v) => setEnabled(j, v)} label={t(`${k}.actions.${j.enabled ? "disable" : "enable"}`, { name: j.name })} />
                         <span className="ml-1 flex items-center">
-                          <button type="button" className={iconBtn} title={t(`${k}.actions.run`)} aria-label={t(`${k}.actions.run`)} disabled={busyId === j.job_id} onClick={() => runNow(j)}>
-                            {busyId === j.job_id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
-                          </button>
+                          {canWrite && (
+                            <button type="button" className={iconBtn} title={t(`${k}.actions.run`)} aria-label={t(`${k}.actions.run`)} disabled={busyId === j.job_id} onClick={() => runNow(j)}>
+                              {busyId === j.job_id ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden /> : <Play className="h-4 w-4" aria-hidden />}
+                            </button>
+                          )}
                           <button type="button" className={iconBtn} title={t(`${k}.actions.history`)} aria-label={t(`${k}.actions.history`)} onClick={() => openRuns(j)}>
                             <History className="h-4 w-4" aria-hidden />
                           </button>
-                          <button type="button" className={iconBtn} title={t(`${k}.actions.edit`)} aria-label={t(`${k}.actions.edit`)} onClick={() => openEdit(j)}>
-                            <Pencil className="h-4 w-4" aria-hidden />
-                          </button>
-                          <button type="button" className={cn(iconBtn, "hover:text-destructive")} title={t(`${k}.actions.delete`)} aria-label={t(`${k}.actions.delete`)} onClick={() => setDeleting(j)}>
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                          </button>
+                          {canWrite && (
+                            <>
+                              <button type="button" className={iconBtn} title={t(`${k}.actions.edit`)} aria-label={t(`${k}.actions.edit`)} onClick={() => openEdit(j)}>
+                                <Pencil className="h-4 w-4" aria-hidden />
+                              </button>
+                              <button type="button" className={cn(iconBtn, "hover:text-destructive")} title={t(`${k}.actions.delete`)} aria-label={t(`${k}.actions.delete`)} onClick={() => setDeleting(j)}>
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                              </button>
+                            </>
+                          )}
                         </span>
                       </div>
                     </li>
@@ -654,7 +665,7 @@ export default function SchedulesPage() {
         </>
       )}
 
-      {editing && (
+      {canWrite && editing && (
         <Dialog title={t(`${k}.edit.title`)} closeLabel={t(`${k}.edit.cancel`)} onClose={() => !saving && setEditing(null)} className="max-w-2xl">
           <form
             className="flex flex-col gap-4"
@@ -732,9 +743,9 @@ export default function SchedulesPage() {
 
       {runsJob && <RunsDialog job={runsJob} runs={runs} loading={runsLoading} now={now} t={t} onClose={() => setRunsJob(null)} />}
 
-      {deleting && <DeleteDialog name={deleting.name} busy={deleteBusy} ns={`${k}.delete`} t={t} onConfirm={confirmDelete} onClose={() => !deleteBusy && setDeleting(null)} />}
+      {canWrite && deleting && <DeleteDialog name={deleting.name} busy={deleteBusy} ns={`${k}.delete`} t={t} onConfirm={confirmDelete} onClose={() => !deleteBusy && setDeleting(null)} />}
 
-      {pendingGlobal !== null && (
+      {canWrite && pendingGlobal !== null && (
         <Dialog title={t(`${k}.restart.title`)} closeLabel={t(`${k}.restart.cancel`)} onClose={() => setPendingGlobal(null)}>
           <div className="flex flex-col gap-5">
             <p className="text-sm text-muted-foreground">{t(`${k}.restart.body_${pendingGlobal ? "on" : "off"}`)}</p>

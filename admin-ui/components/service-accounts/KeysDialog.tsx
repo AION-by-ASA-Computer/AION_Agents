@@ -22,6 +22,7 @@ import { cn } from "@/lib/cn";
 import { Dialog } from "@/components/profiles/Dialog";
 import { dangerBtn, ghostBtn, inputCls, outlineBtn, solidBtn } from "@/components/ui/classes";
 import type { ToastState } from "@/components/PageToast";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { NewKeyDialog } from "./NewKeyDialog";
 import {
   DEFAULT_SCOPES,
@@ -74,6 +75,8 @@ export function KeysDialog({
   const [busy, setBusy] = useState(false);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const [created, setCreated] = useState<CreatedKey | null>(null);
+  // Read-only users ("access" at read level) see the keys but cannot create or revoke them.
+  const canWrite = useCanWrite("access");
 
   const base = `${apiBase()}/admin/service-accounts/${account.id}/keys`;
 
@@ -166,7 +169,7 @@ export function KeysDialog({
               {" · "}
               {t(`${k}.keys.policy`, { active: activeCount, max: maxKeys, days: maxDays })}
             </p>
-            {!creating && (
+            {canWrite && !creating && (
               <button type="button" className={solidBtn} disabled={!canCreate} onClick={() => setCreating(true)}>
                 <Plus className="h-4 w-4" aria-hidden />
                 {t(`${k}.keys.new`)}
@@ -181,7 +184,7 @@ export function KeysDialog({
             </p>
           )}
 
-          {creating && (
+          {canWrite && creating && (
             <NewKeyForm
               allowedScopes={policy?.allowed_scopes?.length ? policy.allowed_scopes : DEFAULT_SCOPES}
               maxDays={maxDays}
@@ -232,7 +235,8 @@ export function KeysDialog({
                     <code className="rounded-md bg-secondary px-1.5 py-0.5 font-mono text-xs text-muted-foreground">aion_{key.prefix}_…</code>
                     <StatusBadge tone={STATUS_TONE[key.status]} label={t(`${k}.keys.status.${key.status}`)} />
                     <div className="ml-auto flex items-center gap-2">
-                      {key.status === "active" &&
+                      {canWrite &&
+                        key.status === "active" &&
                         (confirmRevoke === key.id ? (
                           <>
                             <span className="text-xs text-muted-foreground">{t(`${k}.keys.revoke_confirm`)}</span>

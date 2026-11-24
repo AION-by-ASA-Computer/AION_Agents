@@ -20,7 +20,10 @@ import { linkErrorText } from "@/components/sso/setupLinks";
 import { MigrationUsers } from "@/components/sso/MigrationUsers";
 import { TempPasswordsDialog, type TempPassword } from "@/components/sso/TempPasswordsDialog";
 import { TwoFactorPanel } from "@/components/sso/TwoFactorPanel";
-import { ProfilesDialog, type ProfileRow } from "@/components/users/ProfilesDialog";
+import { UserAccessDialog } from "@/components/groups/UserAccessDialog";
+import { GroupsPanel } from "@/components/groups/GroupsPanel";
+import { useAdminAccess, useCanWrite, useIsSuperadmin } from "@/lib/auth/admin-access";
+import { EMPTY_CATALOG, fetchCatalog, type Catalog, type Group } from "@/components/groups/shared";
 
 const k = "admin_users";
 const GRIDS: Record<string, string> = {
@@ -34,7 +37,7 @@ type Filters = { user: string; email: string; access: string; migration: string;
 const NO_FILTERS: Filters = { user: "", email: "", access: "", migration: "", twofa: "" };
 const METHODS = ["password", "microsoft", "google"] as const;
 
-type Tab = "accounts" | "signin" | "migration";
+type Tab = "accounts" | "signin" | "groups" | "migration";
 type ListState = "loading" | "ready" | "error";
 
 interface UserRow {
@@ -50,6 +53,8 @@ interface UserRow {
   sso_migration_exempt?: boolean;
   migration_pending?: boolean;
   roles?: string[];
+  /** Groups the user belongs to (access control), in membership order. */
+  groups?: { id: string; name: string }[];
   can_create_api_keys?: boolean;
   max_api_keys?: number;
   api_key_max_ttl_days?: number;
@@ -338,6 +343,7 @@ function UserFormDialog({
   busy,
   linkBusy,
   smtpMissing,
+  canSetAdmin,
   t,
   onSubmit,
   onSendLink,
@@ -347,6 +353,8 @@ function UserFormDialog({
   busy: boolean;
   linkBusy: boolean;
   smtpMissing: boolean;
+  /** Only super-admins create or demote super-admins (Phase 5). */
+  canSetAdmin: boolean;
   t: T;
   onSubmit: (v: FormValues) => Promise<boolean>;
   onSendLink: (u: UserRow) => void;
@@ -468,9 +476,11 @@ function UserFormDialog({
           )}
         </div>
 
-        <div className="mt-6 border-t border-border/60 pt-5">
-          <RolePicker admin={admin} onChange={setAdmin} t={t} />
-        </div>
+        {canSetAdmin && (
+          <div className="mt-6 border-t border-border/60 pt-5">
+            <RolePicker admin={admin} onChange={setAdmin} t={t} />
+          </div>
+        )}
 
         <div className="mt-6 border-t border-border/60 pt-5">
           <ApiKeyPolicy
@@ -544,7 +554,8 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [listState, setListState] = useState<ListState>("loading");
-  const [allProfiles, setAllProfiles] = useState<ProfileRow[]>([]);
+  // Ids per resource type for the rule editors of the "Access" dialog.
+  const [catalog, setCatalog] = useState<Catalog>(EMPTY_CATALOG);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [loginMode, setLoginMode] = useState("password");
@@ -561,7 +572,9 @@ export default function UsersPage() {
   const [tempResetUser, setTempResetUser] = useState<UserRow | null>(null);
   const [deleteUser, setDeleteUser] = useState<UserRow | null>(null);
   const [resetUser, setResetUser] = useState<UserRow | null>(null);
-  const [profileUser, setProfileUser] = useState<{ user: UserRow; initial: string[] } | null>(null);
+  // User whose groups / profile rule are being edited ("Access" dialog).
+  const [accessUser, setAccessUser] = useState<UserRow | null>(null);
+  const [allGroups, setAllGroups] = useState<Group[]>([]);
 
   const fail = useCallback((key: string, err: unknown) => setToast({ message: t(`${k}.toast.${key}`, { error: err instanceof Error ? err.message : String(err) }), variant: "error" }), [t]);
 
@@ -579,18 +592,25 @@ export default function UsersPage() {
     }
   }, [fail]);
 
+  // Groups feed the "Access" dialog; reloaded when the Groups tab changes them.
+  // A failure just leaves the list empty (the Groups tab shows its own error).
+  const loadGroups = useCallback(() => {
+    apiFetch(`${apiBase()}/admin/groups`)
+      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
+      .then((data) => setAllGroups(data.items || []))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     void loadUsers();
-    apiFetch(`${apiBase()}/admin/profiles`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data) => setAllProfiles(data || []))
-      .catch(() => {});
+    loadGroups();
+    void fetchCatalog(apiFetch, apiBase()).then(setCatalog);
     apiFetch(`${apiBase()}/admin/smtp`)
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data) => setSmtpConfigured(!!data.configured))
       .catch(() => {});
-  }, [loadUsers]);
+  }, [loadUsers, loadGroups]);
 
   const plural = (n: number) => t(`${k}.count_${new Intl.PluralRules(getLocale()).select(n) === "one" ? "one" : "other"}`, { count: n });
 
@@ -605,6 +625,14 @@ export default function UsersPage() {
   const showSecurity = loginMode === "password";
   // With SSO, accounts are created at first sign-in (see the new-account policy), never here.
   const canCreate = loginMode === "password";
+  // Phase 5: write access to "Gestione accessi", and the anti-escalation rule
+  // of the backend: a non-super-admin never edits their own account or a
+  // super-admin (those rows only keep read-only actions).
+  const canWrite = useCanWrite("access");
+  const isSuper = useIsSuperadmin();
+  const me = useAdminAccess();
+  const locked = (u: UserRow) => !isSuper && (isAdmin(u) || (!!me?.identifier && u.identifier === me.identifier));
+  const canEditRow = (u: UserRow) => canWrite && !locked(u);
   // Without SMTP accounts get a temporary password the admin hands over, changed at first sign-in.
   const smtpMissing = smtpConfigured === false;
   const grid = GRIDS[`${showMigration ? 1 : 0}${showSecurity ? 1 : 0}`];
@@ -770,39 +798,10 @@ export default function UsersPage() {
     }
   };
 
-  const openProfiles = async (user: UserRow) => {
-    try {
-      const res = await apiFetch(`${apiBase()}/admin/users/${user.id}/profiles`);
-      if (!res.ok) throw new Error(await errorDetail(res, String(res.status)));
-      const data = await res.json();
-      setProfileUser({ user, initial: data.allowed_profiles || [] });
-    } catch (err) {
-      fail("profiles_load_failed", err);
-    }
-  };
-
-  const saveProfiles = async (slugs: string[]) => {
-    if (!profileUser) return;
-    setSaving(true);
-    try {
-      const res = await apiFetch(`${apiBase()}/admin/users/${profileUser.user.id}/profiles`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ allowed_profiles: slugs }),
-      });
-      if (!res.ok) throw new Error(await errorDetail(res, String(res.status)));
-      setProfileUser(null);
-      setToast({ message: t(`${k}.toast.profiles_saved`), variant: "success" });
-    } catch (err) {
-      fail("save_failed", err);
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const tabs: { id: Tab; label: string; count?: number; alert?: boolean }[] = [
     { id: "accounts", label: t(`${k}.tabs.accounts`), count: listState === "ready" ? users.length : undefined },
     { id: "signin", label: t(`${k}.tabs.signin`) },
+    { id: "groups", label: t(`${k}.tabs.groups`), count: allGroups.length || undefined },
     ...(showMigration
       ? [{ id: "migration" as const, label: t(`${k}.tabs.migration`), count: listState === "ready" ? users.filter((u) => migrationOf(u) === "pending").length : undefined, alert: true }]
       : []),
@@ -815,7 +814,7 @@ export default function UsersPage() {
           <h1 className="text-balance text-2xl font-semibold tracking-[-0.02em] sm:text-[28px]">{t(`${k}.title`)}</h1>
           <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">{t(`${k}.subtitle`)}</p>
         </div>
-        {canCreate ? (
+        {canCreate && !canWrite ? null : canCreate ? (
           <button type="button" className={solidBtn} onClick={() => setFormUser("new")}>
             <Plus className="h-4 w-4" aria-hidden />
             {t(`${k}.add`)}
@@ -991,19 +990,30 @@ export default function UsersPage() {
                                     )}
                                   </div>
                                   {u.display_name && <div className="truncate font-mono text-xs text-muted-foreground">{u.identifier}</div>}
+                                  {!!u.groups?.length && (
+                                    <div className="mt-1 flex flex-wrap gap-1" aria-label={t(`${k}.groups_aria`)}>
+                                      {u.groups.map((g) => (
+                                        <span key={g.id} className="rounded-full border border-border px-2 py-0.5 text-[11px] font-medium text-muted-foreground">
+                                          {g.name}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                               </div>
 
                               <div className="flex items-center justify-end gap-0.5 md:order-last">
-                                <IconAction label={t(`${k}.row.profiles`, { name })} onClick={() => void openProfiles(u)}>
-                                  <UserCog className="h-4 w-4" aria-hidden />
-                                </IconAction>
-                                {u.totp_enabled && (
+                                {!locked(u) && (
+                                  <IconAction label={t(`${k}.row.access`, { name })} onClick={() => setAccessUser(u)}>
+                                    <UserCog className="h-4 w-4" aria-hidden />
+                                  </IconAction>
+                                )}
+                                {canEditRow(u) && u.totp_enabled && (
                                   <IconAction label={t(`${k}.row.reset`, { name })} onClick={() => setResetUser(u)}>
                                     <KeyRound className="h-4 w-4" aria-hidden />
                                   </IconAction>
                                 )}
-                                {!isSsoUser(u) && (smtpMissing || !!u.email) && (
+                                {canEditRow(u) && !isSsoUser(u) && (smtpMissing || !!u.email) && (
                                   <IconAction
                                     label={t(`${k}.row.${smtpMissing ? "issue_temp" : u.has_password ? "send_reset" : "resend_invite"}`, { name })}
                                     onClick={() => linkBusy !== u.id && void sendLink(u)}
@@ -1017,12 +1027,16 @@ export default function UsersPage() {
                                     )}
                                   </IconAction>
                                 )}
-                                <IconAction label={t(`${k}.row.edit`, { name })} onClick={() => setFormUser(u)}>
-                                  <Pencil className="h-4 w-4" aria-hidden />
-                                </IconAction>
-                                <IconAction label={t(`${k}.row.delete`, { name })} onClick={() => setDeleteUser(u)} danger>
-                                  <Trash2 className="h-4 w-4" aria-hidden />
-                                </IconAction>
+                                {canEditRow(u) && (
+                                  <>
+                                    <IconAction label={t(`${k}.row.edit`, { name })} onClick={() => setFormUser(u)}>
+                                      <Pencil className="h-4 w-4" aria-hidden />
+                                    </IconAction>
+                                    <IconAction label={t(`${k}.row.delete`, { name })} onClick={() => setDeleteUser(u)} danger>
+                                      <Trash2 className="h-4 w-4" aria-hidden />
+                                    </IconAction>
+                                  </>
+                                )}
                               </div>
 
                               <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pl-12 text-xs text-muted-foreground md:contents">
@@ -1085,6 +1099,17 @@ export default function UsersPage() {
           </section>
         )}
 
+        {/* Groups and their access rules; changes refresh the group chips and the "Access" dialog. */}
+        {tab === "groups" && (
+          <GroupsPanel
+            onToast={setToast}
+            onChanged={() => {
+              loadGroups();
+              void loadUsers();
+            }}
+          />
+        )}
+
         {tab === "signin" && (
           <div className="flex flex-col gap-10">
             <section aria-labelledby="users-sso" className="flex flex-col gap-4">
@@ -1124,6 +1149,7 @@ export default function UsersPage() {
           busy={saving}
           linkBusy={formUser !== "new" && linkBusy === formUser.id}
           smtpMissing={smtpMissing}
+          canSetAdmin={isSuper}
           t={t}
           onSubmit={saveUser}
           onSendLink={(u) => void sendLink(u)}
@@ -1131,15 +1157,19 @@ export default function UsersPage() {
         />
       )}
 
-      {profileUser && (
-        <ProfilesDialog
-          name={nameOf(profileUser.user)}
-          profiles={allProfiles}
-          initial={profileUser.initial}
-          busy={saving}
+      {accessUser && (
+        <UserAccessDialog
+          userId={accessUser.id}
+          userName={nameOf(accessUser)}
+          groups={allGroups}
+          catalog={catalog}
           t={t}
-          onSave={saveProfiles}
-          onClose={() => !saving && setProfileUser(null)}
+          onSaved={() => {
+            setToast({ message: t(`${k}.toast.access_saved`), variant: "success" });
+            void loadUsers();
+          }}
+          onError={(message) => fail("save_failed", new Error(message))}
+          onClose={() => setAccessUser(null)}
         />
       )}
 
