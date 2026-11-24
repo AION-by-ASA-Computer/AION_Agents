@@ -1102,7 +1102,6 @@ class AccessGrant(Base):
     )
 
 
-
 class UserProfile(Base):
     """Private agent profile created by an end user (access control, Phase 3).
 
@@ -1152,6 +1151,7 @@ class UserProfile(Base):
     __table_args__ = (
         UniqueConstraint("tenant_id", "slug", name="uq_user_profiles_slug"),
     )
+
 
 class SsoProvider(Base):
     """Configurazione provider SSO (Microsoft/Google) per tenant."""
