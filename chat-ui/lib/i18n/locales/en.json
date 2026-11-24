@@ -413,6 +413,8 @@
     "collapse": "Collapse sidebar",
     "expand": "Expand sidebar",
     "theme": "Theme",
+    "section_collapse": "Collapse section",
+    "section_expand": "Expand section",
     "bucket_today": "Today",
     "bucket_yesterday": "Yesterday",
     "bucket_previous_7_days": "Previous 7 days",
@@ -428,7 +430,25 @@
       "admin_panel": "Admin panel"
     },
     "from_whatsapp": "Conversation from WhatsApp",
-    "from_telegram": "Conversation from Telegram"
+    "from_telegram": "Conversation from Telegram",
+    "folders": {
+      "title": "Folders",
+      "new": "New folder",
+      "name_placeholder": "Folder name",
+      "options": "Folder options",
+      "delete": "Delete folder",
+      "delete_confirm": "Delete folder? Chats are kept.",
+      "empty": "No chats here",
+      "count": "{{count}} chats",
+      "move_to": "Move to folder",
+      "remove_from_folder": "Remove from folder",
+      "no_folders": "No folders yet. Create one with + next to Folders.",
+      "drop_here": "Drop here to remove from folder",
+      "name_taken": "A folder with this name already exists.",
+      "name_too_long": "Name too long (max 128 characters).",
+      "limit_reached": "You reached the maximum number of folders.",
+      "error": "Something went wrong. Try again."
+    }
   },
   "schedulesPage": {
     "title": "Automations",
@@ -1352,7 +1372,9 @@
     "hint_navigation": "Project-scoped Mnemos notes: facts, pitfalls, decisions, and lessons.",
     "user_scope_hint": "Personal memory tied to your account (not the active project).",
     "open_panel": "Open memory panel (project settings)",
-    "no_capabilities": "This profile does not expose SQL or Mnemos memory."
+    "no_capabilities": "This profile does not expose SQL or Mnemos memory.",
+    "protocol_warning_title": "memory_protocol skill not enabled",
+    "protocol_warning_body": "Memory works, but without this skill the agent rarely saves or recalls notes. Ask an administrator to add memory_protocol to the profile's skills."
   },
   "project_memory": {
     "search_placeholder": "Search notes…",

@@ -2121,7 +2121,17 @@ class MCPManager:
         w = await self._get_worker(chat_session_id, server_name)
         return await w.list_tools()
 
-    async def release_session(self, chat_session_id: str) -> None:
+    async def release_session(
+        self, chat_session_id: str, *, forget_context: bool = False
+    ) -> None:
+        """Shut down the pooled stdio workers (and sandbox containers) of a chat.
+
+        ``forget_context=True`` also drops the session context (profile/user/
+        tenant) set by ``warm_session``: used when the conversation is deleted
+        for good, so nothing keyed by its id stays in memory.
+        """
+        if forget_context:
+            self._session_ctx.pop(chat_session_id, None)
         async with self._pool_lock:
             to_del = [
                 k

@@ -37,6 +37,7 @@ const sidebars: SidebarsConfig = {
       items: [
         'user-guide/using-the-chat',
         'clients/side-threads',
+        'clients/chat-folders',
       ],
     },
   ],

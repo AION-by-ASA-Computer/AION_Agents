@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import {
+  AlertTriangle,
   ArrowLeft,
   ChevronRight,
   Database,
@@ -33,6 +34,8 @@ type Props = {
   onProjectChange: (slug: string) => void;
   showSqlQueryMemory: boolean;
   showNavigationMemory: boolean;
+  /** Profile has Mnemos but not the `memory_protocol` skill: show a warning banner. */
+  missingMemoryProtocol?: boolean;
 };
 
 export function MemoryDockPanel({
@@ -44,6 +47,7 @@ export function MemoryDockPanel({
   onProjectChange,
   showSqlQueryMemory,
   showNavigationMemory,
+  missingMemoryProtocol = false,
 }: Props) {
   const t = useT();
   const [view, setView] = useState<MemoryView>("overview");
@@ -160,9 +164,12 @@ export function MemoryDockPanel({
                 {/* Title & Mnemos Badge */}
                 <div className="flex items-center gap-2">
                   <h3 className="text-base font-bold text-foreground">Modalità Memoria</h3>
-                  <span className="rounded-full border border-rose-500/30 bg-rose-500/15 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    Mnemos
-                  </span>
+                  {/* Badge only when Mnemos is on: a query-memory-only profile has no notes. */}
+                  {showNavigationMemory && (
+                    <span className="rounded-full border border-rose-500/30 bg-rose-500/15 px-2.5 py-0.5 text-[10.5px] font-bold uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                      Mnemos
+                    </span>
+                  )}
                 </div>
 
                 {/* Description */}
@@ -170,6 +177,25 @@ export function MemoryDockPanel({
                   L&apos;agente memorizza query SQL verificate, note di business e preferenze personali per risposte contestualizzate e precise.
                 </p>
               </div>
+
+              {/* memory_protocol warning: Mnemos works without the skill, but the
+                  agent rarely saves/recalls notes, so nothing is disabled here. */}
+              {missingMemoryProtocol && (
+                <div
+                  role="status"
+                  className="flex w-full gap-2.5 rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-left"
+                >
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0 text-amber-500" aria-hidden />
+                  <div className="min-w-0 space-y-0.5">
+                    <p className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+                      {t("memory_dock.protocol_warning_title")}
+                    </p>
+                    <p className="text-[11px] leading-relaxed text-muted-foreground">
+                      {t("memory_dock.protocol_warning_body")}
+                    </p>
+                  </div>
+                </div>
+              )}
 
               {/* Prominent Large Project Selector */}
               {(showSqlQueryMemory || showNavigationMemory) && (

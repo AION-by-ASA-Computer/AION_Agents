@@ -581,6 +581,7 @@ from .admin_branding import router as admin_branding_router
 from .branding import router as branding_router
 from .auth_password_setup import router as auth_password_setup_router
 from .chat_ui import router as chat_ui_router
+from .chat_folders import router as chat_folders_router
 
 app.include_router(auth_login_router)
 app.include_router(auth_mfa_router)
@@ -595,6 +596,8 @@ app.include_router(admin_branding_router)
 app.include_router(branding_router)
 app.include_router(auth_password_setup_router)
 app.include_router(chat_ui_router)
+# Sidebar folders (/chat-ui/folders*, PUT /chat-ui/conversations/{id}/folder).
+app.include_router(chat_folders_router)
 
 
 _SESSION_CHARTS_RE = re.compile(r"^/sessions/[^/]+/charts/?$")

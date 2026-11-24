@@ -134,7 +134,7 @@ Invoke-WebRequest -OutFile offer_summary.docx -Headers @{ Authorization = "Beare
 | Read one conversation | `GET /v1/conversations/{id}` | Read conversations |
 | Read its messages | `GET /v1/conversations/{id}/messages?limit=50` (`include_internal=true` adds tool messages) | Read conversations |
 | Rename, retag | `PATCH /v1/conversations/{id}` with `{"title": "…", "tags": […]}` | Manage conversations |
-| Delete (archive) | `DELETE /v1/conversations/{id}` | Manage conversations |
+| Delete permanently (messages, files and side threads included) | `DELETE /v1/conversations/{id}` | Manage conversations |
 
 Creating a conversation explicitly is optional: `POST /v1/chat` creates one when you omit the id, and `POST /v1/chat/stream` creates it on first use. Create it explicitly when you want a title, tags or metadata (for example the id of the CRM ticket that originated it), so you can find it later.
 

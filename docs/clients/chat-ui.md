@@ -75,7 +75,8 @@ Backend (`.env`): `AION_CORS_ORIGINS` can list `http://localhost:8003`; default 
 - `POST /chat/stop` — stream interruption
 - `GET /profiles`
 - `POST /auth/login`, `GET /auth/me` — password login (requires `AION_CHAT_PASSWORD_AUTH=1`)
-- `GET|POST /chat-ui/conversations` — list/create conversations on the unified DB
+- `GET|POST /chat-ui/conversations` — list/create conversations on the unified DB (`folder_id` filter)
+- `GET|POST /chat-ui/folders`, `PATCH|DELETE /chat-ui/folders/{id}`, `PUT /chat-ui/conversations/{id}/folder` — sidebar folders ([Chat folders](./chat-folders.md))
 - `GET|POST /chat-ui/conversations/{id}/threads` — side threads of a conversation ([Side threads](./side-threads.md))
 - `GET /chat-ui/conversations/{id}/stream-status` — `/chat` turn still executing (reconnection after navigation)
 - `POST /v1/chat/stream` — extended with `user_message_id`, `assistant_message_id`, `message_source` (API key)

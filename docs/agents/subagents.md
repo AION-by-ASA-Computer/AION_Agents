@@ -186,8 +186,10 @@ the full number).
 - **Write protection.** Sending a message to, renaming, or forking a child
   conversation returns `409 subagent_conversation_read_only`
   (`assert_not_subagent_conversation` in `src/api/ownership.py`).
-- **Cascade.** Deleting or archiving the parent archives its child
-  conversations and releases their sessions.
+- **Cascade.** Deleting the parent permanently deletes its child
+  conversations too, including those spawned from its branches and side
+  threads, and releases their sessions (`collect_conversation_family` in
+  `src/runtime/conversation_purge.py`).
 
 ## Design notes
 

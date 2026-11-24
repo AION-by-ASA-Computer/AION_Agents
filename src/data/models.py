@@ -145,6 +145,45 @@ class ApiKey(Base):
     __table_args__ = (Index("ux_api_keys_hash", "hash", unique=True),)
 
 
+class ChatFolder(Base):
+    """Per-user folder that groups conversations in the chat-ui sidebar.
+
+    Purely organisational: a folder does not change the agent's context,
+    memory or profile (that is what ``Project`` is for). Conversations point
+    to a folder via ``Conversation.folder_id``; ``NULL`` means "no folder"
+    (the default for new chats, channel chats and every pre-existing chat).
+    Managed by the ``/chat-ui/folders`` endpoints in ``src/api/chat_ui.py``;
+    see ``docs/clients/chat-folders.md``.
+    """
+
+    __tablename__ = "chat_folders"
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tenants.id"), nullable=False, default="default"
+    )
+    # Same identity space as ``Conversation.user_id`` (chat user id, not users.id).
+    user_id: Mapped[str] = mapped_column(String(256), nullable=False)
+    name: Mapped[str] = mapped_column(String(128), nullable=False)
+    # Manual ordering in the sidebar (ascending); new folders go last.
+    position: Mapped[int] = mapped_column(
+        Integer, default=0, server_default="0", nullable=False
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now()
+    )
+
+    __table_args__ = (
+        # Two folders with the same name would be indistinguishable in the sidebar.
+        UniqueConstraint(
+            "tenant_id", "user_id", "name", name="uq_chat_folders_tenant_user_name"
+        ),
+        Index("ix_chat_folders_tenant_user", "tenant_id", "user_id"),
+    )
+
+
 class Conversation(Base):
     __tablename__ = "conversations"
     id: Mapped[str] = mapped_column(String(64), primary_key=True)
@@ -193,6 +232,14 @@ class Conversation(Base):
     # docs/agents/subagents.md). Distinct from parent_conversation_id (side threads).
     spawned_by_conversation_id: Mapped[Optional[str]] = mapped_column(
         String(64), nullable=True, index=True
+    )
+    # Sidebar folder (migration i7f8l9d037). NULL = "no folder": shown under
+    # "Recent" in chat-ui. Deleting a folder sends its chats back to NULL.
+    folder_id: Mapped[Optional[str]] = mapped_column(
+        String(64),
+        ForeignKey("chat_folders.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
     )
 
     messages: Mapped[list["Message"]] = relationship(

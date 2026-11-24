@@ -427,8 +427,28 @@
     "rename": "Renombrar",
     "search_placeholder": "Buscar conversaciones…",
     "theme": "Tema",
+    "section_collapse": "Contraer sección",
+    "section_expand": "Expandir sección",
     "from_whatsapp": "Conversación desde WhatsApp",
-    "from_telegram": "Conversación desde Telegram"
+    "from_telegram": "Conversación desde Telegram",
+    "folders": {
+      "title": "Carpetas",
+      "new": "Nueva carpeta",
+      "name_placeholder": "Nombre de la carpeta",
+      "options": "Opciones de carpeta",
+      "delete": "Eliminar carpeta",
+      "delete_confirm": "¿Eliminar la carpeta? Los chats se conservan.",
+      "empty": "No hay chats aquí",
+      "count": "{{count}} chats",
+      "move_to": "Mover a carpeta",
+      "remove_from_folder": "Quitar de la carpeta",
+      "no_folders": "Aún no hay carpetas. Crea una con + junto a Carpetas.",
+      "drop_here": "Suelta aquí para quitar de la carpeta",
+      "name_taken": "Ya existe una carpeta con este nombre.",
+      "name_too_long": "Nombre demasiado largo (máx. 128 caracteres).",
+      "limit_reached": "Has alcanzado el número máximo de carpetas.",
+      "error": "La operación ha fallado. Inténtalo de nuevo."
+    }
   },
   "schedulesPage": {
     "title": "Automatizaciones",
@@ -1308,6 +1328,8 @@
     "hint_notes": "Notas Mnemos de proyecto: hechos, escollos, decisiones y lecciones aprendidas.",
     "hint_user": "Tus notas Mnemos personales — preferencias, identidad y hechos compartidos entre proyectos.",
     "no_capabilities": "Este perfil no expone memoria SQL ni Mnemos.",
+    "protocol_warning_title": "Skill memory_protocol no habilitada",
+    "protocol_warning_body": "La memoria funciona, pero sin esta skill el agente rara vez guarda o recupera notas. Pide a un administrador que añada memory_protocol a las skills del perfil.",
     "tab_debug": "Depuración",
     "tab_notes": "Proyecto",
     "tab_user": "Tú",

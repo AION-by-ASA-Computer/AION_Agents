@@ -48,9 +48,11 @@ export function useConversationThreads() {
   const handleDeleteConversation = useCallback(
     async (idToDelete: string) => {
       try {
-        await deleteConversation(idToDelete, userId, token);
+        const res = await deleteConversation(idToDelete, userId, token);
         await refreshThreads();
-        if (currentId === idToDelete) {
+        // The open chat may be a branch or side thread removed with the deleted one.
+        const deletedIds = res?.deleted_ids ?? [idToDelete];
+        if (currentId === idToDelete || deletedIds.includes(currentId)) {
           router.push(`/c/${randomUUID()}`);
         }
       } catch (err) {

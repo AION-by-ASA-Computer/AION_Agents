@@ -937,18 +937,31 @@ async def _realign_session_profile(
 
 
 async def evict_session_agents(session_id: str) -> int:
-    """Drop every cached agent built for ``session_id`` (all profiles/users).
+    """Drop every in-process artefact built for a chat session.
 
-    Used by the sub-agent runner (``src.runtime.subagent_orchestrator``) once a
-    child conversation's single turn ends: those agents will never be reused,
-    and keeping them would only push live sessions out of the LRU. Returns the
-    number of evicted entries.
+    Two callers:
+
+    * ``src/runtime/conversation_purge.py`` when a conversation is deleted;
+    * the sub-agent runner (``src.runtime.subagent_orchestrator``) once a child
+      conversation's single turn ends: those agents will never be reused.
+
+    Removes the cached agents of the session (all profiles) and the
+    module-level MCP wrapper functions registered for it. Without this the LRU
+    cache would keep the session's agent (and its tool closures) alive until
+    evicted by size, pushing live sessions out. In-flight builds are left
+    alone: their leader resolves and removes its own future (popping it here
+    would strand waiters). Returns the number of cached agents removed.
     """
-    prefix = f"{session_id}\0"
+    sid = (session_id or "").strip()
+    if not sid:
+        return 0
+    # Cache keys are "<session>\0<profile>\0<...>" (see get_agent).
+    prefix = f"{sid}\0"
     async with _AGENT_CACHE_LOCK:
-        stale = [key for key in _AGENT_CACHE if key.startswith(prefix)]
+        stale = [k for k in _AGENT_CACHE if k.startswith(prefix)]
         for key in stale:
             _AGENT_CACHE.pop(key, None)
+    _purge_aion_mcp_tool_functions(sid)
     return len(stale)
 
 

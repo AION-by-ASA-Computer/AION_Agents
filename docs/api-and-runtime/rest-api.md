@@ -221,10 +221,22 @@ Allows partial modification of the session information.
 }
 ```
 
-### Delete/Archive Conversation
-`DELETE /v1/conversations/{conversation_id}` (Requires `conversations:write`)
+### Delete Conversation
+`DELETE /v1/conversations/{conversation_id}` (Requires `conversations:write`).
+chat-ui uses `DELETE /chat-ui/conversations/{id}`, which also returns `deleted_ids`.
 
-Performs a logical deletion (soft-delete by setting `archived_at`) and releases the allocated MCP Stdio connections in memory for that specific session.
+Permanent deletion, it cannot be undone (`src/runtime/conversation_purge.py`):
+
+- **What goes with it**: its branches (when the conversation is a root chat, not a
+  branch) and its side threads.
+- **Database**: the conversation, messages (and their full-text index entries),
+  tool steps, attachments, feedbacks, charts and execution plans.
+- **Files**: the session folder `data/sessions/<id>/` (uploads, workspace,
+  offloaded tool results) and storage objects under `<tenant>/conversations/<id>/`.
+- **Runtime**: MCP stdio workers and the sandbox container, the MCP session
+  context and the cached agents of the session.
+- **Kept**: long-term memory notes (user memory, managed from the memory panel),
+  audit logs, cron run history, WhatsApp/Telegram message logs.
 
 ---
 

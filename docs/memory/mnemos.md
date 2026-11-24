@@ -103,6 +103,27 @@ Project memory routes require **project membership** (same access model as SQL Q
 
 With `AION_CHAT_PASSWORD_AUTH=0` (dev only), authorization degrades because the identity is anonymous.
 
+### Memory UI in chat-ui
+
+chat-ui shows or hides its memory controls based on the active profile
+(`GET /profiles`). The rules are in
+`chat-ui/lib/memory/profile-capabilities.ts`.
+
+Mnemos (notes) and query memory (saved SQL queries) are independent: they
+share only the `projects` table and its members. Query memory means the
+`sql_query_memory` native group or the `query_memory` / `memory` MCP server.
+
+| Profile configuration | What chat-ui shows |
+|-----------------------|--------------------|
+| Neither `mnemos` nor query memory | No memory UI: no **Memoria** dock tab, no project entry in the "+" menu and no **memorize** button. |
+| Query memory only | The **Memoria** tab and the "+" project entry. The panel shows the project selector and the **Query SQL** card only, with no Mnemos badge and no **memorize** button. |
+| `mnemos` only | The panel with the project and personal note cards, without **Query SQL**, plus the **memorize** button. |
+| `mnemos` and query memory | The full panel and the **memorize** button. |
+| `mnemos`, but `memory_protocol` not in `skills` | The memory stays enabled, with a warning in the panel that asks to add the skill. Globs such as `memory_*` count. Without the skill the agent rarely saves or recalls notes. |
+
+The **memorize** button needs Mnemos because its instruction makes the agent
+call `memory_note`.
+
 ## Skills
 
 - `ltm_note_extraction` — post-turn JSON extractor (`confidence`, `valid_from`, `supersedes_hint`)

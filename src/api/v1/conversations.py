@@ -179,40 +179,24 @@ async def delete_conversation(
     conversation_id: str,
     ctx: AuthContext = Depends(require_scope(Scope.CONVERSATIONS_WRITE)),
 ):
+    """Permanently delete a conversation (API key clients).
+
+    Same purge as the chat-ui delete: the conversation, its branches, side
+    threads and sub-agent transcripts, DB rows, session folder, storage files
+    and runtime state (``src/runtime/conversation_purge.py``).
+    """
     _require_unified()
+    from src.runtime.conversation_purge import (
+        collect_conversation_family,
+        purge_conversations,
+    )
+
     async with get_async_session_maker()() as session:
         r = await session.get(Conversation, conversation_id)
         if not owned_by(r, ctx.tenant_id, api_key_context_principal(ctx)):
             raise HTTPException(404, "Not found")
-        # Sub-agent transcripts spawned by this conversation are archived with
-        # it: they are only reachable from the parent's timeline.
-        child_ids = list(
-            (
-                await session.execute(
-                    select(Conversation.id).where(
-                        Conversation.spawned_by_conversation_id == conversation_id,
-                        Conversation.archived_at.is_(None),
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        ids = [conversation_id, *child_ids]
-        await session.execute(
-            update(Conversation)
-            .where(Conversation.id.in_(ids))
-            .values(archived_at=datetime.now(timezone.utc))
-        )
-        await session.commit()
-    # Soft delete: remove the conversation's charts explicitly (SQLite + Redis).
-    from src.charts_store import delete_conversation_charts
-
-    await delete_conversation_charts(ids)
-    from src.mcp_manager import mcp_manager
-
-    for cid in ids:
-        await mcp_manager.release_session(cid)
+        ids = await collect_conversation_family(session, r)
+    await purge_conversations(ids, tenant_id=r.tenant_id)
     return {"ok": True}
 
 
