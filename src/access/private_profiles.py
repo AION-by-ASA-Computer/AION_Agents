@@ -318,7 +318,7 @@ def _validate(principal: Principal, data: ProfileInput) -> ProfileInput:
 
 def _owner_tag(owner_user_id: str) -> str:
     """Short stable hash of the owner id (keeps slugs short and opaque)."""
-    return hashlib.sha1(owner_user_id.encode("utf-8")).hexdigest()[:6]
+    return hashlib.sha256(owner_user_id.encode("utf-8")).hexdigest()[:6]
 
 
 async def _unique_slug(session, tenant: str, owner_user_id: str, name: str) -> str:
