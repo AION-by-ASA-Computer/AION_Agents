@@ -44,9 +44,16 @@ WILDCARD = "*"
 # Stored marker for "has a rule for this type, granting nothing".
 NONE_MARKER = "!none"
 
-# Resource types an admin may set rules for through the Phase 1 API. Phase 2
-# adds skill / mcp_server / native_tool_group / capability, Phase 5 admin_section.
-EDITABLE_RESOURCE_TYPES = ("profile",)
+# Resource types an admin may set rules for through the API (Phase 1: profile;
+# Phase 2: skill, mcp_server, native_tool_group; Phase 3: capability).
+# Phase 5 adds admin_section.
+EDITABLE_RESOURCE_TYPES = (
+    "profile",
+    "skill",
+    "mcp_server",
+    "native_tool_group",
+    "capability",
+)
 
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")
 

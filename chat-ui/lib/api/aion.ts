@@ -11,6 +11,8 @@ export type ProfileRow = {
   native_tool_groups?: string[];
   skills?: string[];
   critical_skills?: string[];
+  /** The user's own private profile (`GET /profiles`, access control Phase 3). */
+  private?: boolean;
 };
 
 /**

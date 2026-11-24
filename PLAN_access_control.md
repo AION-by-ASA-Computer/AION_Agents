@@ -210,7 +210,7 @@ comportamento.
 - Invalidazione `Principal` + agent cache su modifica gruppi/membri/grant.
 - Docs: `docs/security/groups-and-permissions.md`.
 
-### Fase 2 — Permessi su skill, MCP e gruppi di tool nativi
+### Fase 2 — Permessi su skill, MCP e gruppi di tool nativi — ✅ implementata
 
 **Regola di prodotto:** i permessi su skill/MCP **non** filtrano i profili
 creati dall'admin. Se un utente può usare il profilo X, X funziona per intero
@@ -235,7 +235,26 @@ attivare da sé**.
 - Test: profilo admin con skill non consentita → funziona; profilo privato con
   skill revocata → skill rimossa a runtime (vedi Fase 3).
 
-### Fase 3 — Profili privati per l'utente finale
+**Come è stata implementata (2026‑11‑23):**
+- `src/access/policy.py`: `filter_allowed` + `allowed_skills/mcp_servers/native_tool_groups`,
+  glob nelle regole (`sql_*`), `can()` usa lo stesso matching.
+- `src/access/catalog.py`: catalogo id per tipo (profili, skill, server MCP del
+  registry, bundle di tool nativi); valida le regole (422 `unknown_resources`)
+  e alimenta `GET /admin/access/catalog`.
+- `store.EDITABLE_RESOURCE_TYPES` = profile, skill, mcp_server, native_tool_group.
+- Integrazioni: `configurable_mcp_servers` (MCP consentiti ∪ MCP dei profili
+  utilizzabili) filtra la lista e blocca attivazione, credenziali e avvio OAuth
+  (403 `mcp_server_not_allowed`); disattivare resta sempre possibile; lo scope
+  fa parte della chiave di cache della lista.
+- `GET /v1/me/access` (vista per i client, pronta per l'editor della Fase 3).
+- `get_agent` invariato: nessun filtro skill/MCP sui profili (regola di prodotto).
+- Admin UI: dialog regole di gruppo e dialog “Accessi” utente con tab
+  Profili · Skill · MCP · Tool nativi (`RulesTabs`, `RuleEditor` generico con
+  ricerca) e accesso effettivo per tab.
+- Rimandato: badge “usata da N gruppi” nelle pagine Skill/Hub; il picker
+  skill/MCP in chat‑ui arriva con la Fase 3.
+
+### Fase 3 — Profili privati per l'utente finale — ✅ implementata
 
 - Storage: tabella **`user_profiles` nel DB** (non YAML): ownership, tenant,
   nessuna collisione di file, funziona con più container e backup DB.
@@ -269,6 +288,31 @@ attivare da sé**.
 - Cancellazione di un profilo privato usato da cron/conversazioni: i job vanno
   in pausa con errore leggibile; le conversazioni tornano al profilo di default.
 - Futuro già previsto dal modello: `visibility = group|tenant` per condividere.
+
+**Come è stata implementata (2026‑11‑23):**
+- Decisioni: editor in **chat‑ui** (pagina `/profiles` “I miei profili”, stesso
+  schema di Automazioni, riusa `ProfileSelectorDropdown`), non nel pannello
+  admin; slug generato dal backend `usr_<hash owner>_<nome>` con suffisso
+  `_2`… (mai in conflitto con i globali); revoca applicata **a runtime**
+  (gli elementi revocati restano salvati, vengono ignorati e tolti al
+  salvataggio successivo, tornano se il permesso viene ripristinato).
+- `UserProfile` + migrazione `k9h0n1f039`; logica in `src/access/private_profiles.py`.
+- Overlay in `ProfileManager` (`replace/put/drop_private_profile`,
+  `private_profile_owner`), caricato all'avvio: tutti i lookup per slug
+  funzionano senza toccare i chiamanti; `list_profiles` resta solo globale.
+- Policy: profilo privato usabile solo dall'owner (anche con regole profilo;
+  nemmeno l'admin lo usa). `get_agent` applica `effective_private_profile`.
+- API `/v1/me/profiles` (+ `building-blocks`, `duplicate`); `GET /profiles`
+  aggiunge i profili propri con `private: true`.
+- Capability `private_profiles.create` modificabile dall'admin-ui (tab
+  “Funzioni” delle regole); blocca solo la creazione.
+- Eliminazione: job cron in pausa (`enabled=false`); conversazioni → profilo
+  di default (slug sconosciuto). Eliminazione utente → profili rimossi.
+- Wizard AI anche per i profili personali (`/v1/me/profiles/wizard-generate|refine`):
+  stesso `wizard_generator` dell'admin con catalogo limitato a skill/MCP
+  consentiti all'utente; il profilo `aion_wizard_creator` non passa dalle
+  regole profilo dell'utente; restituisce solo bozze.
+- Rimandato: filtro “Profili utente” in sola lettura nell'admin‑ui.
 
 ### Fase 4 — MCP di self‑management (“aion_self”)
 

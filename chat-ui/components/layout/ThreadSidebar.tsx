@@ -8,6 +8,7 @@ import {
   Check,
   ChevronRight,
   Clock,
+  UserRound,
   Edit3,
   Folder,
   FolderInput,
@@ -300,6 +301,8 @@ export function ThreadSidebar({
       { section: "chat", href: chatHomeHref, icon: MessageSquare, label: t("sidebar.chat") },
       { section: "integrations", href: "/integrations", icon: Plug, label: t("sidebar.integrations") },
       { section: "schedules", href: "/schedules", icon: Clock, label: t("sidebar.schedules") },
+      // Private agent profiles (access control Phase 3).
+      { section: "profiles", href: "/profiles", icon: UserRound, label: t("sidebar.my_profiles") },
     ];
 
   // Sections are force-opened while searching (results must be visible) and

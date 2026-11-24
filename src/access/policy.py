@@ -6,8 +6,16 @@ Rules (``PLAN_access_control.md`` principle 3):
   ``capability`` / ``use``: "no rule = no limit" per resource type; otherwise
   the union of the rules of the user and their groups (``Principal``). Admins
   follow the same rule (decision D1: an admin is unrestricted unless they
-  restrict themself). Phase 1 only lets admins set ``profile`` rules; the other
-  types get their UI and enforcement points in Phases 2-3.
+  restrict themself).
+- ``skill`` / ``mcp_server`` / ``native_tool_group`` (Phase 2) govern only
+  what a user may compose or turn on **by themself** (Integrations today,
+  private profiles in Phase 3). They never strip anything from a profile the
+  user may use: an admin-made profile works in full even if it contains a
+  skill or MCP server the user has no rule for (product rule, see the plan).
+  Rule ids may be glob patterns (``sql_*``), like profile skill lists.
+- Private profiles (Phase 3, ``usr_*`` slugs) are usable only by their owner,
+  whatever the ``profile`` rules say; nobody else can use them, admins
+  included. ``GET /profiles`` lists them next to the allowed global ones.
 - ``admin_section`` / any action: super-admin only (``admin`` role) until
   Phase 5.
 
@@ -19,6 +27,7 @@ Callers: ``src.api.profile_access`` (HTTP wrapper), ``src.main.get_agent``,
 
 from __future__ import annotations
 
+import fnmatch
 import logging
 from typing import Any, Iterable, List, Optional, Sequence
 
@@ -73,8 +82,18 @@ def _canonical_slug(profile_name: str) -> str:
         return profile_name
 
 
+def _private_owner(slug: str) -> Optional[str]:
+    """Owner (``users.id``) of a private profile, ``None`` for global ones."""
+    from src.agent_profile import profile_manager
+
+    return profile_manager.private_profile_owner(slug)
+
+
 def can_use_profile(principal: Principal, profile_name: str) -> bool:
     """True if the principal may chat / schedule with ``profile_name``."""
+    owner = _private_owner(_canonical_slug(profile_name))
+    if owner is not None:
+        return bool(principal.user_row_id) and owner == principal.user_row_id
     allowed = principal.allowed_profile_set
     if allowed is None:
         return True
@@ -88,10 +107,19 @@ def resolve_profile_for(principal: Principal, profile_name: str) -> str:
     sent), the first allowed slug when the default profile was requested but is
     not allowed, and raises ``ProfileAccessDenied`` otherwise.
     """
+    slug = _canonical_slug(profile_name)
+    owner = _private_owner(slug)
+    if owner is not None:
+        # Private profile: the owner always, anybody else never.
+        if principal.user_row_id and owner == principal.user_row_id:
+            return profile_name
+        logger.warning(
+            "user %s denied access to private profile %s", principal.user_row_id, slug
+        )
+        raise ProfileAccessDenied(profile_name, principal.profile_grants or [])
     grants = principal.profile_grants
     if grants is None:
         return profile_name
-    slug = _canonical_slug(profile_name)
     if slug in grants:
         return profile_name
     # An empty tuple is a rule granting no profile at all: no fallback.
@@ -113,6 +141,48 @@ def filter_profiles(principal: Principal, profiles: Iterable[Any]) -> List[Any]:
         return p.get("slug") if isinstance(p, dict) else getattr(p, "slug", None)
 
     return [p for p in items if _slug(p) in allowed]
+
+
+def _matches(resource_id: str, allowed: Sequence[str]) -> bool:
+    """True if ``resource_id`` is in ``allowed`` (exact or glob pattern)."""
+    if resource_id in allowed:
+        return True
+    return any(
+        ("*" in a or "?" in a) and fnmatch.fnmatchcase(resource_id, a) for a in allowed
+    )
+
+
+def filter_allowed(
+    principal: Principal, resource_type: str, ids: Iterable[str]
+) -> List[str]:
+    """Keep the ``ids`` of ``resource_type`` the principal may use, in order.
+
+    Used to narrow catalogues shown to the user (skills, MCP servers, native
+    tool groups) and, from Phase 3, to drop revoked items from private
+    profiles. Never applied to admin-made profiles (see module docstring).
+    """
+    items = list(ids)
+    allowed = principal.allowed_ids(resource_type)
+    if allowed is None:
+        return items
+    return [i for i in items if _matches(i, allowed)]
+
+
+def allowed_skills(principal: Principal, names: Iterable[str]) -> List[str]:
+    """Skills (of ``names``) the principal may add to their own profiles."""
+    return filter_allowed(principal, RESOURCE_SKILL, names)
+
+
+def allowed_mcp_servers(principal: Principal, slugs: Iterable[str]) -> List[str]:
+    """MCP servers (of ``slugs``) the principal may turn on / add by themself."""
+    return filter_allowed(principal, RESOURCE_MCP_SERVER, slugs)
+
+
+def allowed_native_tool_groups(
+    principal: Principal, groups: Iterable[str]
+) -> List[str]:
+    """Native tool groups (of ``groups``) the principal may add by themself."""
+    return filter_allowed(principal, RESOURCE_NATIVE_TOOL_GROUP, groups)
 
 
 def can(
@@ -144,7 +214,7 @@ def can(
             return True
         if resource_id in (None, "*"):
             return bool(allowed)
-        return resource_id in allowed
+        return _matches(resource_id, allowed)
     logger.warning("can(): unknown resource type %r denied", resource_type)
     return False
 

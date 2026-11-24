@@ -389,8 +389,18 @@ Single decision point in `src/access/` (`principal.py` caller + cached rules,
 rules in `access_grants` (`/admin/groups*`, `/admin/users/{id}/rules|groups|effective-access`
 in `src/api/admin_groups.py`). "No rule = no limit" per resource type, union of
 the subjects that have a rule; no default group. Roles are read from the DB
-per request (cache `AION_ACCESS_CACHE_TTL_SEC`). Phase 1 rules cover profiles
-only; roadmap in `PLAN_access_control.md`. See `docs/security/groups-and-permissions.md`.
+per request (cache `AION_ACCESS_CACHE_TTL_SEC`). Rule types: `profile`, `skill`,
+`mcp_server`, `native_tool_group` (catalogue in `src/access/catalog.py`,
+`GET /admin/access/catalog`, user view `GET /v1/me/access`). Skill/MCP/tool
+rules never strip an assigned profile: they gate only what users turn on
+themselves (`/v1/integrations` via `configurable_mcp_servers`, private profiles
+later). Private profiles (Phase 3): table `user_profiles`, logic in
+`src/access/private_profiles.py`, API `/v1/me/profiles*`, chat-ui page `/profiles`;
+`usr_*` slugs are owner-only, mirrored in `profile_manager` (overlay loaded at
+startup) and filtered by the owner's current rules in `get_agent`. Capability
+rules (`capability:private_profiles.create`) gate creation. Roadmap in
+`PLAN_access_control.md`. See `docs/security/groups-and-permissions.md` and
+`docs/clients/private-profiles.md`.
 
 ### Service accounts
 

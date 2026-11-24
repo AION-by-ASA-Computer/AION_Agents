@@ -97,3 +97,29 @@ async def effective_profile_for_user(
         sorted(disabled),
     )
     return filtered
+
+
+async def configurable_mcp_servers(principal: Any) -> Optional[Set[str]]:
+    """MCP servers the user may see and set up in Integrations (Phase 2).
+
+    ``None`` = no limit (no ``mcp_server`` rule for the user or their groups).
+    Otherwise the servers their rules allow **plus** the servers used by the
+    profiles they may use: without the latter a user could not enter the
+    credentials of an MCP server needed by a profile an admin assigned them
+    (product rule: profile permissions win over MCP permissions).
+
+    Glob patterns in rules are expanded against the MCP registry. Called by
+    ``src/api/v1/mcp_integrations.py`` (list, activation, credentials, OAuth).
+    """
+    from src.access.policy import allowed_mcp_servers, filter_profiles
+    from src.agent_profile import profile_manager
+    from src.mcp_manager import mcp_manager
+
+    if principal.allowed_ids("mcp_server") is None:
+        return None
+    mcp_manager.load_registry()
+    out: Set[str] = set(allowed_mcp_servers(principal, mcp_manager._registry.keys()))
+    # Servers of usable profiles stay configurable even without an MCP rule.
+    for p in filter_profiles(principal, profile_manager.list_profiles()):
+        out.update(str(s) for s in (p.get("mcp_servers") or []) if s)
+    return out

@@ -201,7 +201,7 @@ async def test_admin_api_group_lifecycle_and_effective_access(monkeypatch, tmp_p
     await api.set_group_rules(
         g["id"], api.RulesUpdate(rules={"profile": [P1]}), auth=auth
     )
-    for bad in ({"profile": ["no_such_profile"]}, {"skill": ["x"]}):
+    for bad in ({"profile": ["no_such_profile"]}, {"capability": ["x"]}):
         with pytest.raises(HTTPException) as exc:
             await api.set_group_rules(g["id"], api.RulesUpdate(rules=bad), auth=auth)
         assert exc.value.status_code == 422

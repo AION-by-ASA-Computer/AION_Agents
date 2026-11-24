@@ -4456,6 +4456,12 @@ async def delete_user(user_id: str):
 
     await delete_user_access(user_id)
 
+    # Private profiles of the user (Phase 3): the FK cascade is not reliable
+    # on SQLite, and the in-memory overlay must forget them too.
+    from ..access.private_profiles import delete_all_for_user
+
+    await delete_all_for_user(user_id)
+
     # Se era l'ultimo utente da migrare, la migrazione SSO si chiude adesso:
     # altrimenti resta "attiva" e blocca i nuovi account con sso_not_linked.
     _invalidate_cache(tenant_id)

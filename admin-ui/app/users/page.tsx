@@ -20,10 +20,9 @@ import { linkErrorText } from "@/components/sso/setupLinks";
 import { MigrationUsers } from "@/components/sso/MigrationUsers";
 import { TempPasswordsDialog, type TempPassword } from "@/components/sso/TempPasswordsDialog";
 import { TwoFactorPanel } from "@/components/sso/TwoFactorPanel";
-import { type ProfileRow } from "@/components/users/ProfilesDialog";
 import { UserAccessDialog } from "@/components/groups/UserAccessDialog";
 import { GroupsPanel } from "@/components/groups/GroupsPanel";
-import type { Group } from "@/components/groups/shared";
+import { EMPTY_CATALOG, fetchCatalog, type Catalog, type Group } from "@/components/groups/shared";
 
 const k = "admin_users";
 const GRIDS: Record<string, string> = {
@@ -549,7 +548,8 @@ export default function UsersPage() {
 
   const [users, setUsers] = useState<UserRow[]>([]);
   const [listState, setListState] = useState<ListState>("loading");
-  const [allProfiles, setAllProfiles] = useState<ProfileRow[]>([]);
+  // Ids per resource type for the rule editors of the "Access" dialog.
+  const [catalog, setCatalog] = useState<Catalog>(EMPTY_CATALOG);
   const [query, setQuery] = useState("");
   const [filters, setFilters] = useState<Filters>(NO_FILTERS);
   const [loginMode, setLoginMode] = useState("password");
@@ -599,10 +599,7 @@ export default function UsersPage() {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     void loadUsers();
     loadGroups();
-    apiFetch(`${apiBase()}/admin/profiles`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data) => setAllProfiles(data || []))
-      .catch(() => {});
+    void fetchCatalog(apiFetch, apiBase()).then(setCatalog);
     apiFetch(`${apiBase()}/admin/smtp`)
       .then((res) => (res.ok ? res.json() : Promise.reject(res)))
       .then((data) => setSmtpConfigured(!!data.configured))
@@ -1144,7 +1141,7 @@ export default function UsersPage() {
           userId={accessUser.id}
           userName={nameOf(accessUser)}
           groups={allGroups}
-          profiles={allProfiles}
+          catalog={catalog}
           t={t}
           onSaved={() => {
             setToast({ message: t(`${k}.toast.access_saved`), variant: "success" });
