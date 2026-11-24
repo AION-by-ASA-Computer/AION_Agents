@@ -980,6 +980,44 @@
       },
       "rows": "{{count}} filas",
       "aria": "Gráfico: {{title}}"
+    },
+    "subagent": {
+      "label": "Subagente",
+      "unknown_agent": "perfil",
+      "starting": "Iniciando el subagente…",
+      "running_step": "Ejecutando {{name}}…",
+      "steps": "{{count}} pasos",
+      "activity": "Actividad",
+      "earlier_steps": "…y {{count}} pasos anteriores",
+      "result": "Resultado",
+      "files": "Archivos generados",
+      "open_transcript": "Abrir transcripción",
+      "show_brief": "Mostrar instrucciones enviadas",
+      "hide_brief": "Ocultar instrucciones",
+      "transcript_aria": "Origen del subagente",
+      "back_to_parent": "Volver a «{{title}}»",
+      "read_only_banner": "Transcripción del subagente {{profile}} (solo lectura)",
+      "status": {
+        "running": "En curso",
+        "done": "Completado",
+        "error": "Error",
+        "denied": "No permitido",
+        "timeout": "Tiempo agotado",
+        "cancelled": "Detenido"
+      },
+      "panel": {
+        "tab": "Subagente",
+        "aria": "Transcripción del subagente: {{name}}",
+        "open_full": "Abrir en página completa",
+        "brief": "Instrucciones del agente principal",
+        "brief_more": "Mostrar todo",
+        "brief_less": "Mostrar menos",
+        "loading": "Cargando transcripción…",
+        "working": "Trabajando…",
+        "empty": "No se registró ninguna respuesta para esta ejecución.",
+        "error": "No se pudo cargar la transcripción: {{msg}}",
+        "read_only": "Solo lectura · escrita por el agente principal"
+      }
     }
   },
   "login": {

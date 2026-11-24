@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} skill",
       "meta_tools_one": "{{count}} strumento",
       "meta_tools_other": "{{count}} strumenti",
+      "meta_subagents_one": "{{count}} sub-agent",
+      "meta_subagents_other": "{{count}} sub-agent",
       "back": "Tutti i profili"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Istruzioni",
       "tab_skills": "Skill",
       "tab_tools": "Strumenti",
+      "tab_subagents": "Sub-agent",
       "instructions_placeholder": "Sei un assistente esperto che…",
       "save": "Salva",
       "saving": "Salvataggio…",
@@ -340,6 +343,17 @@
       "filter_aria": "Filtra strumenti",
       "filter_all": "Tutti",
       "filter_attached": "Collegati"
+    },
+    "subagents": {
+      "title": "Sub-agent",
+      "hint": "L'agente può delegare a questi profili un compito autonomo con il tool delegate_to_agent. Ogni sub-agent lavora in una propria conversazione in sola lettura e non può delegare a sua volta. Gli utenti raggiungono solo i profili che possono usare.",
+      "no_description": "Nessuna descrizione: aggiungila, l'agente la usa per scegliere a chi delegare.",
+      "missing": "Mancante",
+      "missing_hint": "Questo profilo non esiste più: rimuovilo prima di salvare.",
+      "search": "Cerca profili",
+      "filter_aria": "Filtra sub-agent",
+      "none": "Nessun profilo corrisponde alla ricerca.",
+      "no_profiles": "Non ci sono altri profili: creane uno per poterlo usare come sub-agent."
     },
     "wizard": {
       "title": "Crea un profilo con l’IA",
@@ -1721,7 +1735,8 @@
       "sandbox": "Sandbox",
       "retention": "Conservazione",
       "smtp": "Email (SMTP)",
-      "smb": "File server"
+      "smb": "File server",
+      "branding": "Brand"
     },
     "page": {
       "title": "Impostazioni",
@@ -2320,6 +2335,58 @@
         "cancel": "Annulla",
         "confirm": "Rimuovi",
         "deleting": "Rimozione…"
+      }
+    },
+    "branding": {
+      "title": "Brand",
+      "description": "Logo, favicon e colore principale della tua azienda nella chat, nel pannello admin e nelle email inviate agli utenti.",
+      "loading": "Caricamento impostazioni brand…",
+      "load_failed": "Impossibile caricare le impostazioni del brand.",
+      "powered_by_note": "Con un logo personalizzato, sotto il logo e nel piè delle email compare sempre \"Powered by AION\" (link ad aion-asa.com). Non è disattivabile.",
+      "logo": "Logo",
+      "logo_hint": "Mostrato nelle pagine di accesso, nelle sidebar e nelle email. Carica una versione per il tema scuro se quella chiara si vede male su sfondi scuri.",
+      "logo_light": "Logo tema chiaro",
+      "logo_dark": "Logo tema scuro",
+      "optional": "Facoltativo",
+      "logo_dark_fallback": "Viene usato il logo chiaro",
+      "logo_formats": "PNG, JPEG, WebP o SVG, fino a 1 MB. Funziona meglio un logo orizzontale con sfondo trasparente.",
+      "favicon": "Favicon",
+      "favicon_hint": "Icona della scheda del browser per la chat e il pannello admin.",
+      "favicon_formats": "PNG, ICO o SVG, fino a 256 KB. Quadrata, almeno 32×32.",
+      "email_svg_note": "Le email incorporano solo loghi PNG o JPEG: con questo formato mantengono l'intestazione predefinita. Carica un logo chiaro PNG/JPEG per mostrarlo anche nelle email.",
+      "no_image": "Nessuna immagine",
+      "upload": "Carica",
+      "replace": "Sostituisci",
+      "remove": "Rimuovi",
+      "uploaded": "Immagine salvata.",
+      "removed": "Immagine rimossa.",
+      "colors": "Colore principale",
+      "colors_hint": "Usato per pulsanti, link, bordi di focus ed evidenziazioni. Vuoto = rosso AION predefinito.",
+      "color_light": "Tema chiaro",
+      "color_dark": "Tema scuro",
+      "color_default": "Predefinito AION",
+      "color_dark_fallback": "Uguale al tema chiaro",
+      "low_contrast": "Contrasto basso con lo sfondo della pagina: pulsanti e link potrebbero vedersi poco.",
+      "preview": "Anteprima",
+      "preview_button": "Pulsante",
+      "preview_link": "Link",
+      "theme_light": "Chiaro",
+      "theme_dark": "Scuro",
+      "reset_colors": "Ripristina colori AION",
+      "unsaved": "Modifiche non salvate",
+      "save": "Salva colori",
+      "saving": "Salvataggio…",
+      "saved": "Colori salvati.",
+      "err_save": "Impossibile salvare le impostazioni del brand.",
+      "err_upload": "Impossibile caricare l'immagine.",
+      "err_network": "Errore di rete: riprova.",
+      "errors": {
+        "invalid_color": "Usa un colore esadecimale come #1d4ed8.",
+        "empty_file": "Il file è vuoto.",
+        "too_large": "Il file è troppo grande (max {{max}}).",
+        "unsupported_type": "Formato non supportato.",
+        "unsafe_svg": "Questo SVG contiene script o contenuti esterni e non può essere usato.",
+        "invalid_kind": "Tipo di immagine sconosciuto."
       }
     }
   },

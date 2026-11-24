@@ -179,6 +179,7 @@ The chat-ui uses CSS tokens from `chat-ui/styles/theme-tokens.css`: **HSL variab
 Technical implementation:
 
 - **`chat-ui/styles/theme-tokens.css`** — dark/light values from `theme.json`; theme with `data-theme="dark|light"` on `<html>`.
+- **Tenant branding** — the admin can override the primary colour per theme (`--primary`, `--primary-foreground`, `--ring`, `--sidebar-primary*`, `--sidebar-ring`, light `--accent*`). The override is injected at runtime as `<style id="aion-branding">` by `components/brand/BrandingSync.tsx`, with an inline head script applying the cached value before paint. The same override re-colours Tailwind `rose-*` and the `brand-end` gradient token, so use `rose-*` / `to-brand-end` for brand accents and `destructive` / `red-*` for errors. `ChatBrand` shows the custom logo with the mandatory "Powered by AION" link. See [Tenant branding](../configuration/branding.md).
 - **`chat-ui/app/globals.css`** — `@import` of the theme, `@theme inline` Tailwind v4 for semantic utilities (`bg-background`, `text-primary`, …), **`.prose-chat`** class for markdown without `@tailwindcss/typography`.
 - **`next/font/google` Inter** — `--font-sans` variable on `<html>` (`app/layout.tsx`).
 - **`AppShell`** — sidebar + main + dock grid; **resizable** dock width (handle between chat and dock, `localStorage` persistence with key `aion-chat-dock-w`).

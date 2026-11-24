@@ -226,6 +226,13 @@ class Conversation(Base):
     )
     fork_seq: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
+    # Sub-agent run: set on the isolated child conversation created by the
+    # ``delegate_to_agent`` tool and pointing at the conversation that spawned it.
+    # Such rows are hidden from the sidebar and read-only (migration s9b1a2g039,
+    # docs/agents/subagents.md). Distinct from parent_conversation_id (side threads).
+    spawned_by_conversation_id: Mapped[Optional[str]] = mapped_column(
+        String(64), nullable=True, index=True
+    )
     # Sidebar folder (migration i7f8l9d037). NULL = "no folder": shown under
     # "Recent" in chat-ui. Deleting a folder sends its chats back to NULL.
     folder_id: Mapped[Optional[str]] = mapped_column(
@@ -1433,3 +1440,58 @@ class PasswordSetupToken(Base):
     # Codice dell'errore SMTP se l'invio e' fallito (es. smtp_auth_failed)
     send_error: Mapped[Optional[str]] = mapped_column(String(64))
     consumed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True))
+
+
+class BrandingSettings(Base):
+    """Tenant branding colours shown by chat-ui and admin-ui (migration b7r8n9d038).
+
+    One row per tenant, edited from admin-ui (Settings -> Brand) via
+    ``/admin/branding`` and exposed pre-login by the public ``GET /branding``.
+    A NULL colour means "use the AION default" for that theme; the frontends
+    fall back from dark to light when only the light colour is set.
+    """
+
+    __tablename__ = "branding_settings"
+
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tenants.id"), primary_key=True
+    )
+    # Hex colour "#rrggbb" applied to --primary & co. in the light theme.
+    primary_color_light: Mapped[Optional[str]] = mapped_column(String(7))
+    # Hex colour "#rrggbb" for the dark theme (NULL -> reuse the light one).
+    primary_color_dark: Mapped[Optional[str]] = mapped_column(String(7))
+    updated_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String(64), ForeignKey("users.id"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
+class BrandingAsset(Base):
+    """Tenant branding image (logo / favicon) stored as bytes (migration b7r8n9d038).
+
+    Images live in the DB rather than on the data volume so they are part of
+    every backup and need no path handling. They are small by construction
+    (size limits enforced in ``src/branding/service.py``).
+    ``kind`` is one of ``logo_light``, ``logo_dark``, ``favicon``.
+    """
+
+    __tablename__ = "branding_assets"
+
+    tenant_id: Mapped[str] = mapped_column(
+        String(64), ForeignKey("tenants.id"), primary_key=True
+    )
+    kind: Mapped[str] = mapped_column(String(16), primary_key=True)
+    # MIME type detected from the magic bytes at upload time, never the client header.
+    mime: Mapped[str] = mapped_column(String(64), nullable=False)
+    data: Mapped[bytes] = mapped_column(LargeBinary, nullable=False)
+    # Hex sha256 of ``data``: used as ETag and as cache-busting ``?v=`` in URLs.
+    sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    size: Mapped[int] = mapped_column(Integer, nullable=False)
+    updated_by_user_id: Mapped[Optional[str]] = mapped_column(
+        String(64), ForeignKey("users.id"), nullable=True
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

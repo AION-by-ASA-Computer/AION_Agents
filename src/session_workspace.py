@@ -477,3 +477,70 @@ def sync_parent_uploads_to_child(
         "errors": errors,
         "bytes": total,
     }
+
+
+def sync_child_outputs_to_parent(
+    child_session_id: str,
+    parent_session_id: str,
+) -> Dict[str, Any]:
+    """Copy the deliverables a sub-agent wrote back into the parent session.
+
+    A sub-agent runs in its own session folder, so files it generates under
+    ``workspace/`` (reports, CSVs, charts, …) would be invisible to the parent
+    agent. This copies every user-facing file (see
+    ``is_user_facing_generated_file``: scripts, dotfiles and offloaded tool
+    results are skipped) to ``workspace/subagents/<child_session_id>/`` of the
+    parent, keeping the relative layout, so the parent can read, transform or
+    hand them to the user.
+
+    Called by ``src.runtime.subagent_orchestrator`` once the child turn ends.
+    Reuses the upload-sync size limits (``AION_SUBAGENT_UPLOAD_SYNC_MAX_*``).
+    Returns ``{"copied": [parent-relative paths], "skipped": [...], "errors": [...]}``.
+    """
+    copied: List[str] = []
+    skipped: List[str] = []
+    errors: List[str] = []
+    child_sid = (child_session_id or "").strip()
+    parent_sid = (parent_session_id or "").strip()
+    if (
+        not _SESSION_ID_RE.match(child_sid)
+        or not _SESSION_ID_RE.match(parent_sid)
+        or child_sid == parent_sid
+    ):
+        return {"copied": copied, "skipped": skipped, "errors": ["invalid session_id"]}
+
+    max_total = (
+        int(os.getenv("AION_SUBAGENT_UPLOAD_SYNC_MAX_TOTAL_MB", "50")) * 1024 * 1024
+    )
+    max_file = (
+        int(os.getenv("AION_SUBAGENT_UPLOAD_SYNC_MAX_FILE_MB", "25")) * 1024 * 1024
+    )
+    src_dir = Path(session_fs(child_sid, "workspace"))
+    if not src_dir.is_dir():
+        return {"copied": copied, "skipped": skipped, "errors": errors}
+    dst_root = Path(session_fs(parent_sid, f"workspace/subagents/{child_sid}"))
+
+    total = 0
+    for p in sorted(src_dir.rglob("*")):
+        if not p.is_file() or p.is_symlink():
+            continue
+        rel = p.relative_to(src_dir).as_posix()
+        if not is_user_facing_generated_file(f"workspace/{rel}"):
+            continue
+        try:
+            sz = p.stat().st_size
+            if sz > max_file:
+                skipped.append(f"{rel} (file > max_file)")
+                continue
+            if total + sz > max_total:
+                skipped.append(f"{rel} (total budget)")
+                break
+            target = dst_root / rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(p, target)
+            copied.append(f"workspace/subagents/{child_sid}/{rel}")
+            total += sz
+        except OSError as e:
+            errors.append(f"{rel}: {e}")
+            logger.warning("subagent output sync failed %s → parent: %s", p, e)
+    return {"copied": copied, "skipped": skipped, "errors": errors}

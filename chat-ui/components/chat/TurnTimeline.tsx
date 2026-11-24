@@ -28,6 +28,8 @@ import { sessionDownloadUrl } from "@/lib/api/aion";
 import { markdownCodeComponents } from "@/lib/markdown/markdownCodeComponents";
 import { SafeErrorBoundary } from "@/components/ui/ErrorBoundary";
 import { ChartBlock } from "@/components/chat/SessionCharts";
+import { SubagentCard } from "@/components/chat/SubagentCard";
+import { isSubagentToolSegment } from "@/lib/sse/splitCompactTurn";
 import { resolveTurnOutcomeMessage } from "@/lib/sse/turnOutcomeMessage";
 
 type Props = {
@@ -143,6 +145,18 @@ export function TurnTimeline({
           if (seg.kind === "chart") {
             return seg.chart ? <ChartSegmentBlock key={seg.id} chart={seg.chart} /> : null;
           }
+          if (seg.kind === "tool" && isSubagentToolSegment(seg)) {
+            // splitCompactTurn keeps delegations out of the activity trail.
+            return (
+              <SubagentCard
+                key={seg.id}
+                seg={seg}
+                conversationId={conversationId}
+                token={token}
+                streaming={streaming}
+              />
+            );
+          }
           if (seg.kind === "text" && Boolean(seg.content)) {
             return (
               <div key={seg.id} className="prose-chat">
@@ -233,6 +247,19 @@ export function TurnTimeline({
           );
         }
         if (seg.kind === "tool") {
+          // Delegations always get their card, whatever the tools view: the
+          // user follows the sub-agent and can open its transcript from it.
+          if (isSubagentToolSegment(seg)) {
+            return (
+              <SubagentCard
+                key={seg.id}
+                seg={seg}
+                conversationId={conversationId}
+                token={token}
+                streaming={streaming}
+              />
+            );
+          }
           if (seg.name === "thinking") {
             if (seg.status === "running") {
               return <AgentWorkingShimmer key={seg.id} />;

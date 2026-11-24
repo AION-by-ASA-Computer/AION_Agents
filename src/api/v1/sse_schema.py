@@ -150,8 +150,56 @@ class SseOrchestrationPlanPending(_Event):
     goal: Optional[str] = None
 
 
+# --- sub-agents (src/runtime/subagent_orchestrator.py) ---------------------
+# Progress of a ``delegate_to_agent`` call, relayed on the parent stream.
+# ``parent_tool_call_id`` is the ``id`` of the parent's tool_start event.
+
+
+class _SseSubagentBase(_Event):
+    parent_tool_call_id: Optional[str] = None
+    run_id: str
+    child_conversation_id: str
+    profile: str
+
+
+class SseSubagentStart(_SseSubagentBase):
+    """The child conversation exists and its turn is starting."""
+
+    type: Literal["subagent_start"]
+    profile_name: Optional[str] = None
+    task: Optional[str] = None
+
+
+class SseSubagentStep(_SseSubagentBase):
+    """A tool call of the sub-agent started or finished."""
+
+    type: Literal["subagent_step"]
+    step: Dict[str, Any] = Field(
+        description="{id, name, status: running|done|error}",
+    )
+
+
+class SseSubagentEnd(_SseSubagentBase):
+    """The sub-agent finished: done | error | cancelled | timeout."""
+
+    type: Literal["subagent_end"]
+    status: str
+    steps: Optional[int] = None
+    error: Optional[str] = None
+    result_preview: Optional[str] = None
+    files: Optional[List[str]] = None
+
+
 SseToolEventPayload = Annotated[
-    Union[SseToolStart, SseToolEnd, SseToolError, SseOrchestrationPlanPending],
+    Union[
+        SseToolStart,
+        SseToolEnd,
+        SseToolError,
+        SseOrchestrationPlanPending,
+        SseSubagentStart,
+        SseSubagentStep,
+        SseSubagentEnd,
+    ],
     Field(discriminator="type"),
 ]
 

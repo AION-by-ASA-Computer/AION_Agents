@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} Skills",
       "meta_tools_one": "{{count}} Werkzeug",
       "meta_tools_other": "{{count}} Werkzeuge",
+      "meta_subagents_one": "{{count}} Sub-Agent",
+      "meta_subagents_other": "{{count}} Sub-Agents",
       "back": "Alle Profile"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Anweisungen",
       "tab_skills": "Skills",
       "tab_tools": "Werkzeuge",
+      "tab_subagents": "Sub-Agenten",
       "instructions_placeholder": "Du bist ein erfahrener Assistent, der…",
       "save": "Speichern",
       "saving": "Speichern…",
@@ -340,6 +343,17 @@
       "filter_aria": "Tools filtern",
       "filter_all": "Alle",
       "filter_attached": "Zugewiesen"
+    },
+    "subagents": {
+      "title": "Sub-Agents",
+      "hint": "Der Agent kann diesen Profilen mit dem Tool delegate_to_agent eine eigenständige Aufgabe übertragen. Jeder Sub-Agent arbeitet in einer eigenen schreibgeschützten Unterhaltung und kann nicht weiter delegieren. Benutzer erreichen nur die Profile, die sie verwenden dürfen.",
+      "no_description": "Keine Beschreibung: Fügen Sie eine hinzu, der Agent wählt damit aus, an wen er delegiert.",
+      "missing": "Fehlt",
+      "missing_hint": "Dieses Profil existiert nicht mehr: Entfernen Sie es vor dem Speichern.",
+      "search": "Profile suchen",
+      "filter_aria": "Sub-Agenten filtern",
+      "none": "Kein Profil entspricht der Suche.",
+      "no_profiles": "Es gibt noch keine anderen Profile: Lege eines an, um es als Sub-Agent zu verwenden."
     },
     "wizard": {
       "title": "Profil mit KI erstellen",
@@ -1720,7 +1734,8 @@
       "sandbox": "Sandbox",
       "retention": "Aufbewahrung",
       "smtp": "E-Mail (SMTP)",
-      "smb": "Dateiserver"
+      "smb": "Dateiserver",
+      "branding": "Marke"
     },
     "page": {
       "title": "Einstellungen",
@@ -2319,6 +2334,58 @@
         "cancel": "Abbrechen",
         "confirm": "Entfernen",
         "deleting": "Wird entfernt…"
+      }
+    },
+    "branding": {
+      "title": "Marke",
+      "description": "Logo, Favicon und Primärfarbe Ihres Unternehmens im Chat, im Admin-Bereich und in den E-Mails an Benutzer.",
+      "loading": "Markeneinstellungen werden geladen…",
+      "load_failed": "Die Markeneinstellungen konnten nicht geladen werden.",
+      "powered_by_note": "Bei einem eigenen Logo wird darunter und in der E-Mail-Fußzeile immer „Powered by AION“ (Link zu aion-asa.com) angezeigt. Das lässt sich nicht abschalten.",
+      "logo": "Logo",
+      "logo_hint": "Wird auf Anmeldeseiten, in Seitenleisten und in E-Mails angezeigt. Laden Sie eine Version für das dunkle Design hoch, wenn die helle auf dunklem Hintergrund schlecht lesbar ist.",
+      "logo_light": "Logo helles Design",
+      "logo_dark": "Logo dunkles Design",
+      "optional": "Optional",
+      "logo_dark_fallback": "Helles Logo wird verwendet",
+      "logo_formats": "PNG, JPEG, WebP oder SVG, bis 1 MB. Am besten ein Querformat-Logo mit transparentem Hintergrund.",
+      "favicon": "Favicon",
+      "favicon_hint": "Symbol im Browser-Tab für Chat und Admin-Bereich.",
+      "favicon_formats": "PNG, ICO oder SVG, bis 256 KB. Quadratisch, mindestens 32×32.",
+      "email_svg_note": "E-Mails betten nur PNG- oder JPEG-Logos ein: mit diesem Format behalten sie die Standard-Kopfzeile. Laden Sie ein helles PNG/JPEG-Logo hoch, um es auch in E-Mails zu zeigen.",
+      "no_image": "Kein Bild",
+      "upload": "Hochladen",
+      "replace": "Ersetzen",
+      "remove": "Entfernen",
+      "uploaded": "Bild gespeichert.",
+      "removed": "Bild entfernt.",
+      "colors": "Primärfarbe",
+      "colors_hint": "Für Schaltflächen, Links, Fokusrahmen und Hervorhebungen. Leer = AION-Standardrot.",
+      "color_light": "Helles Design",
+      "color_dark": "Dunkles Design",
+      "color_default": "AION-Standard",
+      "color_dark_fallback": "Wie das helle Design",
+      "low_contrast": "Geringer Kontrast zum Seitenhintergrund: Schaltflächen und Links sind eventuell schlecht sichtbar.",
+      "preview": "Vorschau",
+      "preview_button": "Schaltfläche",
+      "preview_link": "Link",
+      "theme_light": "Hell",
+      "theme_dark": "Dunkel",
+      "reset_colors": "AION-Farben wiederherstellen",
+      "unsaved": "Ungespeicherte Änderungen",
+      "save": "Farben speichern",
+      "saving": "Wird gespeichert…",
+      "saved": "Farben gespeichert.",
+      "err_save": "Die Markeneinstellungen konnten nicht gespeichert werden.",
+      "err_upload": "Das Bild konnte nicht hochgeladen werden.",
+      "err_network": "Netzwerkfehler: bitte erneut versuchen.",
+      "errors": {
+        "invalid_color": "Verwenden Sie eine Hex-Farbe wie #1d4ed8.",
+        "empty_file": "Die Datei ist leer.",
+        "too_large": "Die Datei ist zu groß (max. {{max}}).",
+        "unsupported_type": "Nicht unterstütztes Format.",
+        "unsafe_svg": "Dieses SVG enthält Skripte oder externe Inhalte und kann nicht verwendet werden.",
+        "invalid_kind": "Unbekannter Bildtyp."
       }
     }
   },

@@ -1052,36 +1052,6 @@ R(
     "or temporarily disable the integration from the profile.",
 )
 
-R(
-    "src/runtime/subagent_tools.py",
-    "Delega un compito a un altro profilo agente specializzato.",
-    "Delegate a task to another specialized agent profile.",
-)
-R(
-    "src/runtime/subagent_tools.py",
-    "Il sub-agente lavorerà in una sessione isolata",
-    "The sub-agent works in an isolated session",
-)
-R(
-    "src/runtime/subagent_tools.py",
-    "Delega un compito a un sub-agente specializzato",
-    "Delegate a task to a specialized sub-agent",
-)
-R(
-    "src/runtime/subagent_tools.py",
-    "Richiede il nome del profilo e il compito.",
-    "Requires profile name and task.",
-)
-R(
-    "src/runtime/subagent_tools.py",
-    "Nome o slug del profilo agente da attivare.",
-    "Name or slug of the agent profile to activate.",
-)
-R(
-    "src/runtime/subagent_tools.py",
-    "Descrizione del compito da affidare al sub-agente.",
-    "Description of the task to assign to the sub-agent.",
-)
 
 R(
     "src/doc_processor.py",

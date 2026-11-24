@@ -1,4 +1,11 @@
-import type { ChartPayload, ChatChunk, TurnSegment, TurnState } from "./types";
+import type {
+  ChartPayload,
+  ChatChunk,
+  SubagentInfo,
+  SubagentStep,
+  TurnSegment,
+  TurnState,
+} from "./types";
 import { feedPlanAwareDisplay, stripPlanBlocksForChatDisplay } from "./planDisplay";
 import {
   generatingTitleForFileTool,
@@ -144,10 +151,77 @@ function upsertToolSegment(
   const idx = segments.findIndex((s) => s.kind === "tool" && s.id === tool.id);
   if (idx >= 0) {
     const copy = [...segments];
-    copy[idx] = tool;
+    const prev = copy[idx] as Extract<TurnSegment, { kind: "tool" }>;
+    // tool_end/tool_error rebuild the segment from scratch: keep the sub-agent
+    // state gathered from the `subagent_*` events in the meantime.
+    copy[idx] = prev.subagent && !tool.subagent ? { ...tool, subagent: prev.subagent } : tool;
     return copy;
   }
   return [...segments, tool];
+}
+
+/** Sub-agent event types relayed on the parent stream (see sse_schema.py). */
+const SUBAGENT_EVENT_TYPES = new Set(["subagent_start", "subagent_step", "subagent_end"]);
+
+/** Same cap as SUBAGENT_MAX_STEPS in src/runtime/timeline_builder.py. */
+const SUBAGENT_MAX_STEPS = 40;
+
+/**
+ * Merge one `subagent_*` event into the `delegate_to_agent` tool segment whose
+ * id is the event's `parent_tool_call_id`. Events for an unknown segment are
+ * dropped: the tool_start that creates it is always emitted first.
+ */
+function applySubagentEvent(
+  segments: TurnSegment[],
+  ev: Record<string, unknown>,
+): TurnSegment[] {
+  const parentId = typeof ev.parent_tool_call_id === "string" ? ev.parent_tool_call_id : "";
+  const idx = segments.findIndex((s) => s.kind === "tool" && s.id === parentId);
+  if (!parentId || idx < 0) return segments;
+  const seg = segments[idx] as Extract<TurnSegment, { kind: "tool" }>;
+  const str = (v: unknown) => (typeof v === "string" && v ? v : undefined);
+  const cur: SubagentInfo = seg.subagent
+    ? { ...seg.subagent, steps: [...seg.subagent.steps] }
+    : { status: "running", steps: [], stepCount: 0 };
+  cur.runId = str(ev.run_id) ?? cur.runId;
+  cur.conversationId = str(ev.child_conversation_id) ?? cur.conversationId;
+  cur.profile = str(ev.profile) ?? cur.profile;
+
+  const et = String(ev.type);
+  if (et === "subagent_start") {
+    cur.profileName = str(ev.profile_name) ?? cur.profileName;
+    cur.task = str(ev.task) ?? cur.task;
+    cur.status = "running";
+  } else if (et === "subagent_step") {
+    const raw = (ev.step || {}) as Record<string, unknown>;
+    const step: SubagentStep = {
+      id: String(raw.id || `step_${cur.stepCount}`),
+      name: String(raw.name || "tool"),
+      status: raw.status === "error" ? "error" : raw.status === "done" ? "done" : "running",
+    };
+    const at = cur.steps.findIndex((s) => s.id === step.id);
+    if (at >= 0) {
+      cur.steps[at] = step;
+    } else {
+      cur.steps.push(step);
+      cur.stepCount += 1;
+      if (cur.steps.length > SUBAGENT_MAX_STEPS) cur.steps.shift();
+    }
+  } else if (et === "subagent_end") {
+    const status = String(ev.status || "done");
+    cur.status = (
+      ["done", "error", "cancelled", "timeout", "denied"].includes(status) ? status : "done"
+    ) as SubagentInfo["status"];
+    if (typeof ev.steps === "number") cur.stepCount = Math.max(cur.stepCount, ev.steps);
+    cur.error = typeof ev.error === "string" ? ev.error : null;
+    cur.resultPreview = typeof ev.result_preview === "string" ? ev.result_preview : null;
+    cur.files = Array.isArray(ev.files) ? ev.files.map(String) : [];
+    // Child tools still marked running when the run ended never will finish.
+    cur.steps = cur.steps.map((s) => (s.status === "running" ? { ...s, status: "done" } : s));
+  }
+  const copy = [...segments];
+  copy[idx] = { ...seg, subagent: cur };
+  return copy;
 }
 
 function applyStreamError(
@@ -288,6 +362,11 @@ export function reduceChunk(prev: TurnState, chunk: ChatChunk): TurnState {
           },
         ];
       }
+      return next;
+    }
+
+    if (SUBAGENT_EVENT_TYPES.has(et)) {
+      next.segments = applySubagentEvent(next.segments, ev);
       return next;
     }
 
@@ -800,6 +879,11 @@ export function segmentsForPersist(segments: TurnSegment[]): TurnSegment[] {
         return {
           ...seg,
           status: seg.status === "running" ? "done" : seg.status,
+          // A sub-agent still running when the turn is persisted was cut off
+          // (stop/abort): never store a card that spins forever on reload.
+          ...(seg.subagent?.status === "running"
+            ? { subagent: { ...seg.subagent, status: "cancelled" as const } }
+            : {}),
         };
       }
       // Chart segments keep their payload here: these segments also feed the

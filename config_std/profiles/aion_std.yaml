@@ -25,7 +25,6 @@ skills:
 - promql_library
 - memory_protocol
 - llm_wiki
-- delegation
 - presentation_design
 - promotional_graphics
 - web_research_protocol
@@ -50,4 +49,3 @@ mcp_servers:
 - session_sandbox
 - promo_render
 - skills_hub
-- aion_subagents

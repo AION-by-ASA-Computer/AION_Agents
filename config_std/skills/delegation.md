@@ -1,26 +1,40 @@
 ---
 name: delegation
-description: When and how to delegate to an isolated subagent via aion_subagents MCP.
+description: When and how to delegate a task to a sub-agent with the delegate_to_agent tool.
 tags: [orchestration, delegation, multi-agent]
 status: verified
 source: curated
-version: 1
+version: 2
 ---
 
 # Delegation Protocol
 
 ## Preconditions
-- Use **only** when your profile includes **`aion_subagents`** MCP.
+- Use **only** when the `delegate_to_agent` tool is available: it appears when your
+  profile lists sub-agents (`subagents:` key) and you are not a sub-agent yourself.
+  This skill is loaded automatically for those profiles; it is also present in
+  plan/deep-research mode and in sub-agent sessions, where the tool is off: then
+  simply do the work yourself.
+- Pick the `agent` from the catalog in the tool description; its description says
+  what that specialist is good at.
 - Do not delegate if the task is a single tool call or a short answer you can do inline.
 
 ## When to delegate
-- Long-running or **high-isolation** work (e.g. heavy exploration, unrelated codebase subtree).
-- Explicit user request for a separate “specialist pass” with its own context budget.
+- Work that matches a specialist profile better than yours (its tools, skills or instructions).
+- Long or noisy work (heavy exploration, many tool calls) whose details would flood your context.
+- Independent sub-tasks: you may call `delegate_to_agent` several times in the same
+  step to run them **in parallel** (a per-chat cap applies).
 
 ## Handoff quality
-- Provide **goal**, **constraints**, **inputs** (paths, IDs, time ranges), and **expected artifact format**.
-- Specify **stop conditions** (what “done” means).
+The sub-agent does **not** see this conversation. The `task` must be self-contained:
+- **Goal** and the **expected output format** (e.g. "a markdown table with …").
+- **Inputs**: file paths, IDs, URLs, time ranges, numbers the user gave you.
+- **Constraints** and **stop conditions** (what "done" means).
+- Files: uploads of this chat are visible to the sub-agent; files it creates come
+  back under `workspace/subagents/<child id>/`.
 
 ## After delegation
-- Integrate subagent results into a coherent reply; do not dump raw logs without synthesis.
-- Prefer one delegation round; avoid fan-out loops unless the user approves.
+- Read the `status` in the result header (`done`, `error`, `timeout`, `cancelled`, `denied`).
+- Integrate the results into a coherent reply; do not paste raw output without synthesis.
+- On `error`/`timeout`, either retry once with a smaller, clearer task or do the work yourself.
+- The user can open the full sub-agent transcript from the card in the chat.

@@ -237,6 +237,8 @@ class ProfileUpdate(BaseModel):
     native_tool_groups: Optional[List[str]] = None
     max_agent_steps: Optional[int] = None
     agent: Optional[Dict[str, Any]] = None
+    # Sub-agent allowlist (profile slugs). None = keep what the YAML already has.
+    subagents: Optional[List[str]] = None
 
 
 class SkillUpdate(BaseModel):
@@ -725,6 +727,7 @@ def _profile_to_dict(p: Any) -> Dict[str, Any]:
         "critical_skills": p.critical_skills,
         "max_agent_steps": getattr(p, "max_agent_steps", None),
         "agent": None,
+        "subagents": list(getattr(p, "subagents", None) or []),
     }
     file_path = profile_manager.profile_yaml_path(p.slug)
     if file_path.is_file():
@@ -742,7 +745,8 @@ def _profile_export_yaml(p: Any) -> str:
     data = {
         k: v
         for k, v in _profile_to_dict(p).items()
-        if v is not None or k not in ("max_agent_steps", "agent")
+        if (v is not None or k not in ("max_agent_steps", "agent"))
+        and not (k == "subagents" and not v)
     }
     return yaml.dump(data, allow_unicode=True, sort_keys=False)
 
@@ -762,7 +766,11 @@ async def get_profile(name: str):
 
 @router.post("/profiles")
 async def save_profile(p: ProfileUpdate):
-    from ..runtime.profile_schema import ProfileSchema, validate_profile_references
+    from ..runtime.profile_schema import (
+        ProfileSchema,
+        strip_system_skills,
+        validate_profile_references,
+    )
     from ..skill_registry import skill_registry
     from ..mcp_manager import mcp_manager
 
@@ -794,13 +802,36 @@ async def save_profile(p: ProfileUpdate):
             "name": p.name,
             "description": p.description,
             "instructions": p.instructions,
-            "skills": p.skills,
+            # Runtime-managed skills (``delegation``) are never written to the
+            # YAML: they follow from ``subagents`` (see SYSTEM_SKILLS).
+            "skills": strip_system_skills(p.skills),
             "mcp_servers": p.mcp_servers,
         }
     )
     for key in ("native_tool_groups", "critical_skills"):
         if getattr(p, key) is not None:
             data[key] = getattr(p, key)
+    if isinstance(data.get("critical_skills"), list):
+        data["critical_skills"] = strip_system_skills(data["critical_skills"])
+    if p.subagents is not None:
+        # Sub-agent allowlist: unknown slugs are a hard error here (the admin
+        # picked them from a list, so an unknown one means a stale UI or a typo
+        # in an API call); an empty list removes the key from the YAML.
+        from ..runtime.profile_schema import normalize_subagent_slugs
+
+        subs = normalize_subagent_slugs(p.subagents, self_slug=slug)
+        unknown = [s for s in subs if profile_manager.get_profile(s) is None]
+        if unknown:
+            raise HTTPException(
+                status_code=400,
+                detail={
+                    "errors": [f"unknown sub-agent profile(s): {', '.join(unknown)}"]
+                },
+            )
+        if subs:
+            data["subagents"] = subs
+        else:
+            data.pop("subagents", None)
     for key in ("max_agent_steps", "agent"):
         if key in p.model_fields_set:
             if getattr(p, key) is None:
@@ -896,6 +927,23 @@ async def import_profile_preview(file: UploadFile = File(...)):
 # --- SKILLS ---
 
 
+def _reject_system_skill(name: Any, *, write: bool) -> None:
+    """Refuse admin access to runtime-managed skills (``SYSTEM_SKILLS``).
+
+    System skills such as ``delegation`` are attached automatically to the
+    profiles that need them (see ``AgentProfile.resolved_skills``) and must not
+    be broken by an admin edit, so the admin skill API treats them as absent:
+    reads answer 404, writes answer 403 ``system_skill_read_only``.
+    """
+    from ..runtime.profile_schema import is_system_skill
+
+    if not is_system_skill(name):
+        return
+    if write:
+        raise HTTPException(status_code=403, detail="system_skill_read_only")
+    raise HTTPException(status_code=404, detail="Skill not found")
+
+
 @router.get("/skills")
 async def list_skills(status: Optional[str] = Query(None)):
     """Elenco skill con descrizioni, tags, status e metriche view."""
@@ -904,7 +952,12 @@ async def list_skills(status: Optional[str] = Query(None)):
     skill_registry.reload_if_stale()
     counts = view_counts()
     result: Dict[str, Dict[str, Any]] = {}
+    from ..runtime.profile_schema import is_system_skill
+
     for name in skill_registry.get_all_names():
+        # Runtime-managed skills are invisible to admins (see _reject_system_skill).
+        if is_system_skill(name):
+            continue
         meta = skill_registry.get_meta(name) or {}
         st = meta.get("status") or "verified"
         if status and st != status:
@@ -922,6 +975,7 @@ async def list_skills(status: Optional[str] = Query(None)):
 @router.post("/skills/{name}/promote")
 async def promote_skill(name: str):
     """Promote generated draft skill to verified (in-place frontmatter)."""
+    _reject_system_skill(name, write=False)
     skill_registry.reload_if_stale()
     path = skill_registry.get_skill_path(name)
     if not path or not path.is_file():
@@ -960,6 +1014,8 @@ async def rename_skill(name: str, body: SkillRename):
     # Belt-and-suspenders: strip any path component so `new` can never be
     # anything but a bare filename, regardless of what the regex above allows.
     new = os.path.basename(new)
+    _reject_system_skill(name, write=False)
+    _reject_system_skill(new, write=True)
     skill_registry.reload()
     path = skill_registry.get_skill_path(name)
     if not path:
@@ -1053,6 +1109,7 @@ async def rename_skill(name: str, body: SkillRename):
 
 @router.get("/skills/{name}")
 async def get_skill(name: str):
+    _reject_system_skill(name, write=False)
     skill_registry.reload()
     content = skill_registry.get_skill(name)
     if content is None:
@@ -1070,6 +1127,7 @@ async def get_skill(name: str):
 
 @router.post("/skills")
 async def save_skill(s: SkillUpdate):
+    _reject_system_skill(s.name, write=True)
     skill_registry.unhide(s.name)
     existing_path = skill_registry.get_skill_path(s.name)
     if existing_path:
@@ -1115,6 +1173,10 @@ async def save_skill(s: SkillUpdate):
     # Update with parsed meta (which takes precedence)
     merged_meta.update(meta)
 
+    # The frontmatter `name` wins over the file name when the registry loads
+    # skills, so it must not be used to overwrite a system skill either.
+    _reject_system_skill(merged_meta.get("name"), write=True)
+
     # Ensure minimal keys
     if "name" not in merged_meta:
         merged_meta["name"] = s.name
@@ -1146,6 +1208,8 @@ async def save_skill(s: SkillUpdate):
 async def delete_skill(name: str):
     from ..agent_profile import profile_manager
 
+    _reject_system_skill(name, write=True)
+
     # Ricarica e verifica utilizzo nei profili
     profile_manager.load_all()
     referencing_profiles = []
@@ -1170,6 +1234,7 @@ async def delete_skill(name: str):
 
 @router.get("/skills/{name}/export")
 async def export_skill_md(name: str):
+    _reject_system_skill(name, write=False)
     skill_registry.reload()
     path = skill_registry.get_skill_path(name)
 
@@ -1203,8 +1268,12 @@ async def export_all_skills_zip():
     skill_registry.reload()
     base_path = Path("config/skills").resolve()
     with zipfile.ZipFile(buf, "w") as z:
+        from ..runtime.profile_schema import is_system_skill
+
         seen: set[str] = set()
         for name in skill_registry.get_all_names():
+            if is_system_skill(name):
+                continue  # runtime-managed, not exported to admins
             entry = skill_registry._skills.get(name) or {}
             path = Path(entry.get("path") or "")
             if not path.is_file() or str(path) in seen:
@@ -3816,12 +3885,16 @@ async def get_stats():
     """Aggregates system-wide statistics for the dashboard."""
     profiles = profile_manager.list_profiles()
 
+    from ..runtime.profile_schema import is_system_skill
+
     skill_registry.reload()
+    # Same set the Skills page shows: runtime-managed skills are not counted.
     skills_count = len(
         [
             name
             for name in skill_registry.get_all_names()
-            if (skill_registry.get_meta(name) or {}).get("status") == "verified"
+            if not is_system_skill(name)
+            and (skill_registry.get_meta(name) or {}).get("status") == "verified"
         ]
     )
 
@@ -3925,24 +3998,6 @@ async def delete_mcp(name: str):
         )
         await session.commit()
     return {"status": "success", "cleanup": cleanup}
-
-
-@router.get("/subagents")
-async def list_subagents():
-    """YAML definitions under config/subagents/."""
-    root = _project_root() / "config" / "subagents"
-    if not root.is_dir():
-        return {"subagents": []}
-    out = []
-    for p in sorted(root.glob("*.yaml")):
-        try:
-            body = yaml.safe_load(p.read_text(encoding="utf-8")) or {}
-        except Exception:
-            body = {}
-        out.append(
-            {"name": p.stem, "file": str(p.relative_to(_project_root())), "meta": body}
-        )
-    return {"subagents": out}
 
 
 # --- V2 ADDITIONS ---
