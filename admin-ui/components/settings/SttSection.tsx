@@ -36,7 +36,7 @@ import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
 import { outlineBtn } from "@/components/ui/classes";
 import { Select } from "@/components/ui/Select";
-import { ChoiceList, Field, FieldGrid, Group, ModelField, Mono, Note, ProbeBar, SecretInput, SectionHead, TextInput } from "./ui";
+import { ChoiceList, Field, FieldGrid, Group, ModelField, Mono, Note, ProbeBar, SecretInput, SectionHead, TextInput, useSettingsReadOnly } from "./ui";
 import { useProbe } from "./useProbe";
 import { K, type SectionCtx } from "./types";
 
@@ -213,6 +213,8 @@ export function SttSection({ t, settings, set, setMany, notify, mode, setMode }:
 function LocalSettings({ t, settings, set, notify }: Pick<SectionCtx, "t" | "settings" | "set" | "notify">) {
   const [status, setStatus] = useState<Status | null>(null);
   const [starting, setStarting] = useState(false);
+  // Downloading a model writes to the server: hidden for read-only admins.
+  const readOnly = useSettingsReadOnly();
   // Download state seen by the previous poll, to notice when it finishes.
   const prevStateRef = useRef<DownloadState["state"]>("idle");
 
@@ -318,7 +320,7 @@ function LocalSettings({ t, settings, set, notify }: Pick<SectionCtx, "t" | "set
       <Group title={t(`${m}.model_title`)} description={t(`${m}.model_hint`)}>
         <ChoiceList<string> value={model} onChange={(v) => set(MODEL_KEY, v)} label={t(`${m}.model_title`)} options={modelOptions} />
         {/* Only the curated models can be fetched from here. */}
-        {info && !info.installed && !info.custom && (
+        {!readOnly && info && !info.installed && !info.custom && (
           <div className="flex flex-wrap items-center gap-3 border-t border-border px-5 py-4">
             <p className="min-w-0 flex-1 text-xs leading-relaxed text-muted-foreground">
               {downloadingThis ? t(`${m}.downloading_hint`) : t(`${m}.not_installed`)}
@@ -339,7 +341,7 @@ function LocalSettings({ t, settings, set, notify }: Pick<SectionCtx, "t" | "set
       <Group title={t(`${m}.language_title`)} description={t(`${m}.language_hint`)}>
         <FieldGrid>
           <Field label={t(`${m}.language_label`)} wide>
-            <Select value={language} onChange={(v) => set(LANGUAGE_KEY, v)} options={languageOptions} aria-label={t(`${m}.language_label`)} />
+            <Select value={language} onChange={(v) => set(LANGUAGE_KEY, v)} options={languageOptions} aria-label={t(`${m}.language_label`)} disabled={readOnly} />
           </Field>
         </FieldGrid>
       </Group>

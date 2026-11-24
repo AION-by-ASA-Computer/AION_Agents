@@ -96,11 +96,15 @@ def test_restricted_principal_fallback_and_denial():
 
 
 def test_can_admin_section_and_unknown_resource():
-    """Admin sections need the super-admin role; unknown types are denied."""
+    """Admin areas (Phase 5): the super-admin holds them all, a user without
+    rules none; unknown types are denied."""
     admin = Principal(user_row_id="a", roles=("admin",))
     user = Principal(user_row_id="u")
-    assert can(admin, "write", "admin_section", "profiles")
-    assert not can(user, "read", "admin_section", "profiles")
+    assert can(admin, "write", "admin_section", "agents")
+    assert not can(user, "read", "admin_section", "agents")
+    reader = Principal(user_row_id="r", allowed={"admin_section": ("agents:read",)})
+    assert can(reader, "read", "admin_section", "agents")
+    assert not can(reader, "write", "admin_section", "agents")
     assert can(user, "use", "skill", "anything")  # not restricted in Phase 0
     assert not can(admin, "use", "typo_resource", "x")
 
@@ -118,7 +122,8 @@ def test_effective_permissions_shape():
     assert "profile:a:use" in perms and "profile:*:use" not in perms
     assert not any(x.startswith("admin_section") for x in perms)
     admin = effective_permissions(Principal(user_row_id="x", roles=("admin",)))
-    assert "admin_section:*:write" in admin and "profile:*:use" in admin
+    assert "admin_section:agents:write" in admin and "profile:*:use" in admin
+    assert "admin_section:observability:read" in admin
 
 
 # --- DB-backed principal -----------------------------------------------------

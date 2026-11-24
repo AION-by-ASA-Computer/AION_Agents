@@ -7,6 +7,7 @@ import { inputCls, outlineBtn, solidBtn } from "@/components/ui/classes";
 import { MCP_CATEGORIES, type McpCategory } from "@/lib/mcpCategories";
 import { isAllowedGithubUrl } from "@/lib/githubUrl";
 import type { Hub } from "@/components/hub/useHub";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -95,6 +96,9 @@ export function Catalog({ hub }: { hub: Hub }) {
   const { t } = hub;
   const k = "admin_hub.catalog";
   const busyInstall = hub.installingId !== null || hub.marketLoading;
+  // Read-only users ("external" at read level) browse the catalogue without
+  // install / uninstall buttons (the backend refuses those writes anyway).
+  const canWrite = useCanWrite("external");
 
   /** Replaces the install button once the server is in the registry; uninstall reuses the in-use-by-profile checks. */
   const installedAction = (match: { slug: string; isBase: boolean }) => (
@@ -103,7 +107,7 @@ export function Catalog({ hub }: { hub: Hub }) {
         <Check className="h-3.5 w-3.5" aria-hidden />
         {t(`${k}.installed`)}
       </span>
-      {!match.isBase && (
+      {!match.isBase && canWrite && (
         <button
           type="button"
           className={cn(outlineBtn, "hover:text-destructive")}
@@ -210,7 +214,7 @@ export function Catalog({ hub }: { hub: Hub }) {
                   action={
                     installedMatch ? (
                       installedAction(installedMatch)
-                    ) : c.remote_url_template ? (
+                    ) : !canWrite ? null : c.remote_url_template ? (
                       <button
                         type="button"
                         className={outlineBtn}
@@ -301,7 +305,7 @@ export function Catalog({ hub }: { hub: Hub }) {
                         ) : (
                           <span className="text-xs text-muted-foreground">{t(`${k}.catalog_only`)}</span>
                         )
-                      ) : (
+                      ) : !canWrite ? null : (
                         <button
                           type="button"
                           className={outlineBtn}

@@ -3,7 +3,7 @@
 import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, Sun, X } from "lucide-react";
+import { Eye, KeyRound, LogOut, Menu, Moon, PanelLeftClose, PanelLeftOpen, ShieldOff, Sun, X } from "lucide-react";
 import { apiBase } from "@/lib/api";
 import { adminPath } from "@/lib/paths";
 import { getStoredUserId, setStoredAuth } from "@/lib/auth/storage";
@@ -13,7 +13,9 @@ import { VersionUpdateBanner } from "@/components/VersionUpdateBanner";
 import { UpdateProgressOverlay } from "@/components/update/UpdateProgressOverlay";
 import { useT } from "@/lib/i18n/use-t";
 import { cn } from "@/lib/cn";
-import { ADMIN_NAV, isNavActive } from "@/lib/admin-nav";
+import { isNavActive, navItemFor, visibleNav } from "@/lib/admin-nav";
+import { useAdminAccess, useIsSuperadmin } from "@/lib/auth/admin-access";
+import { areaLevel, type AdminArea } from "@/lib/auth/permissions";
 import { setTheme, useTheme } from "@/lib/theme";
 
 const COLLAPSED_KEY = "aion_admin_sidebar_collapsed";
@@ -30,6 +32,14 @@ function initials(id: string | null): string {
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname() || "";
   const t = useT();
+  // Admin areas of the user (Phase 5): menu filtering, page gate, read-only banner.
+  // Without access info (admin auth off) everything is open, as on the backend.
+  const me = useAdminAccess();
+  const isSuperadmin = useIsSuperadmin();
+  const level = React.useCallback((area: AdminArea) => (me ? areaLevel(me, area) : "write"), [me]);
+  const nav = React.useMemo(() => visibleNav(level), [level]);
+  const pageItem = navItemFor(pathname);
+  const pageLevel = pageItem?.area ? level(pageItem.area) : "write";
   const theme = useTheme();
   const readEmbedded = () =>
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("embedded") === "1";
@@ -145,7 +155,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
       </div>
 
       <nav className={cn("no-scrollbar min-h-0 flex-1 overflow-y-auto pb-3", rail ? "px-2" : "px-3")} aria-label={t("admin_nav.aria")}>
-        {ADMIN_NAV.map((group) => (
+        {nav.map((group) => (
           <div key={group.id} className={cn(group.labelKey && "mt-4")}>
             {group.labelKey &&
               (rail ? (
@@ -316,10 +326,37 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         </header>
-        <VersionUpdateBanner className="mx-4 mt-4 sm:mx-6 lg:mx-8" />
+        {/* One-click update is super-admin only (never delegable). */}
+        {isSuperadmin && <VersionUpdateBanner className="mx-4 mt-4 sm:mx-6 lg:mx-8" />}
         {/* One-click upgrade progress: opens on start or when an upgrade is already running. */}
-        <UpdateProgressOverlay />
-        <div className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8">{children}</div>
+        {isSuperadmin && <UpdateProgressOverlay />}
+        <div className="mx-auto w-full max-w-[96rem] px-4 py-6 sm:px-6 lg:px-8">
+          {pageLevel === null ? (
+            // Area not granted: explain instead of showing a page full of 403 errors.
+            <div className="mx-auto flex max-w-md flex-col items-center px-6 py-24 text-center" role="alert">
+              <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
+                <ShieldOff className="h-5 w-5" />
+              </span>
+              <h1 className="mt-4 text-lg font-semibold tracking-[-0.015em]">{t("admin_nav.no_access_title")}</h1>
+              <p className="mt-1.5 text-sm text-muted-foreground">{t("admin_nav.no_access_body")}</p>
+              <Link href="/" className="focus-ring mt-6 rounded-lg text-sm font-medium underline underline-offset-4">
+                {t("admin_nav.dashboard")}
+              </Link>
+            </div>
+          ) : (
+            <>
+              {pageLevel === "read" && (
+                // Read-only area: write controls may still be visible on some pages,
+                // the backend refuses any change (403).
+                <div className="mb-5 flex items-center gap-2.5 rounded-2xl bg-secondary/60 px-4 py-3 text-sm text-muted-foreground" role="status">
+                  <Eye className="h-4 w-4 shrink-0" aria-hidden />
+                  {t("admin_nav.read_only")}
+                </div>
+              )}
+              {children}
+            </>
+          )}
+        </div>
       </main>
     </div>
   );

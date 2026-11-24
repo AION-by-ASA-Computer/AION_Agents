@@ -15,6 +15,7 @@ import { fullWhen, shortWhen, toMs } from "@/lib/datetime";
 import { DeleteDialog } from "@/components/ui/ConfirmDialogs";
 import { SearchField } from "@/components/ui/SearchField";
 import { ghostBtn, outlineBtn } from "@/components/ui/classes";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { EmptyList, Loading, k, readJson, userLabel, type Notify, type T, type UserRef } from "./shared";
 
 type AdminBot = {
@@ -56,6 +57,8 @@ export function TelegramBotsList({ t, notify, rev }: { t: T; notify: Notify; rev
   const [showDeleted, setShowDeleted] = useState(false);
   const [busy, setBusy] = useState<number | null>(null);
   const [deleting, setDeleting] = useState<AdminBot | null>(null);
+  // Suspend / resume / reassign / delete need "external" write: hidden for read-only users.
+  const canWrite = useCanWrite("external");
 
   const load = useCallback(async () => {
     try {
@@ -182,7 +185,7 @@ export function TelegramBotsList({ t, notify, rev }: { t: T; notify: Notify; rev
                   </p>
                 )}
               </div>
-              {b.status !== "deleted" && (
+              {canWrite && b.status !== "deleted" && (
                 <div className="flex flex-wrap gap-2">
                   {/* Reassign only confirms a transfer done on Telegram, and needs the new owner linked to AION. */}
                   {b.pending_owner && (

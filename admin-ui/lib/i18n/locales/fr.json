@@ -25,7 +25,6 @@
     "version_unknown": "Version inconnue",
     "groups": {
       "agents": "Agents",
-      "operations": "Opérations",
       "observability": "Observabilité",
       "access": "Accès",
       "platform": "Plateforme"
@@ -34,7 +33,10 @@
     "theme_dark": "Passer au thème sombre",
     "whatsapp": "WhatsApp",
     "telegram": "Telegram",
-    "service_accounts": "Comptes de service"
+    "service_accounts": "Comptes de service",
+    "no_access_title": "Vous n'avez pas accès à cette section",
+    "no_access_body": "Demandez à un administrateur de vous accorder cette zone du panneau.",
+    "read_only": "Lecture seule : vous pouvez consulter cette section mais pas la modifier."
   },
   "admin_dashboard": {
     "title": "Vue d'ensemble",
@@ -49,7 +51,8 @@
       "warn": "À vérifier",
       "error": "En panne",
       "checking": "Vérification…",
-      "idle": "Non configuré"
+      "idle": "Non configuré",
+      "unchecked": "Non vérifié"
     },
     "command": {
       "label": "Rechercher dans l'administration",
@@ -3198,6 +3201,29 @@
         "summary_all": "toutes les fonctions",
         "summary_nothing": "aucune fonction",
         "some_empty_hint": "Aucune fonction sélectionnée : équivaut à « Aucune fonction »."
+      },
+      "admin_section": {
+        "tab": "Panneau admin",
+        "title": "Zones du panneau admin",
+        "all": "Toutes les zones",
+        "some": "Certaines zones",
+        "nothing": "Aucune zone",
+        "all_hint": "",
+        "some_hint": "",
+        "nothing_hint": "",
+        "none_group": "Le groupe n'accorde aucune zone du panneau.",
+        "none_user": "Aucune règle personnelle : les groupes décident.",
+        "search": "Rechercher",
+        "empty": "Aucune zone.",
+        "selected": "{{count}} zones",
+        "summary_count": "{{count}} permissions",
+        "effective_title": "Panneau admin maintenant",
+        "effective_unlimited": "Aucune zone : seulement l'aperçu.",
+        "effective_all": "Toutes les zones.",
+        "effective_nothing": "Aucune zone.",
+        "summary_all": "toutes les zones",
+        "summary_nothing": "aucune zone",
+        "some_empty_hint": "Aucune zone sélectionnée."
       }
     },
     "access": {
@@ -3236,7 +3262,51 @@
       "private_profiles_create": {
         "name": "Profils personnels",
         "description": "Créer des profils d'agent personnels depuis le chat (Mes profils)."
+      },
+      "admin_panel_access": {
+        "name": "Panneau admin",
+        "description": "Ouvrir le panneau admin (aperçu). L'exclure = chat uniquement ; les zones accordées par d'autres règles restent visibles."
+      },
+      "telegram_use": {
+        "name": "Telegram",
+        "description": "Créer et lier des bots Telegram personnels."
+      },
+      "whatsapp_use": {
+        "name": "WhatsApp",
+        "description": "Lier son numéro WhatsApp."
+      },
+      "api_keys_create": {
+        "name": "Clés API",
+        "description": "Créer des clés API personnelles."
       }
+    },
+    "areas": {
+      "access": {
+        "name": "Gestion des accès",
+        "description": "Menu Accès : utilisateurs, connexion et SSO, groupes, comptes de service, sécurité."
+      },
+      "agents": {
+        "name": "Gestion des agents",
+        "description": "Menu Agents : profils, skills, mémoire, tâches planifiées."
+      },
+      "settings": {
+        "name": "Paramètres",
+        "description": "Page Paramètres : modèles, mémoire, web, voix, sandbox, SMTP, serveur de fichiers. Concerne toute la plateforme."
+      },
+      "external": {
+        "name": "Applications externes",
+        "description": "MCP Hub, WhatsApp et Telegram."
+      },
+      "observability": {
+        "name": "Observabilité",
+        "description": "Métriques, feedback, diagnostic et système."
+      },
+      "hint": "Les règles de l'utilisateur et de ses groupes s'additionnent : pour chaque zone, le niveau le plus élevé s'applique. Sans zone, seul l'aperçu est visible ; les super-admins ont toujours tout."
+    },
+    "levels": {
+      "none": "Aucun",
+      "read": "Lecture",
+      "write": "Écriture"
     }
   }
 }

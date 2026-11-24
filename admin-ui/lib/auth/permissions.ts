@@ -1,22 +1,34 @@
 /**
- * Admin-panel permission helpers.
+ * Admin-panel permission helpers (access control, Phase 5).
  *
- * The backend sends effective permissions in `GET /auth/me` as strings
- * `<resource_type>:<resource_id>:<action>` (see `src/access/policy.py`).
- * Admin sections use `admin_section:<nav id | *>:read|write`, where the nav id
- * is the `id` of an item in `lib/admin-nav.ts`.
+ * The panel is split into four areas, each granted at `read` or `write`
+ * (`write` includes `read`):
+ * - `access`        menu "Accessi" (users, service accounts, security)
+ * - `agents`        menu "Agenti" (except MCP Hub)
+ * - `settings`      the Settings page (granted on its own)
+ * - `external`      MCP Hub + menu "Piattaforma" (WhatsApp, Telegram)
+ * - `observability` menu "Osservabilità"
+ * The dashboard ("Panoramica") is open to everyone who may enter the panel.
  *
- * Today only super-admins (role `admin`) get `admin_section:*:*`; Phase 5 of
- * PLAN_access_control.md adds per-section permissions, and these helpers are
- * already the single client-side check for them (`AdminAuthGate`, and later
- * nav filtering / read-only pages). They are UI hints: the backend re-checks
- * every `/admin/*` request.
+ * `GET /auth/me` sends `admin_access` (may the user enter at all) and
+ * `admin_areas` (`{area: "read" | "write"}`, sum of the user's and groups'
+ * rules; every area in write for super-admins). These helpers turn them into
+ * UI decisions (gate, menu, read-only pages). They are hints only: the
+ * backend checks every `/admin/*` request (`src/access/admin_areas.py`).
  */
+
+export type AdminArea = "access" | "agents" | "settings" | "external" | "observability";
+export type AreaLevel = "read" | "write";
+export const ADMIN_AREAS: AdminArea[] = ["access", "agents", "settings", "external", "observability"];
 
 /** The `/auth/me` fields the admin UI needs for access decisions. */
 export type AdminAccessInfo = {
+  user_id?: string;
+  identifier?: string;
   roles?: string[];
   permissions?: string[];
+  admin_access?: boolean;
+  admin_areas?: Partial<Record<AdminArea, AreaLevel>>;
 };
 
 /**
@@ -38,22 +50,24 @@ export function hasPermission(
   });
 }
 
+/** Holder of the `admin` role (every area in write, creates other admins). */
+export function isSuperadmin(me: AdminAccessInfo | null | undefined): boolean {
+  return !!me && Array.isArray(me.roles) && me.roles.includes("admin");
+}
+
 /**
- * May this user open the admin panel at all?
- * Super-admin role, or read access to at least one admin section. The role
- * check keeps working against backends that do not send `permissions` yet.
+ * May this user open the admin panel at all? Uses `admin_access` from the
+ * backend; falls back to the role for backends that do not send it yet.
  */
 export function canAccessAdmin(me: AdminAccessInfo): boolean {
-  if (Array.isArray(me.roles) && me.roles.includes("admin")) return true;
+  if (isSuperadmin(me)) return true;
+  if (typeof me.admin_access === "boolean") return me.admin_access;
   return hasPermission(me.permissions, "admin_section", "read");
 }
 
-/** Read/write access to one admin section (nav item id). */
-export function canUseSection(
-  me: AdminAccessInfo,
-  sectionId: string,
-  action: "read" | "write",
-): boolean {
-  if (Array.isArray(me.roles) && me.roles.includes("admin")) return true;
-  return hasPermission(me.permissions, "admin_section", action, sectionId);
+/** Level of one area for this user (`null` = no access). */
+export function areaLevel(me: AdminAccessInfo | null | undefined, area: AdminArea): AreaLevel | null {
+  if (!me) return null;
+  if (isSuperadmin(me)) return "write";
+  return me.admin_areas?.[area] ?? null;
 }

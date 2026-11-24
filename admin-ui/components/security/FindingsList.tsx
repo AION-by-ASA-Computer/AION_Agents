@@ -3,6 +3,7 @@
 import { CheckCircle2, FileSearch, Loader2, ShieldAlert, ShieldCheck } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { outlineBtn, ghostBtn } from "@/components/ui/classes";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { baseName, highestSeverity, type ScanResult, type Severity } from "./report";
 
 type T = (key: string, vars?: Record<string, string | number>) => string;
@@ -35,6 +36,9 @@ export function FindingsList({
   onTrust: (file: string) => void;
   t: T;
 }) {
+  // Investigating (an agent run that saves a report) and trusting a file change
+  // state: only users with "access" write see those buttons.
+  const canWrite = useCanWrite("access");
   if (!scan) {
     return (
       <div className="flex flex-1 flex-col items-center justify-center px-6 py-16 text-center">
@@ -93,7 +97,7 @@ export function FindingsList({
                 ))}
                 {list.length > PREVIEW && <li>{t(`${k}.findings.more`, { n: list.length - PREVIEW })}</li>}
               </ul>
-              <div className="mt-3 flex items-center gap-1.5">
+              {canWrite && <div className="mt-3 flex items-center gap-1.5">
                 <button type="button" className={cn(outlineBtn, "h-8 px-2.5 text-[13px]")} onClick={() => onInvestigate(file)} disabled={streaming}>
                   {streaming && active ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <FileSearch className="h-3.5 w-3.5" aria-hidden />}
                   {t(`${k}.findings.investigate`)}
@@ -103,7 +107,7 @@ export function FindingsList({
                     {t(`${k}.findings.trust`)}
                   </button>
                 )}
-              </div>
+              </div>}
             </li>
           );
         })}

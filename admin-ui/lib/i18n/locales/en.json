@@ -25,7 +25,6 @@
     "version_unknown": "Version unknown",
     "groups": {
       "agents": "Agents",
-      "operations": "Operations",
       "observability": "Observability",
       "access": "Access",
       "platform": "Platform"
@@ -34,7 +33,10 @@
     "theme_dark": "Switch to dark theme",
     "whatsapp": "WhatsApp",
     "telegram": "Telegram",
-    "service_accounts": "Service accounts"
+    "service_accounts": "Service accounts",
+    "no_access_title": "You do not have access to this section",
+    "no_access_body": "Ask an administrator to grant you this area of the panel.",
+    "read_only": "Read only: you can view this section but not change it."
   },
   "admin_dashboard": {
     "title": "Overview",
@@ -49,7 +51,8 @@
       "warn": "Needs a look",
       "error": "Not working",
       "checking": "Checking…",
-      "idle": "Not configured"
+      "idle": "Not configured",
+      "unchecked": "Not checked"
     },
     "command": {
       "label": "Search admin pages",
@@ -3199,6 +3202,29 @@
         "summary_all": "all features",
         "summary_nothing": "no feature",
         "some_empty_hint": "No feature selected: same as “No feature”."
+      },
+      "admin_section": {
+        "tab": "Admin panel",
+        "title": "Admin panel areas",
+        "all": "All areas",
+        "some": "Some areas",
+        "nothing": "No area",
+        "all_hint": "",
+        "some_hint": "",
+        "nothing_hint": "",
+        "none_group": "The group grants no panel area.",
+        "none_user": "No personal rule: the groups decide.",
+        "search": "Search",
+        "empty": "No area.",
+        "selected": "{{count}} areas",
+        "summary_count": "{{count}} permissions",
+        "effective_title": "Admin panel now",
+        "effective_unlimited": "No area: only the dashboard.",
+        "effective_all": "All areas.",
+        "effective_nothing": "No area.",
+        "summary_all": "all areas",
+        "summary_nothing": "no area",
+        "some_empty_hint": "No area selected."
       }
     },
     "access": {
@@ -3237,7 +3263,51 @@
       "private_profiles_create": {
         "name": "Private profiles",
         "description": "Create personal agent profiles from the chat (My profiles)."
+      },
+      "admin_panel_access": {
+        "name": "Admin panel",
+        "description": "Open the admin panel (dashboard). Excluding it = chat UI only; areas granted by other rules stay visible."
+      },
+      "telegram_use": {
+        "name": "Telegram",
+        "description": "Create and link personal Telegram bots."
+      },
+      "whatsapp_use": {
+        "name": "WhatsApp",
+        "description": "Link one's WhatsApp number."
+      },
+      "api_keys_create": {
+        "name": "API keys",
+        "description": "Create personal API keys."
       }
+    },
+    "areas": {
+      "access": {
+        "name": "Access management",
+        "description": "Access menu: users, login and SSO, groups, service accounts, security."
+      },
+      "agents": {
+        "name": "Agent management",
+        "description": "Agents menu: profiles, skills, memory, scheduled jobs."
+      },
+      "settings": {
+        "name": "Settings",
+        "description": "Settings page: models, memory, web, speech, sandbox, SMTP, file server. Affects the whole platform."
+      },
+      "external": {
+        "name": "External applications",
+        "description": "MCP Hub, WhatsApp and Telegram."
+      },
+      "observability": {
+        "name": "Observability",
+        "description": "Metrics, feedback, diagnostics and system."
+      },
+      "hint": "Rules of the user and of their groups add up: the highest level per area wins. Without areas only the dashboard is visible; super-admins always have everything."
+    },
+    "levels": {
+      "none": "None",
+      "read": "Read",
+      "write": "Write"
     }
   }
 }

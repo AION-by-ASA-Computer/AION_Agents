@@ -436,32 +436,197 @@ di approvazione nella chat‑ui tramite evento SSE, senza cambiare i tool.
   permesso, risorsa di un altro utente); test che un token `agt.` venga
   rifiutato su una route fuori allowlist.
 
-### Fase 5 — RBAC granulare sul pannello admin
+### Fase 5 — Permessi sul pannello admin (aree × lettura/scrittura) — ✅ implementata
 
-- Permessi `admin_section:<id>:read|write`, assegnabili a utenti e **gruppi**
-  (i gruppi fanno da “ruoli”: es. gruppo “Gestori profili” con
-  `profiles:write`, `skills:read`). Nessuna entità “ruolo” separata.
-- Catalogo sezioni = `id` di `admin-ui/lib/admin-nav.ts` + sotto‑sezioni di
-  Settings (`settings.smtp`, `settings.sso`, `settings.smb`, `settings.llm`…).
-  Catalogo definito **una volta** nel backend (`src/access/catalog.py`) ed
-  esposto via `GET /admin/permissions/catalog` (label i18n lato UI).
-- **Sezioni riservate al super‑admin** (non delegabili nella v1): gestione
-  gruppi/permessi, utenti admin, SSO/login mode, 2FA policy, aggiornamenti,
-  service account. Evita escalation di privilegi.
-- Regole anti‑escalation: chi ha `users:write` non può assegnare permessi che non
-  possiede, né modificare/disabilitare super‑admin.
-- Backend: sostituire la dependency router‑level `require_admin_role` con una
-  **mappa endpoint → (sezione, azione)** (GET = read, altri metodi = write, con
-  override espliciti). `admin.py` (~4400 righe, molte sezioni) richiede una
-  tabella di mapping per prefisso di path; test automatico che **ogni** route
-  `/admin/*` sia mappata (fallisce se se ne aggiunge una senza mapping → default
-  super‑admin).
-- Login `client=admin`: consentito se l'utente ha almeno un permesso
-  `admin_section`.
-- Admin UI: `AdminAuthGate` usa `permissions`; `ADMIN_NAV` filtrata; ogni pagina
-  in modalità sola lettura se manca `write` (hook `useCan(section, action)`).
-- Granularità per risorsa (es. “può modificare solo il profilo X”): lo schema la
-  supporta già (`resource_id`), ma **non** si implementa nella v1.
+Rivista il 2026‑11‑24 con le richieste di prodotto. Obiettivo: **tutti gli
+utenti possono entrare nel pannello admin** e vedono/modificano solo ciò che
+i loro permessi consentono; il super‑admin (ruolo `admin`) resta senza limiti.
+
+#### 5.1 Principi
+
+1. **Chat‑ui senza permessi.** Tutte le operazioni standard della chat restano
+   libere per tutti. Gli unici limiti sono le *funzioni* (`capability`,
+   tab “Funzioni” delle regole), es. profili personali; in questa fase si
+   aggiungono le funzioni dei canali (§5.6).
+2. **Quattro aree delegabili, ognuna con livello `read` o `write`**
+   (`write` include `read`):
+
+   | Area (`admin_section`) | Nome in UI | Cosa copre nel pannello |
+   |---|---|---|
+   | `access` | Gestione accessi | Tutto il menu **Accessi**: Utenti (tab Account, Accesso = SSO/2FA/nuovi account, Gruppi, Migrazione), Account di servizio, Sicurezza (scansioni MCP) |
+   | `agents` | Gestione agenti | Tutto il menu **Agenti** tranne MCP Hub: Profili, Skill, Memoria, **Job pianificati** (spostati qui) |
+   | `settings` | Impostazioni | La pagina **Impostazioni** (tutte le sue tab), separata da `agents` (2026‑11‑24) perché cambia tutta la piattaforma: si assegna da sola in lettura o scrittura |
+   | `external` | Applicazioni esterne | Tutto il menu **Piattaforma** tranne Impostazioni: WhatsApp, Telegram + la pagina **MCP Hub** (catalogo, installazione, configurazione server). MCP Hub **resta nel menu Agenti** (decisione 4) |
+| `observability` | Osservabilità | Tutto il menu **Osservabilità**: Metriche, Feedback, Diagnostica, Sistema, comprese le azioni (`write`, es. avvio test in Diagnostica) |
+
+3. **Panoramica aperta.** La pagina iniziale *Panoramica* è visibile a chiunque
+   entri nel pannello; ogni riquadro mostra solo i dati delle aree concesse
+   (le chiamate rifiutate con 403 vengono ignorate, non mostrate come errori).
+4. **Default = nessuna area.** Per `admin_section` *non* vale “nessuna regola =
+   nessun limite”: senza regole un utente entra nel pannello e vede solo la
+   Panoramica. Le aree vanno concesse esplicitamente (a utente o gruppo).
+5. **“Solo chat UI”.** Funzione `admin_panel.access` (tab “Funzioni”): una
+   regola che la esclude toglie l'accesso *di base* al pannello (la
+   Panoramica). Per la somma dei permessi (decisione 1), se un'altra regola
+   concede almeno un'area l'utente entra comunque e vede quell'area; senza
+   aree concesse il login `client=admin` è rifiutato e `AdminAuthGate`
+   mostra “Accesso negato”.
+6. **Permessi sovrapposti = somma.** I permessi effettivi sono l'unione di
+   regole dirette e di tutti i gruppi: `read` da un gruppo + `write` da un
+   altro = `write`; `agents` da un gruppo + `external` da un altro = entrambe.
+   La vista “Accessi effettivi” mostra ogni area con la regola che la concede.
+7. **Super‑admin** (`admin` in `users.roles`): tutte le aree in scrittura,
+   sempre, non revocabile con le regole; unico che crea altri super‑admin.
+
+#### 5.2 Regole anti‑escalation (chi ha `access:write` ma non è super‑admin)
+
+Può assegnare **qualsiasi permesso a chiunque**, comprese tutte e tre le aree
+in scrittura, con queste sole eccezioni:
+
+- **mai a se stesso**: non modifica le proprie regole, i propri gruppi, il
+  proprio account (ruoli, disattivazione, eliminazione); 
+- **niente scorciatoie indirette**: non modifica le regole di un gruppo di cui
+  è membro e non si aggiunge a un gruppo (altrimenti potrebbe darsi permessi
+  passando dal gruppo);
+- **mai ai super‑admin**: non modifica account, gruppi, regole, password, 2FA
+  di un utente con ruolo `admin`, non lo aggiunge né lo toglie da un gruppo;
+  i gruppi che contengono un super‑admin sono per lui in sola lettura;
+- **non crea super‑admin**: `POST /admin/users` crea sempre un utente normale;
+  il campo ruoli è accettato solo dal super‑admin (anche in `PATCH`).
+
+Il super‑admin può fare tutto, anche creare altri super‑admin.
+Il backend applica queste regole (errore `403 permission_denied` con
+`reason`: `self`, `superadmin_target`, `own_group`, `admin_role_reserved`);
+l'admin‑ui nasconde o disabilita i comandi corrispondenti.
+
+#### 5.3 Sicurezza delle API
+
+- La dependency di router `require_admin_role` viene sostituita da
+  `require_admin_area`: ogni route `/admin/*` è mappata in **una tabella**
+  (prefisso di path + metodo → area, azione). Regola base: `GET`/`HEAD` =
+  `read`, gli altri metodi = `write`; override espliciti dove serve.
+- Route **solo super‑admin** (non delegabili): aggiornamento one‑click
+  (`/admin/update/*`), primo setup, assegnazione del ruolo `admin`. La tab
+  *Accesso* (login mode, provider SSO, 2FA, nuovi account) segue invece
+  `access` come il resto del menu Accessi (decisione 2).
+- Route di **Osservabilità** (`metrics`, `feedback`, `diagnostics`, `system`,
+  `profiling`): area `observability` (`GET` = `read`, azioni = `write`).
+- Route della **Panoramica** (`/admin/dashboard`, `/admin/stats`): `read` per
+  chiunque entri nel pannello; i riquadri che leggono altre aree chiamano le
+  route di quelle aree e ricevono 403 se l'area non è concessa.
+- Letture condivise: l'editor dei profili (area `agents`) legge cataloghi
+  dell'area `external` (`/admin/registry`, `/admin/native-tools`,
+  `/admin/mcp-integrations`, `/admin/mcp/connector-catalog`): queste `GET`
+  accettano `agents:read` **oppure** `external:read`. Le risposte non devono
+  esporre segreti (verificare `env` del registry e `mcp/{name}/secret/{key}`,
+  che resta `external:write`).
+- **Test di copertura**: un test elenca tutte le route `/admin/*` dell'app e
+  fallisce se una non è nella tabella (una route nuova senza mappatura =
+  super‑admin only finché non viene mappata).
+- Ruoli e permessi letti dal DB a ogni richiesta (già così dalla Fase 0);
+  le API key non ereditano mai l'accesso al pannello.
+
+#### 5.4 Modello dati e API
+
+- Nessuna tabella nuova: righe `access_grants` con
+  `resource_type="admin_section"`, `resource_id` = `access` | `agents` |
+  `external` | `observability`, `action` = `read` | `write`.
+- Regola per soggetto e area: nessuna / `read` / `write`. Nell'API regole:
+  `{"admin_section": {"agents": "write", "external": "read"}}`
+  (`null` o assente = nessuna regola).
+- `Principal.admin_areas`: `{area: "read"|"write"}` effettivo (somma);
+  `can(principal, "read"|"write", "admin_section", area)`.
+- `GET /auth/me` → `permissions` include `admin_section:<area>:read|write` e
+  `capability:admin_panel.access:use`; `admin_access: true|false`.
+- Login `client=admin`: consentito a chi non è “solo chat UI” (oggi solo a chi
+  ha ruolo admin). Le regole SSO esistenti restano valide.
+
+#### 5.5 Admin UI
+
+- **Menu** (`admin-nav.ts`): si toglie il gruppo *Operatività*, *Job
+  pianificati* va sotto *Agenti*; MCP Hub resta sotto *Agenti* (area
+  `external`). Ogni voce dichiara la sua area; il menu mostra solo le voci
+  consentite (la Panoramica sempre).
+- **Gate**: `AdminAuthGate` usa `admin_access`; una pagina di un'area non
+  concessa mostra “Non hai accesso a questa sezione”.
+- **Sola lettura**: hook `useCan(area)` → `read`/`write`; con solo `read` la
+  pagina mostra un banner “Sola lettura” e i comandi di modifica (crea,
+  salva, elimina, attiva…) sono nascosti o disabilitati. Il backend rifiuta
+  comunque ogni scrittura.
+- **Editor regole**: nuova tab **Pannello admin** (4 aree × Nessuno /
+  Lettura / Scrittura) nei dialog regole di gruppo e “Accessi” utente;
+  “Solo chat UI” nella tab Funzioni. Vista effettiva con la fonte di ogni area.
+- **Utenti**: il campo “Super‑admin” nel form utente è visibile solo al
+  super‑admin; righe di super‑admin e del proprio account in sola lettura
+  per gli altri; idem gruppi che contengono super‑admin o se stessi.
+
+#### 5.6 Funzioni della chat‑ui (limiti generici)
+
+Nuove voci nella tab “Funzioni” (consentite a tutti finché nessuna regola le
+esclude), controllate dalle rispettive API:
+
+| Funzione | Cosa blocca |
+|---|---|
+| `admin_panel.access` | Ingresso nel pannello admin (“Solo chat UI”) |
+| `telegram.use` | Creazione/collegamento dei bot Telegram personali |
+| `whatsapp.use` | Collegamento del numero WhatsApp |
+| `api_keys.create` | Creazione di API key personali |
+| `private_profiles.create` | (già esistente) profili personali |
+
+#### 5.7 Decisioni (2026‑11‑24)
+
+1. “Solo chat UI” + un'area concessa da un altro gruppo → **vince la somma**:
+   l'utente entra e vede l'area concessa.
+2. Tab *Accesso* della pagina Utenti (login mode, SSO, 2FA, nuovi account) →
+   **`access:write`**, come il resto del menu Accessi (il break‑glass
+   `AION_SSO_FORCE_PASSWORD` resta la rete di sicurezza).
+3. Osservabilità → **nuova area `observability`** (read/write): senza area un
+   utente vede solo la Panoramica.
+4. MCP Hub → **resta nel menu Agenti**, governato da `external`.
+
+#### 5.8 Organizzazione del lavoro
+
+| Passo | Contenuto | Verifica |
+|---|---|---|
+| 5a | Modello `admin_section` read/write (4 aree) nel `Principal`, policy, store, catalogo aree, `/auth/me` | test policy (somma, default nessuna area, super‑admin) |
+| 5b | Tabella route → area/azione, `require_admin_area`, letture condivise, test di copertura di tutte le route | test che ogni `/admin/*` sia mappata; 403 per area mancante, 200 con `read`, 403 su write con solo `read` |
+| 5c | Anti‑escalation (§5.2) su utenti, gruppi, regole, service account, creazione admin | test per ogni `reason` |
+| 5d | Login `client=admin` per i non‑admin, funzione `admin_panel.access`, funzioni dei canali (§5.6) | test login, 403 sui canali |
+| 5e | Admin UI: menu riorganizzato e filtrato, gate, `useCan` + modalità sola lettura sulle pagine, tab “Pannello admin” nell'editor regole, form utenti | tsc + eslint |
+| 5f | Documentazione (`groups-and-permissions.md`, `admin-ui.md`), CLAUDE.md | — |
+
+Granularità per singola risorsa (“può modificare solo il profilo X”): lo
+schema la supporta (`resource_id`), ma resta fuori da questa fase.
+
+**Come è stata implementata (2026‑11‑24):**
+- Regole `admin_section` salvate come id `<area>:<livello>` con `action="use"`
+  (riusano il modello regole esistente); `*` e pattern rifiutati; lettura +
+  scrittura sulla stessa area → resta scrittura.
+- `src/access/admin_areas.py`: aree, somma dei livelli, **tabella route →
+  area/azione** (override per segreti MCP e avvio diagnostica, letture
+  condivise dei cataloghi `agents`/`external`, Panoramica aperta, update solo
+  super‑admin). `require_admin_role` la applica a tutti i router admin senza
+  modificarli; test di copertura su tutte le route.
+- `policy.admin_areas`, `can_enter_admin_panel` (somma vince su “Solo chat
+  UI”), `/auth/me` con `admin_access` e `admin_areas`; login `client=admin`
+  rifiutato (`admin_panel_not_allowed`) per chi non può entrare.
+- Anti‑escalation (`src/access/escalation.py`) su utenti (crea, modifica,
+  elimina, link password, regole legacy), gruppi (modifica, elimina, membri,
+  regole), gruppi di un utente, regole dirette, esenzione SSO, scollega SSO,
+  reset 2FA.
+- Funzioni chat‑ui: `admin_panel.access`, `telegram.use`, `whatsapp.use`,
+  `api_keys.create` (controllo negli endpoint di collegamento/creazione; in
+  chat‑ui le tab Telegram/WhatsApp spariscono se escluse).
+- Admin UI: menu senza *Operatività* (Job pianificati sotto Agenti), voci
+  filtrate per area, pagina “Non hai accesso” per aree non concesse, banner
+  *Sola lettura*, aggiornamento one‑click visibile solo al super‑admin, tab
+  **Pannello admin** nell'editor regole, nuove funzioni nella tab Funzioni,
+  pagina Utenti e Gruppi senza comandi di modifica in sola lettura e sulle
+  righe di se stessi / super‑admin, opzione super‑admin solo per i
+  super‑admin.
+- Comandi di modifica nascosti in tutte le pagine in sola lettura
+  (`WriteOnly` / `useCanWrite`); `/admin/settings` controllato per chiave
+  (le impostazioni di osservabilità richiedono `observability:write`).
 
 ---
 
@@ -496,7 +661,7 @@ Quando arriva la Fase 5 l'agente eredita automaticamente i permessi granulari.
 | D6 | Skill private create dall'utente | Fuori scope v1 (eventuale fase 6, stesso modello) |
 | D7 | Conferma azioni distruttive dell'agente | Obbligatoria per delete e per modifiche a risorse globali, a due passi con `confirm_token` (§4.4) |
 | D9 | Tool cron esistenti | Riscritti come wrapper su `/v1/cron-jobs`, stessi nomi |
-| D8 | Granularità RBAC admin | Sezione × read/write; per‑risorsa in futuro |
+| D8 | Granularità RBAC admin | ✅ **Deciso (2026‑11‑24)**: 5 aree (`access`, `agents`, `settings`, `external`, `observability`) × read/write, Panoramica aperta, “Solo chat UI” come funzione; per‑risorsa in futuro (§ Fase 5) |
 
 ---
 

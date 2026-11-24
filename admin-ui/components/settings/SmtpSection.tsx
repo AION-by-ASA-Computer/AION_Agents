@@ -5,7 +5,7 @@ import { Loader2, Save } from "lucide-react";
 import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
 import { inputCls, solidBtn } from "@/components/ui/classes";
-import { ChoiceList, Field, FieldGrid, Group, Note, ProbeBar, SecretInput, SectionHead, Switch, TextInput } from "./ui";
+import { ChoiceList, Field, FieldGrid, Group, Note, ProbeBar, SecretInput, SectionHead, Switch, TextInput, useSettingsReadOnly } from "./ui";
 import { K, type SectionCtx } from "./types";
 
 type Security = "starttls" | "ssl" | "none";
@@ -66,6 +66,8 @@ function errorText(t: SectionCtx["t"], code: string | undefined, fallback: strin
 }
 
 export function SmtpSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
+  // Read-only admins see the saved SMTP config; save, clear-password and test-send are hidden.
+  const readOnly = useSettingsReadOnly();
   const [state, setState] = useState<SmtpState | null>(null);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [clearPassword, setClearPassword] = useState(false);
@@ -238,7 +240,7 @@ export function SmtpSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
               hideLabel={t(`${m}.hide`)}
             />
           </Field>
-          {state.password_present && (
+          {!readOnly && state.password_present && (
             <label className="flex items-center gap-2 text-sm text-muted-foreground md:col-span-2">
               <input type="checkbox" checked={clearPassword} onChange={(e) => setClearPassword(e.target.checked)} />
               {t(`${m}.password_clear`)}
@@ -262,6 +264,7 @@ export function SmtpSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
             <select
               value={draft.email_language}
               onChange={(e) => patch({ email_language: e.target.value as Lang })}
+              disabled={readOnly}
               className={inputCls}
             >
               <option value="it">Italiano</option>
@@ -271,6 +274,7 @@ export function SmtpSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
         </FieldGrid>
       </Group>
 
+      {!readOnly && (
       <div className="flex flex-wrap items-center justify-end gap-3">
         {dirty && <span className="text-sm text-muted-foreground" role="status">{t(`${m}.unsaved`)}</span>}
         <button type="button" onClick={() => void save()} disabled={saving || !dirty} className={solidBtn}>
@@ -278,13 +282,18 @@ export function SmtpSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
           {saving ? t(`${m}.saving`) : t(`${m}.save`)}
         </button>
       </div>
+      )}
 
+      {/* Sending a test email is a write action: read-only admins only see the last test outcome. */}
+      {(!readOnly || state.last_test_at) && (
       <Group title={t(`${m}.test`)} description={t(`${m}.test_hint`)}>
         <FieldGrid>
+          {!readOnly && (
           <Field label={t(`${m}.test_to`)} hint={t(`${m}.test_to_hint`)} wide>
             <TextInput value={testTo} onChange={setTestTo} placeholder="admin@example.com" mono disabled={!state.configured} />
           </Field>
-          {state.configured && !dirty ? (
+          )}
+          {readOnly ? null : state.configured && !dirty ? (
             <ProbeBar
               probing={testing}
               onProbe={() => void sendTest()}
@@ -307,6 +316,7 @@ export function SmtpSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
           )}
         </FieldGrid>
       </Group>
+      )}
     </div>
   );
 }

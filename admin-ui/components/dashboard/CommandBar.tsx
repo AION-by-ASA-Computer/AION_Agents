@@ -5,16 +5,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowRight, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
-import { ADMIN_NAV } from "@/lib/admin-nav";
+import { visibleNav } from "@/lib/admin-nav";
+import { useAdminAccess } from "@/lib/auth/admin-access";
+import { areaLevel, type AdminArea } from "@/lib/auth/permissions";
 import { useT } from "@/lib/i18n/use-t";
 
 type Entry = { id: string; href: string; label: string; group: string; haystack: string; icon: ElementType };
 
-const QUICK = [
-  { id: "quick_models", href: "/settings" },
-  { id: "quick_mcp", href: "/hub" },
-  { id: "quick_profiles", href: "/profiles" },
-  { id: "quick_users", href: "/users" },
+// Quick actions lead to write flows ("Configure models", "Install an MCP server"...):
+// each one is shown only to users with write on the area it changes.
+const QUICK: { id: string; href: string; area: AdminArea }[] = [
+  { id: "quick_models", href: "/settings", area: "settings" },
+  { id: "quick_mcp", href: "/hub", area: "external" },
+  { id: "quick_profiles", href: "/profiles", area: "agents" },
+  { id: "quick_users", href: "/users", area: "access" },
 ];
 
 const noopSubscribe = () => () => {};
@@ -48,9 +52,11 @@ export function CommandBar() {
     return () => window.removeEventListener("keydown", onKey);
   }, []);
 
+  // Only the pages the user may open (Phase 5 areas).
+  const me = useAdminAccess();
   const entries: Entry[] = useMemo(
     () =>
-      ADMIN_NAV.flatMap((g) =>
+      visibleNav((area) => (me ? areaLevel(me, area) : "write")).flatMap((g) =>
         g.items
           .filter((i) => i.href !== "/")
           .map((i) => {
@@ -66,8 +72,11 @@ export function CommandBar() {
             };
           }),
       ),
-    [t],
+    [t, me],
   );
+
+  // No user info (admin auth off) means everything is writable, as in `useAreaLevel`.
+  const quick = QUICK.filter((q) => !me || areaLevel(me, q.area) === "write");
 
   const results = useMemo(() => {
     const q = fold(query.trim());
@@ -173,17 +182,19 @@ export function CommandBar() {
         </ul>
       )}
 
-      <div className="mt-3 flex flex-wrap gap-2">
-        {QUICK.map((q) => (
-          <Link
-            key={q.id}
-            href={q.href}
-            className="focus-ring rounded-full border border-border/80 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-secondary hover:text-foreground"
-          >
-            {t(`admin_dashboard.command.${q.id}`)}
-          </Link>
-        ))}
-      </div>
+      {quick.length > 0 && (
+        <div className="mt-3 flex flex-wrap gap-2">
+          {quick.map((q) => (
+            <Link
+              key={q.id}
+              href={q.href}
+              className="focus-ring rounded-full border border-border/80 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-foreground/25 hover:bg-secondary hover:text-foreground"
+            >
+              {t(`admin_dashboard.command.${q.id}`)}
+            </Link>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

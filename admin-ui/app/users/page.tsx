@@ -22,6 +22,7 @@ import { TempPasswordsDialog, type TempPassword } from "@/components/sso/TempPas
 import { TwoFactorPanel } from "@/components/sso/TwoFactorPanel";
 import { UserAccessDialog } from "@/components/groups/UserAccessDialog";
 import { GroupsPanel } from "@/components/groups/GroupsPanel";
+import { useAdminAccess, useCanWrite, useIsSuperadmin } from "@/lib/auth/admin-access";
 import { EMPTY_CATALOG, fetchCatalog, type Catalog, type Group } from "@/components/groups/shared";
 
 const k = "admin_users";
@@ -342,6 +343,7 @@ function UserFormDialog({
   busy,
   linkBusy,
   smtpMissing,
+  canSetAdmin,
   t,
   onSubmit,
   onSendLink,
@@ -351,6 +353,8 @@ function UserFormDialog({
   busy: boolean;
   linkBusy: boolean;
   smtpMissing: boolean;
+  /** Only super-admins create or demote super-admins (Phase 5). */
+  canSetAdmin: boolean;
   t: T;
   onSubmit: (v: FormValues) => Promise<boolean>;
   onSendLink: (u: UserRow) => void;
@@ -472,9 +476,11 @@ function UserFormDialog({
           )}
         </div>
 
-        <div className="mt-6 border-t border-border/60 pt-5">
-          <RolePicker admin={admin} onChange={setAdmin} t={t} />
-        </div>
+        {canSetAdmin && (
+          <div className="mt-6 border-t border-border/60 pt-5">
+            <RolePicker admin={admin} onChange={setAdmin} t={t} />
+          </div>
+        )}
 
         <div className="mt-6 border-t border-border/60 pt-5">
           <ApiKeyPolicy
@@ -619,6 +625,14 @@ export default function UsersPage() {
   const showSecurity = loginMode === "password";
   // With SSO, accounts are created at first sign-in (see the new-account policy), never here.
   const canCreate = loginMode === "password";
+  // Phase 5: write access to "Gestione accessi", and the anti-escalation rule
+  // of the backend: a non-super-admin never edits their own account or a
+  // super-admin (those rows only keep read-only actions).
+  const canWrite = useCanWrite("access");
+  const isSuper = useIsSuperadmin();
+  const me = useAdminAccess();
+  const locked = (u: UserRow) => !isSuper && (isAdmin(u) || (!!me?.identifier && u.identifier === me.identifier));
+  const canEditRow = (u: UserRow) => canWrite && !locked(u);
   // Without SMTP accounts get a temporary password the admin hands over, changed at first sign-in.
   const smtpMissing = smtpConfigured === false;
   const grid = GRIDS[`${showMigration ? 1 : 0}${showSecurity ? 1 : 0}`];
@@ -800,7 +814,7 @@ export default function UsersPage() {
           <h1 className="text-balance text-2xl font-semibold tracking-[-0.02em] sm:text-[28px]">{t(`${k}.title`)}</h1>
           <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">{t(`${k}.subtitle`)}</p>
         </div>
-        {canCreate ? (
+        {canCreate && !canWrite ? null : canCreate ? (
           <button type="button" className={solidBtn} onClick={() => setFormUser("new")}>
             <Plus className="h-4 w-4" aria-hidden />
             {t(`${k}.add`)}
@@ -989,15 +1003,17 @@ export default function UsersPage() {
                               </div>
 
                               <div className="flex items-center justify-end gap-0.5 md:order-last">
-                                <IconAction label={t(`${k}.row.access`, { name })} onClick={() => setAccessUser(u)}>
-                                  <UserCog className="h-4 w-4" aria-hidden />
-                                </IconAction>
-                                {u.totp_enabled && (
+                                {!locked(u) && (
+                                  <IconAction label={t(`${k}.row.access`, { name })} onClick={() => setAccessUser(u)}>
+                                    <UserCog className="h-4 w-4" aria-hidden />
+                                  </IconAction>
+                                )}
+                                {canEditRow(u) && u.totp_enabled && (
                                   <IconAction label={t(`${k}.row.reset`, { name })} onClick={() => setResetUser(u)}>
                                     <KeyRound className="h-4 w-4" aria-hidden />
                                   </IconAction>
                                 )}
-                                {!isSsoUser(u) && (smtpMissing || !!u.email) && (
+                                {canEditRow(u) && !isSsoUser(u) && (smtpMissing || !!u.email) && (
                                   <IconAction
                                     label={t(`${k}.row.${smtpMissing ? "issue_temp" : u.has_password ? "send_reset" : "resend_invite"}`, { name })}
                                     onClick={() => linkBusy !== u.id && void sendLink(u)}
@@ -1011,12 +1027,16 @@ export default function UsersPage() {
                                     )}
                                   </IconAction>
                                 )}
-                                <IconAction label={t(`${k}.row.edit`, { name })} onClick={() => setFormUser(u)}>
-                                  <Pencil className="h-4 w-4" aria-hidden />
-                                </IconAction>
-                                <IconAction label={t(`${k}.row.delete`, { name })} onClick={() => setDeleteUser(u)} danger>
-                                  <Trash2 className="h-4 w-4" aria-hidden />
-                                </IconAction>
+                                {canEditRow(u) && (
+                                  <>
+                                    <IconAction label={t(`${k}.row.edit`, { name })} onClick={() => setFormUser(u)}>
+                                      <Pencil className="h-4 w-4" aria-hidden />
+                                    </IconAction>
+                                    <IconAction label={t(`${k}.row.delete`, { name })} onClick={() => setDeleteUser(u)} danger>
+                                      <Trash2 className="h-4 w-4" aria-hidden />
+                                    </IconAction>
+                                  </>
+                                )}
                               </div>
 
                               <div className="col-span-2 flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 pl-12 text-xs text-muted-foreground md:contents">
@@ -1129,6 +1149,7 @@ export default function UsersPage() {
           busy={saving}
           linkBusy={formUser !== "new" && linkBusy === formUser.id}
           smtpMissing={smtpMissing}
+          canSetAdmin={isSuper}
           t={t}
           onSubmit={saveUser}
           onSendLink={(u) => void sendLink(u)}

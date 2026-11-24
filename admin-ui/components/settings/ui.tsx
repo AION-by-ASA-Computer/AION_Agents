@@ -1,10 +1,28 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { createContext, useContext, useState, type ReactNode } from "react";
 import { Eye, EyeOff, Info, Loader2, TriangleAlert, Zap } from "lucide-react";
 import { cn } from "@/lib/cn";
 import { inputCls, outlineBtn } from "@/components/ui/classes";
 import { Select } from "@/components/ui/Select";
+
+/**
+ * Read-only mode for the settings primitives below. The Settings page sets it when the
+ * admin has only read access to its area ("settings"): inputs become `readOnly`, switches
+ * and choice rows are disabled and connection-test bars are hidden, so values stay
+ * visible but nothing can be changed. The default (`false`) keeps every other page that
+ * reuses these primitives (Telegram, WhatsApp, users, ...) unchanged.
+ */
+const SettingsReadOnlyContext = createContext(false);
+
+export function SettingsReadOnly({ readOnly, children }: { readOnly: boolean; children: ReactNode }) {
+  return <SettingsReadOnlyContext.Provider value={readOnly}>{children}</SettingsReadOnlyContext.Provider>;
+}
+
+/** True inside a `<SettingsReadOnly readOnly>` subtree: sections hide their write controls. */
+export function useSettingsReadOnly(): boolean {
+  return useContext(SettingsReadOnlyContext);
+}
 
 /** Heading of one settings section. */
 export function SectionHead({ title, description, action }: { title: string; description?: string; action?: ReactNode }) {
@@ -92,12 +110,14 @@ type TextProps = {
 };
 
 export function TextInput({ value, onChange, placeholder, mono, type = "text", disabled, inputMode }: TextProps) {
+  const readOnly = useSettingsReadOnly();
   return (
     <input
       type={type}
       inputMode={inputMode}
       value={value}
       disabled={disabled}
+      readOnly={readOnly}
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       autoComplete="off"
@@ -121,11 +141,13 @@ export function SecretInput({
   hideLabel: string;
 }) {
   const [shown, setShown] = useState(false);
+  const readOnly = useSettingsReadOnly();
   return (
     <span className="relative block">
       <input
         type={shown ? "text" : "password"}
         value={value}
+        readOnly={readOnly}
         onChange={(e) => onChange(e.target.value)}
         placeholder={placeholder}
         autoComplete="new-password"
@@ -146,13 +168,14 @@ export function SecretInput({
 }
 
 export function Switch({ checked, onChange, label, disabled }: { checked: boolean; onChange: (v: boolean) => void; label: string; disabled?: boolean }) {
+  const readOnly = useSettingsReadOnly();
   return (
     <button
       type="button"
       role="switch"
       aria-checked={checked}
       aria-label={label}
-      disabled={disabled}
+      disabled={disabled || readOnly}
       onClick={() => onChange(!checked)}
       className={cn(
         "focus-ring relative inline-flex h-6 w-10 shrink-0 items-center rounded-full border transition-colors disabled:opacity-50",
@@ -199,6 +222,7 @@ export function ChoiceList<V extends string>({
   /** `extra` renders after the badge, e.g. a status chip. */
   options: { value: V; title: string; description: ReactNode; badge?: string; extra?: ReactNode }[];
 }) {
+  const readOnly = useSettingsReadOnly();
   return (
     <div role="radiogroup" aria-label={label} className="divide-y divide-border/40">
       {options.map((o) => {
@@ -209,8 +233,9 @@ export function ChoiceList<V extends string>({
             type="button"
             role="radio"
             aria-checked={on}
+            disabled={readOnly}
             onClick={() => onChange(o.value)}
-            className="focus-ring flex w-full items-start gap-3.5 px-5 py-4 text-left transition-colors hover:bg-secondary/50"
+            className={cn("focus-ring flex w-full items-start gap-3.5 px-5 py-4 text-left transition-colors", !readOnly && "hover:bg-secondary/50")}
           >
             <span
               aria-hidden
@@ -264,6 +289,8 @@ export function ProbeBar({
   ok: boolean;
   okText: string;
 }) {
+  // Probes call the backend with the draft values: part of editing, hidden when read-only.
+  if (useSettingsReadOnly()) return null;
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 md:col-span-2">
       <button type="button" onClick={onProbe} disabled={probing} className={outlineBtn}>
@@ -301,6 +328,15 @@ export function ModelField({
   manualLabel: string;
   hint?: ReactNode;
 }) {
+  const readOnly = useSettingsReadOnly();
+  // Read-only admins cannot run the discovery probe, so show the saved model id as text.
+  if (readOnly) {
+    return (
+      <Field label={label} wide hint={hint}>
+        <TextInput value={value} onChange={onChange} mono />
+      </Field>
+    );
+  }
   if (!tested) {
     return (
       <div className="md:col-span-2">

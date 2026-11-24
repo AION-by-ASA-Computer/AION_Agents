@@ -25,7 +25,6 @@
     "version_unknown": "Versione sconosciuta",
     "groups": {
       "agents": "Agenti",
-      "operations": "Operatività",
       "observability": "Osservabilità",
       "access": "Accessi",
       "platform": "Piattaforma"
@@ -34,7 +33,10 @@
     "theme_dark": "Passa al tema scuro",
     "whatsapp": "WhatsApp",
     "telegram": "Telegram",
-    "service_accounts": "Account di servizio"
+    "service_accounts": "Account di servizio",
+    "no_access_title": "Non hai accesso a questa sezione",
+    "no_access_body": "Chiedi a un amministratore di darti il permesso per quest'area del pannello.",
+    "read_only": "Sola lettura: puoi consultare questa sezione ma non modificarla."
   },
   "admin_dashboard": {
     "title": "Panoramica",
@@ -49,7 +51,8 @@
       "warn": "Da verificare",
       "error": "Non funzionante",
       "checking": "Verifica in corso…",
-      "idle": "Non configurato"
+      "idle": "Non configurato",
+      "unchecked": "Non verificato"
     },
     "command": {
       "label": "Cerca nelle pagine di amministrazione",
@@ -3199,6 +3202,29 @@
         "summary_all": "tutte le funzioni",
         "summary_nothing": "nessuna funzione",
         "some_empty_hint": "Nessuna funzione selezionata: equivale a «Nessuna funzione»."
+      },
+      "admin_section": {
+        "tab": "Pannello admin",
+        "title": "Aree del pannello admin",
+        "all": "Tutte le aree",
+        "some": "Alcune aree",
+        "nothing": "Nessuna area",
+        "all_hint": "",
+        "some_hint": "",
+        "nothing_hint": "",
+        "none_group": "Il gruppo non concede aree del pannello.",
+        "none_user": "Nessuna regola personale: decidono i gruppi.",
+        "search": "Cerca",
+        "empty": "Nessuna area.",
+        "selected": "{{count}} aree",
+        "summary_count": "{{count}} permessi",
+        "effective_title": "Pannello admin ora",
+        "effective_unlimited": "Nessuna area: vede solo la Panoramica.",
+        "effective_all": "Tutte le aree.",
+        "effective_nothing": "Nessuna area.",
+        "summary_all": "tutte le aree",
+        "summary_nothing": "nessuna area",
+        "some_empty_hint": "Nessuna area selezionata."
       }
     },
     "access": {
@@ -3237,7 +3263,51 @@
       "private_profiles_create": {
         "name": "Profili personali",
         "description": "Creare profili agente personali dalla chat (I miei profili)."
+      },
+      "admin_panel_access": {
+        "name": "Pannello admin",
+        "description": "Entrare nel pannello admin (Panoramica). Escluderla = solo chat UI; le aree concesse da altre regole restano visibili."
+      },
+      "telegram_use": {
+        "name": "Telegram",
+        "description": "Creare e collegare i bot Telegram personali."
+      },
+      "whatsapp_use": {
+        "name": "WhatsApp",
+        "description": "Collegare il proprio numero WhatsApp."
+      },
+      "api_keys_create": {
+        "name": "API key",
+        "description": "Creare API key personali."
       }
+    },
+    "areas": {
+      "access": {
+        "name": "Gestione accessi",
+        "description": "Menu Accessi: utenti, login e SSO, gruppi, account di servizio, sicurezza."
+      },
+      "agents": {
+        "name": "Gestione agenti",
+        "description": "Menu Agenti: profili, skill, memoria, job pianificati."
+      },
+      "settings": {
+        "name": "Impostazioni",
+        "description": "Pagina Impostazioni: modelli, memoria, web, voce, sandbox, SMTP, file server. Vale per tutta la piattaforma."
+      },
+      "external": {
+        "name": "Applicazioni esterne",
+        "description": "MCP Hub, WhatsApp e Telegram."
+      },
+      "observability": {
+        "name": "Osservabilità",
+        "description": "Metriche, feedback, diagnostica e sistema."
+      },
+      "hint": "Le regole dell'utente e dei suoi gruppi si sommano: per ogni area vale il livello più alto. Senza aree si vede solo la Panoramica; i super-admin hanno sempre tutto."
+    },
+    "levels": {
+      "none": "Nessuno",
+      "read": "Lettura",
+      "write": "Scrittura"
     }
   }
 }

@@ -18,7 +18,7 @@ import { apiBase } from "@/lib/api";
 import { DeleteDialog } from "@/components/ui/ConfirmDialogs";
 import { ghostBtn, outlineBtn, solidBtn } from "@/components/ui/classes";
 import { cn } from "@/lib/cn";
-import { ChoiceList, Field, FieldGrid, ProbeBar, SecretInput, Switch, TextInput } from "./ui";
+import { ChoiceList, Field, FieldGrid, ProbeBar, SecretInput, Switch, TextInput, useSettingsReadOnly } from "./ui";
 import { K, type SectionCtx } from "./types";
 
 export type AuthProtocol = "ntlm" | "negotiate";
@@ -158,6 +158,9 @@ export function SmbServerCard({
   onCancel?: () => void;
   onTested: () => void;
 }) {
+  // Read-only admins can expand a server to view it; inputs are locked by the context and
+  // add-share / remove / save / connection-test controls are hidden.
+  const readOnly = useSettingsReadOnly();
   const [draft, setDraft] = useState<Draft>(() => toDraft(server));
   const [open, setOpen] = useState(defaultOpen);
   const [saving, setSaving] = useState(false);
@@ -347,10 +350,12 @@ export function SmbServerCard({
                 <p className="text-sm font-medium">{t(`${m}.shares`)}</p>
                 <p className="mt-0.5 text-xs text-muted-foreground">{t(`${m}.shares_hint`)}</p>
               </div>
-              <button type="button" onClick={addShare} className={outlineBtn}>
-                <Plus className="h-3.5 w-3.5" aria-hidden />
-                {t(`${m}.share_add`)}
-              </button>
+              {!readOnly && (
+                <button type="button" onClick={addShare} className={outlineBtn}>
+                  <Plus className="h-3.5 w-3.5" aria-hidden />
+                  {t(`${m}.share_add`)}
+                </button>
+              )}
             </div>
             {draft.shares.length === 0 ? (
               <p className="px-5 py-4 text-sm text-muted-foreground">{t(`${m}.shares_empty`)}</p>
@@ -372,14 +377,16 @@ export function SmbServerCard({
                       <Switch checked={s.read_only} onChange={(v) => patchShare(s.key, { read_only: v })} label={t(`${m}.share_read_only`)} />
                       <span className="text-sm text-muted-foreground" aria-hidden>{t(`${m}.share_read_only`)}</span>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => removeShare(s.key)}
-                      aria-label={t(`${m}.share_remove`, { name: s.name || "—" })}
-                      className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
-                    >
-                      <Trash2 className="h-4 w-4" aria-hidden />
-                    </button>
+                    {!readOnly && (
+                      <button
+                        type="button"
+                        onClick={() => removeShare(s.key)}
+                        aria-label={t(`${m}.share_remove`, { name: s.name || "—" })}
+                        className="focus-ring inline-flex h-10 w-10 items-center justify-center rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground"
+                      >
+                        <Trash2 className="h-4 w-4" aria-hidden />
+                      </button>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -405,6 +412,7 @@ export function SmbServerCard({
             </div>
           </div>
 
+          {!readOnly && (
           <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border/40 px-5 py-3.5">
             {isNew ? (
               <button type="button" onClick={onCancel} className={ghostBtn}>
@@ -422,8 +430,10 @@ export function SmbServerCard({
               {saving ? t(`${m}.saving`) : t(isNew ? `${m}.server_add_save` : `${m}.server_save`)}
             </button>
           </div>
+          )}
 
-          {!isNew && (
+          {/* The connection test posts credentials to the backend; the header badge still shows the last outcome. */}
+          {!readOnly && !isNew && (
             <div className="border-t border-border/40">
               <div className="px-5 pt-4">
                 <p className="text-sm font-medium">{t(`${m}.test`)}</p>
@@ -478,7 +488,7 @@ export function SmbServerCard({
         </div>
       )}
 
-      {confirmRemove && server && (
+      {!readOnly && confirmRemove && server && (
         <DeleteDialog
           name={server.alias}
           busy={removing}

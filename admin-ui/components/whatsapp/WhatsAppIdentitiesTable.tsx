@@ -11,6 +11,7 @@ import { useT } from "@/lib/i18n/use-t";
 import { Note } from "@/components/settings/ui";
 import { DeleteDialog } from "@/components/ui/ConfirmDialogs";
 import { ghostBtn, outlineBtn } from "@/components/ui/classes";
+import { WriteOnly } from "@/lib/auth/admin-access";
 import type { Notify } from "./WhatsAppConfigPanel";
 
 const k = "admin_whatsapp.identities";
@@ -142,15 +143,18 @@ export function WhatsAppIdentitiesTable({ notify }: { notify: Notify }) {
                   <td className={td}><When v={i.linked_at} /></td>
                   <td className={td}><When v={i.last_inbound_at} /></td>
                   <td className={cn(td, "text-right")}>
-                    <button
-                      type="button"
-                      className={cn(ghostBtn, "hover:text-destructive")}
-                      onClick={() => setTarget(i)}
-                      aria-label={t(`${k}.unlink_label`, { name: i.user_identifier })}
-                    >
-                      <Unlink className="h-3.5 w-3.5" aria-hidden />
-                      {t(`${k}.unlink`)}
-                    </button>
+                    {/* Unlinking deletes the identity: "external" write level only. */}
+                    <WriteOnly area="external">
+                      <button
+                        type="button"
+                        className={cn(ghostBtn, "hover:text-destructive")}
+                        onClick={() => setTarget(i)}
+                        aria-label={t(`${k}.unlink_label`, { name: i.user_identifier })}
+                      >
+                        <Unlink className="h-3.5 w-3.5" aria-hidden />
+                        {t(`${k}.unlink`)}
+                      </button>
+                    </WriteOnly>
                   </td>
                 </tr>
               ))}

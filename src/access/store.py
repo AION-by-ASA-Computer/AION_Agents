@@ -45,14 +45,15 @@ WILDCARD = "*"
 NONE_MARKER = "!none"
 
 # Resource types an admin may set rules for through the API (Phase 1: profile;
-# Phase 2: skill, mcp_server, native_tool_group; Phase 3: capability).
-# Phase 5 adds admin_section.
+# Phase 2: skill, mcp_server, native_tool_group; Phase 3: capability;
+# Phase 5: admin_section = admin panel areas, ids "<area>:<level>").
 EDITABLE_RESOURCE_TYPES = (
     "profile",
     "skill",
     "mcp_server",
     "native_tool_group",
     "capability",
+    "admin_section",
 )
 
 _SLUG_RE = re.compile(r"^[a-z0-9][a-z0-9_-]{0,63}$")

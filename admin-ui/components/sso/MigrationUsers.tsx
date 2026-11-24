@@ -11,6 +11,7 @@ import { Dialog } from "@/components/profiles/Dialog";
 import { SearchField } from "@/components/ui/SearchField";
 import { dangerBtn, ghostBtn, outlineBtn, solidBtn } from "@/components/ui/classes";
 import { fullWhen, toMs } from "@/lib/datetime";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { linkErrorText, setupLinksToast, type SetupLinks } from "./setupLinks";
 import { TempPasswordsDialog, type TempPassword } from "./TempPasswordsDialog";
 
@@ -51,6 +52,8 @@ export function MigrationUsers({ onChanged }: { onChanged?: () => void } = {}) {
   // Senza SMTP il backend genera password temporanee invece dei link: mostrate una sola volta.
   const [smtpMissing, setSmtpMissing] = useState(false);
   const [tempPasswords, setTempPasswords] = useState<TempPassword[] | null>(null);
+  // Send link / exempt / reinstate / unlink are "access" writes: read-only users only browse the lists.
+  const canWrite = useCanWrite("access");
 
   useEffect(() => {
     apiFetch(`${apiBase()}/admin/smtp`)
@@ -252,7 +255,7 @@ export function MigrationUsers({ onChanged }: { onChanged?: () => void } = {}) {
                     )}
                   </div>
 
-                  <div className="flex shrink-0 flex-wrap items-center gap-1.5">
+                  {canWrite && <div className="flex shrink-0 flex-wrap items-center gap-1.5">
                     {busy && <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" aria-hidden />}
                     {(tab === "pending" || tab === "no_access") && (
                       <>
@@ -284,7 +287,7 @@ export function MigrationUsers({ onChanged }: { onChanged?: () => void } = {}) {
                         {t(`${k}.act_reinstate`)}
                       </button>
                     )}
-                  </div>
+                  </div>}
                 </li>
               );
             })}

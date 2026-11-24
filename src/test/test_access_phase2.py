@@ -132,7 +132,7 @@ async def test_admin_rules_validate_against_catalogue(monkeypatch, tmp_path):
         ({"skill": ["no_such_skill"]}, "unknown_resources"),
         ({"skill": ["zzz_nothing_*"]}, "unknown_resources"),
         ({"mcp_server": ["nope"]}, "unknown_resources"),
-        ({"admin_section": ["x"]}, "resource_type_not_editable"),
+        ({"billing": ["x"]}, "resource_type_not_editable"),
         ({"profile": ["data_*"]}, "unknown_profiles"),
     ):
         with pytest.raises(HTTPException) as exc:

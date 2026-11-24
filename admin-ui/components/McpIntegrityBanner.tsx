@@ -7,6 +7,7 @@ import { apiBase } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { useT } from "@/lib/i18n/use-t";
 import { getLocale } from "@/lib/i18n/i18n-store";
+import { WriteOnly } from "@/lib/auth/admin-access";
 
 export type McpIntegrityIssue = {
   code: string;
@@ -94,6 +95,8 @@ export function McpIntegrityBanner({ onRepaired, className }: Props) {
           </h2>
           <p className="mt-0.5 text-sm text-muted-foreground">{t("admin_hub.integrity.body")}</p>
         </div>
+        {/* Repair rewrites the registry: "external" write level only. */}
+        <WriteOnly area="external">
         <button
           type="button"
           onClick={() => void repairAll()}
@@ -103,6 +106,7 @@ export function McpIntegrityBanner({ onRepaired, className }: Props) {
           {repairing ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Wrench className="h-3.5 w-3.5" aria-hidden />}
           {t("admin_hub.integrity.repair")}
         </button>
+        </WriteOnly>
       </div>
       <ul className="flex max-h-36 flex-col gap-1.5 overflow-y-auto pl-7 text-sm">
         {report.issues.slice(0, 8).map((issue, idx) => (

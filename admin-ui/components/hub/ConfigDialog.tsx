@@ -12,6 +12,7 @@ import { McpOAuthAdminSetupPanel } from "@/components/McpOAuthAdminSetupPanel";
 import type { CredentialMode } from "@/lib/mcpIntegrationPolicy";
 import { schemaSig, type Hub } from "@/components/hub/useHub";
 import { useState } from "react";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
@@ -47,6 +48,9 @@ export function ConfigDialog({ hub }: { hub: Hub }) {
   const { t, editing, editingPolicy } = hub;
   const k = "admin_hub.config";
   const [section, setSection] = useState<"runtime" | "policy">("runtime");
+  // Read-only users ("external" at read level) may open the dialog to inspect
+  // the configuration, but every field is disabled and Save is hidden.
+  const canWrite = useCanWrite("external");
   if (!editing) return null;
 
   const v = editing.values;
@@ -108,6 +112,9 @@ export function ConfigDialog({ hub }: { hub: Hub }) {
         </div>
 
         <div className="max-h-[56vh] overflow-y-auto pr-1">
+          {/* A disabled fieldset disables every nested input / select / button
+              (custom selects, secret reveal of KeyValueBuilder, schema editor). */}
+          <fieldset disabled={!canWrite} className="min-w-0">
           {section === "runtime" && (
             <div className="flex flex-col gap-4" role="tabpanel">
               <div className="grid gap-4 sm:grid-cols-2">
@@ -289,8 +296,9 @@ export function ConfigDialog({ hub }: { hub: Hub }) {
                 <KeyValueBuilder
                   env={v.env || {}}
                   onChange={(env) => setValues({ env, rawAllEnvText: JSON.stringify(env, null, 2) })}
-                  disabled={hub.busy}
-                  loadSecret={(key) => hub.loadSharedSecret(editing.name, key)}
+                  disabled={hub.busy || !canWrite}
+                  // Reading a stored secret is a write-level Hub operation on the backend.
+                  loadSecret={canWrite ? (key) => hub.loadSharedSecret(editing.name, key) : undefined}
                 />
               )}
 
@@ -325,16 +333,19 @@ export function ConfigDialog({ hub }: { hub: Hub }) {
               )}
             </div>
           )}
+          </fieldset>
         </div>
 
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <button type="button" className={ghostBtn} onClick={hub.closeConfig}>
             {t(`${k}.cancel`)}
           </button>
-          <button type="button" className={solidBtn} disabled={hub.busy} onClick={() => void hub.saveConfig()}>
-            {hub.busy && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-            {hub.busy ? t(`${k}.saving`) : t(`${k}.save`)}
-          </button>
+          {canWrite && (
+            <button type="button" className={solidBtn} disabled={hub.busy} onClick={() => void hub.saveConfig()}>
+              {hub.busy && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+              {hub.busy ? t(`${k}.saving`) : t(`${k}.save`)}
+            </button>
+          )}
         </div>
       </div>
     </Dialog>

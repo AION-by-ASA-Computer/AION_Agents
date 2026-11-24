@@ -13,6 +13,7 @@ import { apiBase } from "@/lib/api";
 import { apiFetch } from "@/lib/api/headers";
 import { cn } from "@/lib/cn";
 import { inputCls, outlineBtn } from "@/components/ui/classes";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { EmptyList, Loading, k, readJson, userLabel, type Notify, type T, type UserRef } from "./shared";
 
 type QuotaRow = UserRef & { linked: boolean; bots: number; max_bots: number | null };
@@ -26,6 +27,8 @@ export function TelegramQuotasList({ t, notify, rev }: { t: T; notify: Notify; r
   const [def, setDef] = useState(0);
   const [drafts, setDrafts] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState<string | null>(null);
+  // Read-only users ("external" at read level) see each quota but cannot change it.
+  const canWrite = useCanWrite("external");
 
   const load = useCallback(async () => {
     try {
@@ -100,17 +103,20 @@ export function TelegramQuotasList({ t, notify, rev }: { t: T; notify: Notify; r
                   placeholder={t(`${k}.quota_default`, { n: def })}
                   value={draft}
                   onChange={(e) => setDrafts((d) => ({ ...d, [r.row_id]: e.target.value }))}
+                  readOnly={!canWrite}
                   className={cn(inputCls, "w-40", !valid && "border-destructive")}
                 />
-                <button
-                  type="button"
-                  className={outlineBtn}
-                  disabled={!valid || !changed || busy === r.row_id}
-                  onClick={() => void save(r, parsed)}
-                >
-                  {busy === r.row_id && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-                  {t(`${k}.save`)}
-                </button>
+                {canWrite && (
+                  <button
+                    type="button"
+                    className={outlineBtn}
+                    disabled={!valid || !changed || busy === r.row_id}
+                    onClick={() => void save(r, parsed)}
+                  >
+                    {busy === r.row_id && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+                    {t(`${k}.save`)}
+                  </button>
+                )}
               </li>
             );
           })}

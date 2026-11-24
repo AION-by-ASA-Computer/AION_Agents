@@ -31,6 +31,7 @@ import { ProfilesDialog, type ProfileRow } from "@/components/users/ProfilesDial
 import { AccountFormDialog, type AccountFormValues } from "@/components/service-accounts/AccountFormDialog";
 import { KeysDialog } from "@/components/service-accounts/KeysDialog";
 import { StatusBadge, formatDate, k, nameOf, readError, type ServiceAccount } from "@/components/service-accounts/shared";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 /**
  * Columns: account, status, keys, last used, memory, actions. Rows become a table only from xl up:
@@ -60,8 +61,11 @@ function IconAction({ label, onClick, danger, children }: { label: string; onCli
   );
 }
 
-/** Empty state: explains what a service account is before the first one exists. */
-function EmptyState({ t, onCreate }: { t: (key: string, vars?: Record<string, string | number>) => string; onCreate: () => void }) {
+/**
+ * Empty state: explains what a service account is before the first one exists.
+ * `onCreate` is omitted for read-only users, which hides the create button.
+ */
+function EmptyState({ t, onCreate }: { t: (key: string, vars?: Record<string, string | number>) => string; onCreate?: () => void }) {
   return (
     <div className="flex flex-col items-center rounded-3xl border border-dashed border-border px-6 py-16 text-center">
       <span aria-hidden className="flex h-11 w-11 items-center justify-center rounded-2xl bg-secondary text-muted-foreground">
@@ -77,10 +81,12 @@ function EmptyState({ t, onCreate }: { t: (key: string, vars?: Record<string, st
           </li>
         ))}
       </ul>
-      <button type="button" className={cn(solidBtn, "mt-7")} onClick={onCreate}>
-        <Plus className="h-4 w-4" aria-hidden />
-        {t(`${k}.add`)}
-      </button>
+      {onCreate && (
+        <button type="button" className={cn(solidBtn, "mt-7")} onClick={onCreate}>
+          <Plus className="h-4 w-4" aria-hidden />
+          {t(`${k}.add`)}
+        </button>
+      )}
     </div>
   );
 }
@@ -88,6 +94,9 @@ function EmptyState({ t, onCreate }: { t: (key: string, vars?: Record<string, st
 /** Route component for `/service-accounts`. */
 export default function ServiceAccountsPage() {
   const t = useT();
+  // Read-only users ("access" at read level) see accounts and their keys, without
+  // create / edit / delete / enable-disable / profile-assignment controls.
+  const canWrite = useCanWrite("access");
 
   const [accounts, setAccounts] = useState<ServiceAccount[]>([]);
   const [listState, setListState] = useState<ListState>("loading");
@@ -279,7 +288,7 @@ export default function ServiceAccountsPage() {
           <h1 className="text-balance text-2xl font-semibold tracking-[-0.02em] sm:text-[28px]">{t(`${k}.title`)}</h1>
           <p className="mt-1 max-w-[64ch] text-sm text-muted-foreground">{t(`${k}.subtitle`)}</p>
         </div>
-        {listState === "ready" && accounts.length > 0 && (
+        {canWrite && listState === "ready" && accounts.length > 0 && (
           <button type="button" className={solidBtn} onClick={openCreate}>
             <Plus className="h-4 w-4" aria-hidden />
             {t(`${k}.add`)}
@@ -310,7 +319,7 @@ export default function ServiceAccountsPage() {
         </div>
       )}
 
-      {listState === "ready" && accounts.length === 0 && <EmptyState t={t} onCreate={openCreate} />}
+      {listState === "ready" && accounts.length === 0 && <EmptyState t={t} onCreate={canWrite ? openCreate : undefined} />}
 
       {listState === "ready" && accounts.length > 0 && (
         <>
@@ -368,23 +377,29 @@ export default function ServiceAccountsPage() {
                           <IconAction label={t(`${k}.row.keys`, { name })} onClick={() => setKeysAccount(a)}>
                             <KeyRound className="h-4 w-4" aria-hidden />
                           </IconAction>
-                          <IconAction label={t(`${k}.row.profiles`, { name })} onClick={() => void openProfiles(a)}>
-                            <UserCog className="h-4 w-4" aria-hidden />
-                          </IconAction>
-                          <IconAction label={t(`${k}.row.edit`, { name })} onClick={() => setFormAccount(a)}>
-                            <Pencil className="h-4 w-4" aria-hidden />
-                          </IconAction>
-                          <IconAction label={t(`${k}.row.delete`, { name })} onClick={() => setDeleteAccount(a)} danger>
-                            <Trash2 className="h-4 w-4" aria-hidden />
-                          </IconAction>
-                          <span className="ml-1.5 inline-flex" title={t(`${k}.row.${a.disabled ? "enable" : "disable"}`, { name })}>
-                            <Switch
-                              checked={!a.disabled}
-                              disabled={toggling === a.id}
-                              onChange={(on) => void toggleDisabled(a, !on)}
-                              label={t(`${k}.row.${a.disabled ? "enable" : "disable"}`, { name })}
-                            />
-                          </span>
+                          {/* Edit-only actions; the status badge still shows enabled/disabled.
+                              ProfilesDialog has no read-only mode, so its trigger is hidden too. */}
+                          {canWrite && (
+                            <>
+                              <IconAction label={t(`${k}.row.profiles`, { name })} onClick={() => void openProfiles(a)}>
+                                <UserCog className="h-4 w-4" aria-hidden />
+                              </IconAction>
+                              <IconAction label={t(`${k}.row.edit`, { name })} onClick={() => setFormAccount(a)}>
+                                <Pencil className="h-4 w-4" aria-hidden />
+                              </IconAction>
+                              <IconAction label={t(`${k}.row.delete`, { name })} onClick={() => setDeleteAccount(a)} danger>
+                                <Trash2 className="h-4 w-4" aria-hidden />
+                              </IconAction>
+                              <span className="ml-1.5 inline-flex" title={t(`${k}.row.${a.disabled ? "enable" : "disable"}`, { name })}>
+                                <Switch
+                                  checked={!a.disabled}
+                                  disabled={toggling === a.id}
+                                  onChange={(on) => void toggleDisabled(a, !on)}
+                                  label={t(`${k}.row.${a.disabled ? "enable" : "disable"}`, { name })}
+                                />
+                              </span>
+                            </>
+                          )}
                         </div>
 
                         {/* On mobile these cells wrap under the name; from xl up they become grid columns (display: contents). */}

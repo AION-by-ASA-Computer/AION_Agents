@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import {
   embeddingProviderToProbeProvider,
   probeBaseUrlFromOcrServiceUrl,
@@ -92,6 +93,12 @@ export type DashboardData = {
   feedback: FeedbackSummary | null;
   users: AdminUser[] | null;
   registry: McpRegistry | null;
+  /**
+   * True when the reachability probes were not run: `POST /admin/llm-providers/probe`
+   * needs write on the "settings" area, so read-only users get "not checked" nodes
+   * instead of a stream of 403s.
+   */
+  probesSkipped: boolean;
   loading: boolean;
   refreshing: boolean;
   failed: boolean;
@@ -143,10 +150,16 @@ export function useDashboardData(): DashboardData {
   const [refreshing, setRefreshing] = useState(false);
   const [failed, setFailed] = useState(false);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const canProbe = useCanWrite("settings");
 
   const runProbes = useCallback(async (list: LlmProviderItem[], s: Record<string, string>) => {
     const enabled = list.filter((p) => p.enabled);
     const ocrUrl = (s.AION_OCR_BASE_URL || "").trim();
+    if (!canProbe) {
+      // No probe calls without agents write; only the local OCR (no URL, nothing to probe) keeps its status.
+      setProbes(ocrUrl ? {} : { ocr: { status: "online", local: true } });
+      return;
+    }
     setProbes((prev) => {
       const next: Record<string, ProbeResult> = {};
       for (const p of enabled) next[p.slug] = { ...prev[p.slug], status: "checking" };
@@ -174,7 +187,7 @@ export function useDashboardData(): DashboardData {
           }).then((r) => set("ocr", r))
         : Promise.resolve(),
     ]);
-  }, []);
+  }, [canProbe]);
 
   const load = useCallback(async () => {
     const [st, he, pr, se, me, jo, fb, us, rg] = await Promise.all([
@@ -226,6 +239,7 @@ export function useDashboardData(): DashboardData {
     feedback,
     users,
     registry,
+    probesSkipped: !canProbe,
     loading,
     refreshing,
     failed,

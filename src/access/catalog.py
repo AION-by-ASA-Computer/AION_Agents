@@ -10,7 +10,9 @@ display name and a description:
 - ``mcp_server``: servers of the merged MCP registry (``mcp_manager``),
 - ``native_tool_group``: bundles of the native tool registry,
 - ``capability``: end-user features that can be switched off per user/group
-  (``private_profiles.create``; the admin-ui translates the names).
+  (``private_profiles.create``, ``admin_panel.access``, ``telegram.use``,
+  ``whatsapp.use``, ``api_keys.create``; the admin-ui translates the names),
+- ``admin_section``: admin panel areas at a level (``agents:write``…).
 
 Used by ``src/api/admin_groups.py`` to validate rules (so a typo cannot lock
 users out or grant nothing by accident) and to feed the rule editors of the
@@ -99,7 +101,36 @@ CAPABILITIES = (
         "name": "Private profiles",
         "description": "Create personal agent profiles in chat-ui.",
     },
+    # Phase 5: base access to the admin panel; excluding it = "chat-ui only".
+    {
+        "id": "admin_panel.access",
+        "name": "Admin panel",
+        "description": "Open the admin panel (dashboard; areas need their own rules).",
+    },
+    # Phase 5: chat-ui features that admins may switch off per user / group.
+    {
+        "id": "telegram.use",
+        "name": "Telegram",
+        "description": "Create and link personal Telegram bots.",
+    },
+    {
+        "id": "whatsapp.use",
+        "name": "WhatsApp",
+        "description": "Link a WhatsApp number to the account.",
+    },
+    {
+        "id": "api_keys.create",
+        "name": "API keys",
+        "description": "Create personal API keys.",
+    },
 )
+
+
+def _admin_sections() -> List[Dict[str, str]]:
+    """``<area>:<level>`` ids of the admin panel areas (names from i18n)."""
+    from src.access.admin_areas import grant_ids
+
+    return [{"id": g, "name": g, "description": ""} for g in grant_ids()]
 
 
 def _capabilities() -> List[Dict[str, str]]:
@@ -112,6 +143,7 @@ _LOADERS = {
     "mcp_server": _mcp_servers,
     "native_tool_group": _native_tool_groups,
     "capability": _capabilities,
+    "admin_section": _admin_sections,
 }
 
 

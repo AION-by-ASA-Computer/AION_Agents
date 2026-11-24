@@ -28,7 +28,7 @@ from src.access.catalog import resource_ids
 from src.access.policy import ProfileAccessDenied, can_use_profile, resolve_profile_for
 from src.access.principal import load_principal
 from src.agent_profile import profile_manager
-from test_access_groups import ADMIN, ANNA, BRUNO, _setup
+from test_access_groups import ADMIN, ANNA, BRUNO, _admin, _setup
 
 SKILL_A, SKILL_B = resource_ids("skill")[:2]
 
@@ -269,7 +269,7 @@ async def test_overlay_reload_and_user_deletion(monkeypatch, tmp_path):
     assert await pp.load_private_profiles() == 1
     assert profile_manager.private_profile_owner(created["slug"]) == ANNA
 
-    await admin_api.delete_user(ANNA)
+    await admin_api.delete_user(ANNA, auth=_admin())
     assert profile_manager.get_profile(created["slug"]) is None
     assert await pp.load_private_profiles() == 0
 

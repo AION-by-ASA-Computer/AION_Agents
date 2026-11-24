@@ -6,6 +6,7 @@ import { cn } from "@/lib/cn";
 import { useT } from "@/lib/i18n/use-t";
 import { dangerBtn, ghostBtn, outlineBtn, solidBtn } from "@/components/ui/classes";
 import type { CredentialSchemaField } from "@/lib/mcpIntegrationPolicy";
+import { WriteOnly } from "@/lib/auth/admin-access";
 
 const chipCls = "rounded-md bg-secondary px-1.5 py-0.5 font-mono text-[12px] text-foreground";
 
@@ -38,10 +39,12 @@ export function SchemaSuggestion({
         ))}
       </ul>
       <div className="flex flex-wrap items-center gap-3">
-        <button type="button" className={outlineBtn} onClick={() => onAdd(missing)}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          {t("admin_hub.editors.suggest.add", { count: missing.length })}
-        </button>
+        <WriteOnly area="external">
+          <button type="button" className={outlineBtn} onClick={() => onAdd(missing)}>
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            {t("admin_hub.editors.suggest.add", { count: missing.length })}
+          </button>
+        </WriteOnly>
         <span className="text-xs text-muted-foreground">{t("admin_hub.editors.suggest.note")}</span>
       </div>
     </div>
@@ -133,10 +136,13 @@ export function RegistryEnvPanel({
             {copied ? <Check className="h-3.5 w-3.5" aria-hidden /> : <Copy className="h-3.5 w-3.5" aria-hidden />}
             <span role="status">{copied ? t(`${k}.copied`) : t(`${k}.copy`)}</span>
           </button>
-          <button type="button" className={solidBtn} disabled={busy || dirty} onClick={apply}>
-            {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Upload className="h-3.5 w-3.5" aria-hidden />}
-            {t(`${k}.apply`)}
-          </button>
+          {/* Applying writes the registry env: "external" write level only. */}
+          <WriteOnly area="external">
+            <button type="button" className={solidBtn} disabled={busy || dirty} onClick={apply}>
+              {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden /> : <Upload className="h-3.5 w-3.5" aria-hidden />}
+              {t(`${k}.apply`)}
+            </button>
+          </WriteOnly>
         </div>
       )}
     </section>

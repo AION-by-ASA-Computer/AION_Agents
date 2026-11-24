@@ -1,7 +1,7 @@
 ---
 title: User groups and access rules
 sidebar_position: 7
-description: Group users and limit which agent profiles, skills, MCP servers and native tools they can use, with rules on groups or on single accounts.
+description: Group users, limit which agent profiles, skills, MCP servers and native tools they can use, and decide which parts of the admin panel they can see or change.
 ---
 
 # User groups and access rules
@@ -90,6 +90,79 @@ Changes apply at the user's next request; nobody needs to log in again.
 Deleting a group removes its members' memberships and rules immediately.
 Deleting a user removes their memberships and own rules.
 
+## Admin panel permissions
+
+Every user can open the admin panel, but sees and changes only the parts
+their permissions allow. The panel is split into five **areas**, each granted
+at **Lettura** (*Read*) or **Scrittura** (*Write*, includes read):
+
+| Area | What it covers |
+|---|---|
+| **Gestione accessi** (*Access management*) | Menu **Accessi**: users (accounts, login mode, SSO, 2FA, new accounts, groups, migration), service accounts, security |
+| **Gestione agenti** (*Agent management*) | Menu **Agenti**: profiles, skills, memory, scheduled jobs |
+| **Impostazioni** (*Settings*) | The **Impostazioni** page: models, memory, web, speech, sandbox, SMTP, file server. It changes the whole platform, so it is granted on its own |
+| **Applicazioni esterne** (*External applications*) | **MCP Hub** (listed in the Agenti menu), **WhatsApp**, **Telegram** |
+| **Osservabilità** (*Observability*) | Metrics, feedback, diagnostics, system, including actions such as running diagnostics |
+
+Rules:
+
+- **No rule means no area.** Unlike the other rule types, a user without an
+  admin-panel rule sees only the **Panoramica** (*Overview*) page. Grant
+  areas on the tab **Pannello admin** (*Admin panel*) of the access rules of
+  a user or a group.
+- **Permissions add up.** The rules of the user and of all their groups are
+  combined: for each area the highest level wins ("Lettura" from one group
+  and "Scrittura" from another = "Scrittura"), and areas from different
+  groups are all available.
+- **Read only.** With "Lettura" a page shows a *Sola lettura* (*Read only*)
+  banner and no create, edit, save or delete controls: forms show their
+  values but cannot be changed. The backend refuses every change anyway.
+- **Observability settings.** The Prometheus / OpenTelemetry / Opik settings
+  of the **Metriche** (*Metrics*) page need **Osservabilità** in write, even
+  for users who can change the other settings with **Impostazioni**. The
+  scheduler switch of **Job pianificati** (*Scheduled jobs*) follows
+  **Gestione agenti**.
+- **Solo chat UI** (*Chat UI only*). On the tab **Funzioni** (*Features*),
+  excluding **Pannello admin** takes away the basic access to the panel. If
+  another rule grants an area, the user can still open the panel and see that
+  area (permissions add up).
+- **Super-admins** (users with the admin role) always have every area in
+  write and are the only ones who can create other super-admins. New users
+  are always created as normal users.
+
+### What a user with "Gestione accessi" in write can do
+
+They can give **any** permission to anyone (all five areas in write
+included), with these exceptions, enforced by the backend
+(`403 permission_denied` with a `reason`):
+
+| Not allowed | `reason` |
+|---|---|
+| Change their own account, rules or groups | `self` |
+| Change a group they belong to, or join a group | `own_group` |
+| Change a super-admin (account, rules, groups, password, 2FA, SSO identities) or a group that contains one | `superadmin_target` |
+| Give or remove the super-admin role | `admin_role_reserved` |
+
+In the admin panel the rows of their own account and of super-admins have no
+edit actions, and the super-admin option of the user form is shown only to
+super-admins.
+
+### Chat-ui features
+
+On the tab **Funzioni** an administrator can also switch off, per user or
+group, these chat-ui features (all allowed while no rule excludes them):
+
+| Feature | What it blocks |
+|---|---|
+| Profili personali | Creating [private profiles](../clients/private-profiles.md) |
+| Pannello admin | Opening the admin panel ("Solo chat UI") |
+| Telegram | Linking a Telegram account and personal bots |
+| WhatsApp | Linking a WhatsApp number |
+| API key | Creating personal API keys |
+
+Everything else in chat-ui has no permission and stays available to every
+user.
+
 ## For developers
 
 **Storage** (Alembic revision `j8g9m0e038`):
@@ -120,6 +193,25 @@ data step did not run stay correct.
 - `src/access/catalog.py` lists the ids that can go in a rule, per type.
 - `src/access/mcp_filter.py` computes the MCP servers a user can set up in
   Integrations (`configurable_mcp_servers`).
+- `src/access/admin_areas.py` defines the admin areas and the **route
+  table**: every `/admin/*` request (method + path) maps to an area and
+  `read`/`write`, to the dashboard (any panel user) or to super-admin only
+  (one-click update). `require_admin_role` applies it to every admin router;
+  an unmapped route is super-admin only, and `src/test/test_admin_rbac.py`
+  fails when a new route is not in the table. A few list reads are shared
+  across areas (profile list, user list, SMTP status, knowledge projects)
+  because other pages show them in pickers and filters.
+- `/admin/settings` is checked per key: `GET` is open to every panel user
+  but returns only the keys of the caller's areas (plus a few non-secret
+  dashboard keys); `POST` requires write on the area of each **changed**
+  key (`AION_PROMETHEUS_*`, `AION_METRICS_*`, `AION_OTEL_*`, `AION_OPIK_*`,
+  `OPIK_*` = observability, `AION_CRON_ENABLED` = agents, everything else =
+  settings). A `POST` is a partial update: keys it does not send keep
+  their value.
+- In admin-ui, `WriteOnly`, `useCanWrite(area)` and `usePageCanWrite()` in
+  `admin-ui/lib/auth/admin-access.tsx` hide write controls.
+- `src/access/escalation.py` holds the anti-escalation checks used by the
+  user, group and login-mode endpoints.
 
 **Admin API** (super-admin only; `src/api/admin_groups.py`):
 
@@ -135,8 +227,10 @@ data step did not run stay correct.
 | `GET /admin/access/catalog` | Ids that can go in a rule, per type (`{types: {profile: [{id, name, description}], …}}`) |
 
 Rules are sent as `{"rules": {"profile": ["a", "b"], "mcp_server": ["grafana"]}}`
-with the keys `profile`, `skill`, `mcp_server`, `native_tool_group` and
-`capability` (ids: `private_profiles.create`); only
+with the keys `profile`, `skill`, `mcp_server`, `native_tool_group`,
+`capability` (ids: `private_profiles.create`, `admin_panel.access`,
+`telegram.use`, `whatsapp.use`, `api_keys.create`) and `admin_section` (ids
+`<area>:<level>`, e.g. `agents:write`; no `*`, no patterns); only
 the keys present change. `null` removes the rule, `[]` is "none", `["*"]` is
 "all". Skill, MCP server and native tool ids may be glob patterns (`sql_*`)
 that match at least one existing id. Ids that do not exist return `422`
@@ -151,9 +245,20 @@ and an empty list removes it.
 
 **User API**:
 
-- `GET /auth/me` returns the user's `groups` (slugs) and `permissions`
+- `GET /auth/me` returns the user's `groups` (slugs), `permissions`
   (strings `<resource_type>:<id>:<action>`, for example
-  `profile:coding_workspace:use`).
+  `profile:coding_workspace:use` or `admin_section:agents:write`),
+  `admin_access` (may the user open the admin panel) and `admin_areas`
+  (`{"agents": "write", ...}`).
+- `POST /auth/login` with `client=admin` answers `403
+  admin_panel_not_allowed` to "chat UI only" users without areas; the admin
+  role is not required (same rule for the SSO login of the admin panel).
+- `POST /auth/sso/admin-handoff` (chat token only) turns the chat-ui session
+  into a one-time code (60 s) and returns the admin-ui URL
+  `/login/sso#code=…`, which exchanges it with `POST /auth/sso/exchange`:
+  the **Pannello admin** item of the chat-ui profile menu opens the panel
+  without a second login. "Chat UI only" users get `403
+  admin_panel_not_allowed`.
 - `GET /v1/me/access` returns, per type, `limited` and `allowed` (existing ids,
   patterns expanded; `null` = everything). For `mcp_server` it also returns
   `configurable`: the servers the user can set up in Integrations (allowed

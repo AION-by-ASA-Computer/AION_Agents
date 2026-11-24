@@ -19,7 +19,7 @@ import { Loader2, Plus, Save } from "lucide-react";
 import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
 import { outlineBtn, solidBtn } from "@/components/ui/classes";
-import { Field, FieldGrid, Group, Note, SectionHead, Switch, TextInput } from "./ui";
+import { Field, FieldGrid, Group, Note, SectionHead, Switch, TextInput, useSettingsReadOnly } from "./ui";
 import { type SectionCtx } from "./types";
 import { DEFAULT_SET, SmbServerCard, errorText, intIn, m, type SmbState } from "./SmbServerCard";
 
@@ -36,6 +36,8 @@ const toGlobal = (s: SmbState): GlobalDraft => ({
 });
 
 export function SmbSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
+  // Read-only admins see the general limits and every server; save / add are hidden.
+  const readOnly = useSettingsReadOnly();
   const [state, setState] = useState<SmbState | null>(null);
   const [draft, setDraft] = useState<GlobalDraft | null>(null);
   const [saving, setSaving] = useState(false);
@@ -159,6 +161,7 @@ export function SmbSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
             <TextInput value={draft.lockout_minutes} onChange={(v) => patch({ lockout_minutes: v })} type="number" inputMode="numeric" mono />
           </Field>
         </FieldGrid>
+        {!readOnly && (
         <div className="flex flex-wrap items-center justify-end gap-3 border-t border-border/40 px-5 py-3.5">
           {dirty && <span className="text-sm text-muted-foreground" role="status">{t(`${m}.unsaved`)}</span>}
           <button type="button" onClick={() => void save()} disabled={saving || !dirty} className={solidBtn}>
@@ -166,6 +169,7 @@ export function SmbSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
             {saving ? t(`${m}.saving`) : t(`${m}.save`)}
           </button>
         </div>
+        )}
       </Group>
 
       <div className="flex flex-wrap items-end gap-x-4 gap-y-2 px-1">
@@ -173,10 +177,12 @@ export function SmbSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
           <h3 className="text-[15px] font-semibold">{t(`${m}.servers`)}</h3>
           <p className="mt-0.5 text-sm text-muted-foreground">{t(`${m}.servers_hint`)}</p>
         </div>
-        <button type="button" onClick={() => setAdding(true)} disabled={!canAdd} className={outlineBtn}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          {t(`${m}.server_add`)}
-        </button>
+        {!readOnly && (
+          <button type="button" onClick={() => setAdding(true)} disabled={!canAdd} className={outlineBtn}>
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            {t(`${m}.server_add`)}
+          </button>
+        )}
       </div>
 
       {state.servers.length === 0 && !adding && <p className="px-1 text-sm text-muted-foreground">{t(`${m}.servers_empty`)}</p>}
@@ -194,7 +200,7 @@ export function SmbSection({ t, notify }: Pick<SectionCtx, "t" | "notify">) {
         />
       ))}
 
-      {adding && (
+      {!readOnly && adding && (
         <SmbServerCard
           server={null}
           defaultOpen

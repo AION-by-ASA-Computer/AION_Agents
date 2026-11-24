@@ -28,6 +28,7 @@ import { DeleteDialog, LeaveDialog } from "@/components/ui/ConfirmDialogs";
 import { SkillPreview } from "@/components/skills/SkillPreview";
 import { PickerList, type PickerItem } from "@/components/profiles/PickerList";
 import { NATIVE_TOOL_BUNDLES, profileSlug, useProfiles } from "@/components/profiles/useProfiles";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 type Tab = "instructions" | "skills" | "tools";
 
@@ -73,6 +74,9 @@ export default function ProfilesPage() {
   const k = "admin_profiles";
   const p = useProfiles();
   const { selected, dirty, isPersisted } = p;
+  // Read-only admins ("agents" area at read level) can browse and export profiles but every
+  // create / edit / import / delete control is hidden and the editor fields are locked.
+  const canWrite = useCanWrite("agents");
 
   const [query, setQuery] = useState("");
   const [tab, setTab] = useState<Tab>("instructions");
@@ -90,7 +94,7 @@ export default function ProfilesPage() {
   const [previewSkill, setPreviewSkill] = useState<string | null>(null);
 
   // Ctrl/Cmd+S saves the open profile instead of the browser's "save page".
-  const canSave = !!selected && !p.saving && (!isPersisted || dirty);
+  const canSave = canWrite && !!selected && !p.saving && (!isPersisted || dirty);
   const { save } = p;
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -245,22 +249,25 @@ export default function ProfilesPage() {
           <h1 className="text-balance text-2xl font-semibold tracking-[-0.02em] sm:text-[28px]">{t(`${k}.title`)}</h1>
           <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">{t(`${k}.subtitle`)}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className={outlineBtn} onClick={() => setWizardOpen(true)}>
-            <Wand2 className="h-3.5 w-3.5" aria-hidden />
-            {t(`${k}.ai_create`)}
-          </button>
-          <button type="button" className={solidBtn} onClick={() => open(p.createBlank)}>
-            <Plus className="h-4 w-4" aria-hidden />
-            {t(`${k}.new`)}
-          </button>
-        </div>
+        {canWrite && (
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" className={outlineBtn} onClick={() => setWizardOpen(true)}>
+              <Wand2 className="h-3.5 w-3.5" aria-hidden />
+              {t(`${k}.ai_create`)}
+            </button>
+            <button type="button" className={solidBtn} onClick={() => open(p.createBlank)}>
+              <Plus className="h-4 w-4" aria-hidden />
+              {t(`${k}.new`)}
+            </button>
+          </div>
+        )}
       </header>
 
       {showEmpty ? (
         <div className="flex flex-col items-center rounded-3xl border border-dashed border-border px-6 py-20 text-center">
           <h2 className="text-lg font-semibold tracking-[-0.015em]">{t(`${k}.empty.title`)}</h2>
           <p className="mt-1.5 max-w-[46ch] text-sm text-muted-foreground">{t(`${k}.empty.body`)}</p>
+          {canWrite && (
           <div className="mt-6 flex flex-wrap justify-center gap-2">
             <button type="button" className={solidBtn} onClick={() => open(p.createBlank)}>
               <Plus className="h-4 w-4" aria-hidden />
@@ -275,6 +282,7 @@ export default function ProfilesPage() {
               {t(`${k}.import`)}
             </button>
           </div>
+          )}
         </div>
       ) : (
         // lg+: one grid row bounded to the remaining height (minmax(0,1fr) + min-h-0), items stretched so both
@@ -339,10 +347,12 @@ export default function ProfilesPage() {
             )}
 
             <div className="mt-1 flex shrink-0 flex-wrap gap-1 border-t border-border/50 pt-3">
-              <button type="button" className={ghostBtn} onClick={p.importFile}>
-                <Upload className="h-3.5 w-3.5" aria-hidden />
-                {t(`${k}.import`)}
-              </button>
+              {canWrite && (
+                <button type="button" className={ghostBtn} onClick={p.importFile}>
+                  <Upload className="h-3.5 w-3.5" aria-hidden />
+                  {t(`${k}.import`)}
+                </button>
+              )}
               {p.profiles.length > 0 && (
                 <button type="button" className={ghostBtn} onClick={p.exportAll}>
                   <Download className="h-3.5 w-3.5" aria-hidden />
@@ -371,14 +381,17 @@ export default function ProfilesPage() {
                     <ArrowLeft className="h-4 w-4" aria-hidden />
                     {t(`${k}.list.back`)}
                   </button>
+                  {/* Saved / unsaved / draft state only matters to someone who can edit. */}
+                  {canWrite && (
                   <span
                     role="status"
                     className={cn("text-sm tabular-nums", dirty || !isPersisted ? "font-medium text-warning" : "text-muted-foreground")}
                   >
                     {stateLabel}
                   </span>
+                  )}
                   <div className="ml-auto flex flex-wrap items-center gap-1">
-                    {isPersisted && dirty && (
+                    {canWrite && isPersisted && dirty && (
                       <button type="button" className={ghostBtn} onClick={() => void p.select(currentSlug!)}>
                         <Undo2 className="h-3.5 w-3.5" aria-hidden />
                         {t(`${k}.editor.revert`)}
@@ -391,15 +404,17 @@ export default function ProfilesPage() {
                           <span className="hidden sm:inline">{t(`${k}.editor.export`)}</span>
                           <span className="sr-only sm:hidden">{t(`${k}.editor.export`)}</span>
                         </button>
-                        <button
-                          type="button"
-                          className={cn(ghostBtn, "hover:text-destructive")}
-                          onClick={() => setDeleteOpen(true)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                          <span className="hidden sm:inline">{t(`${k}.editor.delete`)}</span>
-                          <span className="sr-only sm:hidden">{t(`${k}.editor.delete`)}</span>
-                        </button>
+                        {canWrite && (
+                          <button
+                            type="button"
+                            className={cn(ghostBtn, "hover:text-destructive")}
+                            onClick={() => setDeleteOpen(true)}
+                          >
+                            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                            <span className="hidden sm:inline">{t(`${k}.editor.delete`)}</span>
+                            <span className="sr-only sm:hidden">{t(`${k}.editor.delete`)}</span>
+                          </button>
+                        )}
                       </>
                     ) : (
                       <button type="button" className={ghostBtn} onClick={() => guard(() => (p.discardDraft(), setEditing(false)))}>
@@ -407,10 +422,12 @@ export default function ProfilesPage() {
                         {t(`${k}.editor.discard_draft`)}
                       </button>
                     )}
-                    <button type="button" className={cn(solidBtn, "ml-1")} onClick={p.save} disabled={p.saving || (isPersisted && !dirty)}>
-                      {p.saving && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-                      {p.saving ? t(`${k}.editor.saving`) : t(`${k}.editor.save`)}
-                    </button>
+                    {canWrite && (
+                      <button type="button" className={cn(solidBtn, "ml-1")} onClick={p.save} disabled={p.saving || (isPersisted && !dirty)}>
+                        {p.saving && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+                        {p.saving ? t(`${k}.editor.saving`) : t(`${k}.editor.save`)}
+                      </button>
+                    )}
                   </div>
                 </div>
 
@@ -423,6 +440,7 @@ export default function ProfilesPage() {
                         type="text"
                         value={selected.name}
                         onChange={(e) => p.update({ name: e.target.value })}
+                        readOnly={!canWrite}
                         placeholder={t(`${k}.editor.name_placeholder`)}
                         className={cn(inputCls, "font-medium")}
                       />
@@ -433,6 +451,7 @@ export default function ProfilesPage() {
                         type="text"
                         value={selected.description || ""}
                         onChange={(e) => p.update({ description: e.target.value })}
+                        readOnly={!canWrite}
                         placeholder={t(`${k}.editor.description_placeholder`)}
                         className={inputCls}
                       />
@@ -474,6 +493,8 @@ export default function ProfilesPage() {
                         );
                       })}
                     </div>
+                    {/* AI refine rewrites the draft: an edit, so hidden for read-only admins. */}
+                    {canWrite && (
                     <button
                       type="button"
                       onClick={() => setAiOpen((v) => !v)}
@@ -484,9 +505,10 @@ export default function ProfilesPage() {
                       <span className="hidden sm:inline">{t(`${k}.ai.toggle`)}</span>
                       <span className="sr-only sm:hidden">{t(`${k}.ai.toggle`)}</span>
                     </button>
+                    )}
                   </div>
 
-                  {aiOpen && (
+                  {canWrite && aiOpen && (
                     <form
                       className="flex shrink-0 flex-col gap-2 border-t border-border/60 bg-secondary/30 p-3 sm:flex-row sm:p-4"
                       onSubmit={(e) => {
@@ -525,6 +547,7 @@ export default function ProfilesPage() {
                         fill
                         placeholder={t(`${k}.editor.instructions_placeholder`)}
                         allowTasks={false}
+                        readOnly={!canWrite}
                       />
                     )}
 
@@ -549,11 +572,12 @@ export default function ProfilesPage() {
                               onToggle={p.toggleSkill}
                               onCritical={p.toggleCritical}
                               onPreview={setPreviewSkill}
+                              readOnly={!canWrite}
                               previewLabel={t(`${k}.skills.preview`)}
                               criticalOn={t(`${k}.skills.critical_on`)}
                               criticalOff={t(`${k}.skills.critical_off`)}
                             />
-                            <p className="px-1 text-xs text-muted-foreground">{t(`${k}.skills.critical_hint`)}</p>
+                            {canWrite && <p className="px-1 text-xs text-muted-foreground">{t(`${k}.skills.critical_hint`)}</p>}
                           </>
                         ) : (
                           <p className="py-10 text-center text-sm text-muted-foreground">{t(`${k}.skills.none`)}</p>
@@ -588,13 +612,13 @@ export default function ProfilesPage() {
                         {nativeItems.length > 0 && (
                           <section className="flex flex-col gap-2">
                             <h3 className="px-1 text-sm font-semibold">{t(`${k}.tools.builtin`)}</h3>
-                            <PickerList items={nativeItems} onToggle={p.toggleNative} />
+                            <PickerList items={nativeItems} onToggle={p.toggleNative} readOnly={!canWrite} />
                           </section>
                         )}
                         {mcpItems.length > 0 && (
                           <section className="flex flex-col gap-2">
                             <h3 className="px-1 text-sm font-semibold">{t(`${k}.tools.mcp`)}</h3>
-                            <PickerList items={mcpItems} onToggle={p.toggleMcp} />
+                            <PickerList items={mcpItems} onToggle={p.toggleMcp} readOnly={!canWrite} />
                           </section>
                         )}
                         {nativeItems.length === 0 && mcpItems.length === 0 && (
@@ -610,7 +634,7 @@ export default function ProfilesPage() {
         </div>
       )}
 
-      {wizardOpen && (
+      {canWrite && wizardOpen && (
         <Dialog title={t(`${k}.wizard.title`)} closeLabel={t(`${k}.wizard.cancel`)} onClose={() => setWizardOpen(false)} className="max-w-xl">
           <form
             className="flex flex-col gap-4"
@@ -645,7 +669,7 @@ export default function ProfilesPage() {
 
       {previewSkill && <SkillPreview name={previewSkill} t={t} onClose={() => setPreviewSkill(null)} />}
 
-      {deleteOpen && selected && (
+      {canWrite && deleteOpen && selected && (
         <DeleteDialog name={selected.name} busy={p.saving} ns={`${k}.delete`} t={t} onConfirm={remove} onClose={() => setDeleteOpen(false)} />
       )}
 

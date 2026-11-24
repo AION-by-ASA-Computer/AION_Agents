@@ -290,7 +290,8 @@ async def delete_service_account(
     async with get_async_session_maker()() as session:
         u = await _load_or_404(session, account_id)
         identifier = u.identifier
-    await delete_user(account_id)
+    # Same caller: the anti-escalation checks of delete_user see who acts.
+    await delete_user(account_id, auth=auth)
     svc.invalidate_ltm_cache(identifier)
     await record_admin_action(
         tenant_id=tenant,

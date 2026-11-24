@@ -1,7 +1,8 @@
 "use client";
 
 /**
- * Tabbed rule editor (Profili · Skill · MCP · Tool nativi · Funzioni) shared
+ * Tabbed rule editor (Profili · Skill · MCP · Tool nativi · Funzioni ·
+ * Pannello admin) shared
  * by the group rules dialog and the user "Access" dialog. "Funzioni" holds
  * end-user capabilities (today: creating private profiles in chat-ui); their
  * names come from i18n (`admin_groups.capabilities.<id>`), not the backend.
@@ -23,6 +24,7 @@
 
 import { useState, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
+import { AdminAreasEditor } from "./AdminAreasEditor";
 import { RuleEditor } from "./RuleEditor";
 import { describeRule, k, optionsFor, RESOURCE_TYPES, type Catalog, type ResourceType, type Rule, type Rules, type T } from "./shared";
 
@@ -80,6 +82,10 @@ export function RulesTabs({
           <span className="text-xs text-muted-foreground">{describeRule(t, rules[active], active, new Map(options(active).map((o) => [o.id, o.name])))}</span>
         </div>
         {active !== "profile" && active !== "capability" && <p className="rounded-xl bg-secondary/60 px-3 py-2 text-xs text-muted-foreground">{t(`${k}.rule.scope_note`)}</p>}
+        {active === "admin_section" ? (
+          // Admin panel areas (Phase 5): per-area Nessuno / Lettura / Scrittura.
+          <AdminAreasEditor value={rules.admin_section} onChange={(rule) => onChange("admin_section", rule)} t={t} />
+        ) : (
         <RuleEditor
           key={active}
           value={rules[active]}
@@ -91,6 +97,7 @@ export function RulesTabs({
           someWhileEmpty={!!someChosen[active]}
           onSomeWhileEmpty={(v) => setSomeChosen((s) => ({ ...s, [active]: v }))}
         />
+        )}
         {renderExtra?.(active)}
       </div>
     </div>

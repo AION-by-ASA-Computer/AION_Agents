@@ -25,7 +25,6 @@
     "version_unknown": "Versión desconocida",
     "groups": {
       "agents": "Agentes",
-      "operations": "Operaciones",
       "observability": "Observabilidad",
       "access": "Acceso",
       "platform": "Plataforma"
@@ -34,7 +33,10 @@
     "theme_dark": "Cambiar al tema oscuro",
     "whatsapp": "WhatsApp",
     "telegram": "Telegram",
-    "service_accounts": "Cuentas de servicio"
+    "service_accounts": "Cuentas de servicio",
+    "no_access_title": "No tienes acceso a esta sección",
+    "no_access_body": "Pide a un administrador que te conceda esta área del panel.",
+    "read_only": "Solo lectura: puedes consultar esta sección pero no modificarla."
   },
   "admin_dashboard": {
     "title": "Resumen",
@@ -49,7 +51,8 @@
       "warn": "Revisar",
       "error": "No funciona",
       "checking": "Comprobando…",
-      "idle": "No configurado"
+      "idle": "No configurado",
+      "unchecked": "Sin comprobar"
     },
     "command": {
       "label": "Buscar en la administración",
@@ -3198,6 +3201,29 @@
         "summary_all": "todas las funciones",
         "summary_nothing": "ninguna función",
         "some_empty_hint": "Ninguna función seleccionada: equivale a «Ninguna función»."
+      },
+      "admin_section": {
+        "tab": "Panel admin",
+        "title": "Áreas del panel admin",
+        "all": "Todas las áreas",
+        "some": "Algunas áreas",
+        "nothing": "Ninguna área",
+        "all_hint": "",
+        "some_hint": "",
+        "nothing_hint": "",
+        "none_group": "El grupo no concede áreas del panel.",
+        "none_user": "Sin regla personal: deciden los grupos.",
+        "search": "Buscar",
+        "empty": "Ninguna área.",
+        "selected": "{{count}} áreas",
+        "summary_count": "{{count}} permisos",
+        "effective_title": "Panel admin ahora",
+        "effective_unlimited": "Ninguna área: solo ve el Resumen.",
+        "effective_all": "Todas las áreas.",
+        "effective_nothing": "Ninguna área.",
+        "summary_all": "todas las áreas",
+        "summary_nothing": "ninguna área",
+        "some_empty_hint": "Ninguna área seleccionada."
       }
     },
     "access": {
@@ -3236,7 +3262,51 @@
       "private_profiles_create": {
         "name": "Perfiles personales",
         "description": "Crear perfiles de agente personales desde el chat (Mis perfiles)."
+      },
+      "admin_panel_access": {
+        "name": "Panel admin",
+        "description": "Entrar en el panel admin (Resumen). Excluirlo = solo chat; las áreas concedidas por otras reglas siguen visibles."
+      },
+      "telegram_use": {
+        "name": "Telegram",
+        "description": "Crear y vincular bots de Telegram personales."
+      },
+      "whatsapp_use": {
+        "name": "WhatsApp",
+        "description": "Vincular el propio número de WhatsApp."
+      },
+      "api_keys_create": {
+        "name": "API keys",
+        "description": "Crear API keys personales."
       }
+    },
+    "areas": {
+      "access": {
+        "name": "Gestión de accesos",
+        "description": "Menú Accesos: usuarios, login y SSO, grupos, cuentas de servicio, seguridad."
+      },
+      "agents": {
+        "name": "Gestión de agentes",
+        "description": "Menú Agentes: perfiles, skills, memoria, tareas programadas."
+      },
+      "settings": {
+        "name": "Configuración",
+        "description": "Página Configuración: modelos, memoria, web, voz, sandbox, SMTP, servidor de archivos. Afecta a toda la plataforma."
+      },
+      "external": {
+        "name": "Aplicaciones externas",
+        "description": "MCP Hub, WhatsApp y Telegram."
+      },
+      "observability": {
+        "name": "Observabilidad",
+        "description": "Métricas, feedback, diagnóstico y sistema."
+      },
+      "hint": "Las reglas del usuario y de sus grupos se suman: en cada área vale el nivel más alto. Sin áreas solo se ve el Resumen; los superadmins siempre lo tienen todo."
+    },
+    "levels": {
+      "none": "Ninguno",
+      "read": "Lectura",
+      "write": "Escritura"
     }
   }
 }

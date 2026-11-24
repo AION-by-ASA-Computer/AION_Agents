@@ -4175,6 +4175,10 @@ async def create_user(
     from ..notifications.smtp_settings import smtp_configured
     from .public_urls import chat_base_url
 
+    # Only super-admins create super-admins (Phase 5 anti-escalation).
+    from ..access import escalation
+
+    escalation.ensure_can_set_roles(auth, body.roles or [])
     # The "svc-" prefix is reserved for service accounts, so an identifier
     # always tells which kind of account it is (and LTM gating can rely on it).
     if is_reserved_identifier(body.identifier):
@@ -4277,11 +4281,17 @@ async def send_password_link(
 ):
     """Invia all'utente un link per (re)impostare la password.
 
+    Phase 5: not on the caller's own account nor on a super-admin unless the
+    caller is a super-admin (``src.access.escalation``).
+
     ``reset`` se ha gia' una password, altrimenti ``invite`` (o ``migration``
     con SSO attivo). La password attuale resta valida finche' l'utente non
     ne sceglie una nuova. Senza SMTP la password viene sostituita subito da
     una temporanea, restituita solo in questa risposta.
     """
+    from ..access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     from ..auth.password_setup import deliver_password_setup, user_link_block_reason
     from ..auth.sso.login_mode import get_login_settings, reopen_migration
     from ..data.audit import record_admin_action
@@ -4333,9 +4343,17 @@ async def update_user(
     body: UserUpdate,
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ):
-    """Update an existing user."""
+    """Update an existing user.
+
+    Phase 5: a non-super-admin cannot edit their own account or a super-admin
+    and cannot give the ``admin`` role (``src.access.escalation``).
+    """
+    from ..access import escalation
     from ..data.models import User
     from ..data.user_password import get_roles, set_roles
+
+    await escalation.ensure_can_manage_user(auth, user_id)
+    escalation.ensure_can_set_roles(auth, body.roles)
 
     async with get_async_session_maker()() as session:
         u = await session.get(User, user_id)
@@ -4410,8 +4428,15 @@ async def update_user(
 
 
 @router.delete("/users/{user_id}")
-async def delete_user(user_id: str):
-    """Delete a user."""
+async def delete_user(
+    user_id: str,
+    auth: ChatAuthIdentity = Depends(require_admin_role),
+):
+    """Delete a user (Phase 5: not oneself, not a super-admin, unless the
+    caller is a super-admin)."""
+    from ..access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     from ..auth.sso.login_mode import (
         _check_migration_completion,
         _invalidate_cache,
@@ -4496,6 +4521,9 @@ async def update_user_profiles(
     cleared), which invalidates the cached principal; audited as
     ``user.profiles.update``.
     """
+    from ..access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     from ..access.store import SUBJECT_USER, set_rules
     from ..data.audit import record_admin_action
     from ..data.models import User

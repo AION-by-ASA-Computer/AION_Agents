@@ -10,6 +10,7 @@ import { Dialog } from "@/components/profiles/Dialog";
 import { ghostBtn, outlineBtn, solidBtn } from "@/components/ui/classes";
 import type { ToastState } from "@/components/PageToast";
 import { useT } from "@/lib/i18n/use-t";
+import { WriteOnly } from "@/lib/auth/admin-access";
 import { setupLinksToast } from "./setupLinks";
 import { TempPasswordsDialog, type TempPassword } from "./TempPasswordsDialog";
 import { SsoConfigPanel } from "./SsoConfigPanel";
@@ -286,10 +287,13 @@ export function SsoMigrationPanel({
           <p className="mt-1 max-w-[56ch] text-sm text-muted-foreground">
             Disattiva il Single Sign-On e torna all'accesso standard tramite password per tutti gli utenti.
           </p>
-          <button type="button" onClick={() => handleModeChangeRequest("password")} disabled={loadingSimulation} className={cn(solidBtn, "mt-4")}>
-            {loadingSimulation && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
-            {loadingSimulation ? "Verifica in corso…" : "Imposta come predefinita"}
-          </button>
+          {/* Switching the login mode is an "access" write: hidden for read-only users. */}
+          <WriteOnly area="access">
+            <button type="button" onClick={() => handleModeChangeRequest("password")} disabled={loadingSimulation} className={cn(solidBtn, "mt-4")}>
+              {loadingSimulation && <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden />}
+              {loadingSimulation ? "Verifica in corso…" : "Imposta come predefinita"}
+            </button>
+          </WriteOnly>
         </div>
       )}
 

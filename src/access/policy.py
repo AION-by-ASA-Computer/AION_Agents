@@ -16,8 +16,11 @@ Rules (``PLAN_access_control.md`` principle 3):
 - Private profiles (Phase 3, ``usr_*`` slugs) are usable only by their owner,
   whatever the ``profile`` rules say; nobody else can use them, admins
   included. ``GET /profiles`` lists them next to the allowed global ones.
-- ``admin_section`` / any action: super-admin only (``admin`` role) until
-  Phase 5.
+- ``admin_section`` (Phase 5): four panel areas (``access``, ``agents``,
+  ``external``, ``observability``) at ``read`` / ``write``, see
+  ``src/access/admin_areas.py``. No rule = **no** area (unlike "use" rules);
+  super-admins (``admin`` role) hold every area in write. ``resource_id``
+  ``"*"`` / ``None`` = any area.
 
 Unknown resource types are denied, so a typo never opens access.
 
@@ -29,8 +32,15 @@ from __future__ import annotations
 
 import fnmatch
 import logging
-from typing import Any, Iterable, List, Optional, Sequence
+from typing import Any, Dict, Iterable, List, Optional, Sequence
 
+from src.access.admin_areas import (
+    AREAS,
+    CAPABILITY_ADMIN_PANEL,
+    LEVEL_WRITE,
+    combine,
+    level_allows,
+)
 from src.access.principal import Principal
 
 logger = logging.getLogger("aion.access.policy")
@@ -198,7 +208,10 @@ def can(
     unknown resource types.
     """
     if resource_type == RESOURCE_ADMIN_SECTION:
-        return principal.is_superadmin
+        areas = admin_areas(principal)
+        if resource_id in (None, "*"):
+            return any(level_allows(lv, action) for lv in areas.values())
+        return level_allows(areas.get(resource_id), action)
     if resource_type == RESOURCE_PROFILE:
         if action != "use":
             return False
@@ -219,6 +232,36 @@ def can(
     return False
 
 
+def admin_areas(principal: Principal) -> Dict[str, str]:
+    """Effective ``{area: "read"|"write"}`` of the admin panel.
+
+    Super-admins get every area in write. Everybody else gets the sum of
+    their own and their groups' ``admin_section`` rules (no rule = no area).
+    API keys and internal calls never reach this with roles or grants of
+    their owner (see ``require_admin_role``).
+    """
+    if principal.is_superadmin:
+        return {a: LEVEL_WRITE for a in AREAS}
+    return combine(principal.allowed_ids(RESOURCE_ADMIN_SECTION))
+
+
+def can_enter_admin_panel(principal: Principal) -> bool:
+    """True if the user may open the admin panel at all.
+
+    Super-admins always; others when they hold at least one area **or** the
+    base capability ``admin_panel.access`` is not excluded ("Solo chat UI").
+    Areas granted by any rule win over "Solo chat UI" (permissions add up).
+    Identities without a ``users`` row (anonymous) never enter.
+    """
+    if principal.is_superadmin:
+        return True
+    if not principal.exists:
+        return False
+    if admin_areas(principal):
+        return True
+    return can(principal, "use", RESOURCE_CAPABILITY, CAPABILITY_ADMIN_PANEL)
+
+
 def effective_permissions(principal: Principal) -> List[str]:
     """Flat permission strings for clients (``/auth/me``).
 
@@ -232,7 +275,9 @@ def effective_permissions(principal: Principal) -> List[str]:
             perms.append(f"{rt}:*:use")
         else:
             perms.extend(f"{rt}:{i}:use" for i in ids)
-    if principal.is_superadmin:
-        perms.append(f"{RESOURCE_ADMIN_SECTION}:*:read")
-        perms.append(f"{RESOURCE_ADMIN_SECTION}:*:write")
+    # Admin areas: "write" implies "read", so both strings are listed.
+    for area, level in sorted(admin_areas(principal).items()):
+        perms.append(f"{RESOURCE_ADMIN_SECTION}:{area}:read")
+        if level == LEVEL_WRITE:
+            perms.append(f"{RESOURCE_ADMIN_SECTION}:{area}:write")
     return perms

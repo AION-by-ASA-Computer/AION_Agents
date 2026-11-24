@@ -7,13 +7,15 @@ import { apiFetch } from "@/lib/api/headers";
 import { apiBase } from "@/lib/api";
 import { PolicyEditor } from "@/components/policy-editor";
 import { outlineBtn, solidBtn } from "@/components/ui/classes";
-import { ChoiceList, Group, Mono, Note, SectionHead, Switch } from "./ui";
+import { ChoiceList, Group, Mono, Note, SectionHead, Switch, useSettingsReadOnly } from "./ui";
 import { K, type SectionCtx } from "./types";
 
 type PolicyType = "dev" | "production" | "custom";
 const m = `${K}.sandbox`;
 
 export function SandboxSection({ t, notify, onRestart }: Pick<SectionCtx, "t" | "notify" | "onRestart">) {
+  // Read-only admins see the active policy; derive / edit / save are hidden or locked.
+  const readOnly = useSettingsReadOnly();
   const [enabled, setEnabled] = useState(true);
   const [devYaml, setDevYaml] = useState("");
   const [prodYaml, setProdYaml] = useState("");
@@ -137,7 +139,7 @@ export function SandboxSection({ t, notify, onRestart }: Pick<SectionCtx, "t" | 
             title={type === "custom" ? t(`${m}.edit`) : t(`${m}.preview`)}
             description={t(`${m}.file`)}
             action={
-              type !== "custom" ? (
+              !readOnly && type !== "custom" ? (
                 <button
                   type="button"
                   className={outlineBtn}
@@ -153,7 +155,7 @@ export function SandboxSection({ t, notify, onRestart }: Pick<SectionCtx, "t" | 
           >
             <div className="flex flex-col gap-3 px-5 py-5">
               {type !== "custom" && <Note>{t(`${m}.readonly_note`)}</Note>}
-              <PolicyEditor value={current} onChange={(y) => type === "custom" && setCustomYaml(y)} readOnly={type !== "custom"} />
+              <PolicyEditor value={current} onChange={(y) => type === "custom" && setCustomYaml(y)} readOnly={readOnly || type !== "custom"} />
             </div>
           </Group>
         </>
@@ -163,7 +165,7 @@ export function SandboxSection({ t, notify, onRestart }: Pick<SectionCtx, "t" | 
         </Note>
       )}
 
-      {loaded && (
+      {!readOnly && loaded && (
         <div className="flex flex-wrap items-center justify-end gap-3">
           {dirty && <span className="text-sm text-muted-foreground" role="status">{t(`${m}.unsaved`)}</span>}
           <button type="button" onClick={() => void save()} disabled={saving || !dirty} className={solidBtn}>

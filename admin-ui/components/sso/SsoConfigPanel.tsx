@@ -7,6 +7,7 @@ import { Shield, Copy, Check, AlertTriangle, Loader2, Info, Save } from "lucide-
 import { cn } from "@/lib/cn";
 import { inputCls, outlineBtn, solidBtn } from "@/components/ui/classes";
 import { useT } from "@/lib/i18n/use-t";
+import { useCanWrite } from "@/lib/auth/admin-access";
 import { EntraLink, MicrosoftGuideDialog, rich } from "./MicrosoftSsoGuide";
 import { GoogleGuideDialog, GoogleLink } from "./GoogleSsoGuide";
 
@@ -49,6 +50,9 @@ export function SsoConfigPanel({
   const [copied, setCopied] = useState(false);
   const [guideOpen, setGuideOpen] = useState(false);
   const t = useT();
+  // Read-only users ("access" at read level) see the provider settings in disabled
+  // fields; save / verify / reset / set-as-default are hidden.
+  const canWrite = useCanWrite("access");
   const [redirectUri, setRedirectUri] = useState<string>("");
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
@@ -265,7 +269,7 @@ export function SsoConfigPanel({
         )}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+      <fieldset disabled={!canWrite} className="grid min-w-0 grid-cols-1 gap-4 md:grid-cols-2">
         {forcedProvider === "microsoft" && (
           <label className="flex flex-col gap-1.5 md:col-span-2">
             <span className={labelCls}>Directory (tenant) ID</span>
@@ -290,7 +294,7 @@ export function SsoConfigPanel({
           </span>
           <input type="text" value={allowedDomains} onChange={(e) => setAllowedDomains(e.target.value)} className={inputCls} placeholder="Restringi il login a questo dominio (separa più domini con una virgola)" />
         </label>
-      </div>
+      </fieldset>
 
       <div className="flex flex-col gap-2">
         <h4 className={labelCls}>Redirect URI autorizzato</h4>
@@ -323,12 +327,14 @@ export function SsoConfigPanel({
               <Check className="h-4 w-4 shrink-0" aria-hidden />
               <span className="font-medium">Configurazione validata</span>
             </div>
-            <button type="button" onClick={() => { setValidatedAt(null); }} className="focus-ring rounded-md text-xs font-medium underline underline-offset-4">
-              Reimposta
-            </button>
+            {canWrite && (
+              <button type="button" onClick={() => { setValidatedAt(null); }} className="focus-ring rounded-md text-xs font-medium underline underline-offset-4">
+                Reimposta
+              </button>
+            )}
           </div>
           )}
-          <div className="flex flex-col gap-2 sm:flex-row">
+          {canWrite && <div className="flex flex-col gap-2 sm:flex-row">
             <button
               type="button"
               disabled={saving}
@@ -364,9 +370,9 @@ export function SsoConfigPanel({
                 {t("admin_users.sso_guide.btn_default")}
               </button>
             )}
-          </div>
+          </div>}
         </div>
-      ) : (
+      ) : canWrite ? (
         <button
           type="button"
           disabled={saving || verifying || !clientId || (forcedProvider === "microsoft" && !directoryId)}
@@ -383,7 +389,7 @@ export function SsoConfigPanel({
             </>
           )}
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

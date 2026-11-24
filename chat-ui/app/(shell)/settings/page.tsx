@@ -37,6 +37,7 @@ import {
 } from "@/components/settings/ui";
 import { ShellSectionHeader } from "@/components/layout/ShellSectionHeader";
 import { useStoredToken, useStoredUserId } from "@/lib/auth/use-stored-auth";
+import { useCurrentUser } from "@/lib/auth/current-user";
 import { getTelegramStatus } from "@/lib/api/telegram";
 import { getWhatsAppStatus } from "@/lib/api/whatsapp";
 import { apiBase } from "@/lib/config";
@@ -132,6 +133,11 @@ export default function SettingsPage() {
   // (404 = not deployed), so users never land on a "not active on this server" dead end.
   const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   const [telegramEnabled, setTelegramEnabled] = useState(false);
+  // Phase 5: admins may switch these chat-ui features off per user / group
+  // ("Funzioni" rules); the backend refuses linking anyway.
+  const { can } = useCurrentUser();
+  const whatsappAllowed = can("capability", "use", "whatsapp.use");
+  const telegramAllowed = can("capability", "use", "telegram.use");
 
   const navItems = useMemo(
     () => [
@@ -139,16 +145,16 @@ export default function SettingsPage() {
       { id: "appearance" as const, label: t("settings.tab.appearance"), icon: Palette },
       { id: "security" as const, label: t("settings.tab.security"), icon: ShieldCheck },
       ...(currentToken ? [{ id: "api-keys" as const, label: t("settings.tab.api_keys"), icon: KeyRound }] : []),
-      ...(currentToken && whatsappEnabled
+      ...(currentToken && whatsappEnabled && whatsappAllowed
         ? [{ id: "whatsapp" as const, label: t("settings.tab.whatsapp"), icon: MessageCircle }]
         : []),
-      ...(currentToken && telegramEnabled
+      ...(currentToken && telegramEnabled && telegramAllowed
         ? [{ id: "telegram" as const, label: t("settings.tab.telegram"), icon: Send }]
         : []),
       { id: "instructions" as const, label: t("settings.tab.instructions"), icon: FileText },
       { id: "tunings" as const, label: t("settings.tab.tunings"), icon: SlidersHorizontal },
     ],
-    [t, currentToken, whatsappEnabled, telegramEnabled],
+    [t, currentToken, whatsappEnabled, telegramEnabled, whatsappAllowed, telegramAllowed],
   );
 
   const showToast = useCallback((message: string, variant: "success" | "error" = "success") => {
@@ -587,10 +593,10 @@ export default function SettingsPage() {
             {activeTab === "api-keys" && currentToken ? <ApiKeysSection onToast={showToast} /> : null}
 
             {/* Messaging channels: each section renders only once the backend confirms its channel is on. */}
-            {activeTab === "whatsapp" && currentToken && whatsappEnabled ? (
+            {activeTab === "whatsapp" && currentToken && whatsappEnabled && whatsappAllowed ? (
               <WhatsAppSection onToast={showToast} />
             ) : null}
-            {activeTab === "telegram" && currentToken && telegramEnabled ? (
+            {activeTab === "telegram" && currentToken && telegramEnabled && telegramAllowed ? (
               <TelegramSection onToast={showToast} />
             ) : null}
 

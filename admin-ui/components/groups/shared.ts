@@ -57,7 +57,7 @@ export interface EffectiveAccess {
 }
 
 /** Resource types an admin can write rules for (`EDITABLE_RESOURCE_TYPES` in `src/access/store.py`). */
-export const RESOURCE_TYPES = ["profile", "skill", "mcp_server", "native_tool_group", "capability"] as const;
+export const RESOURCE_TYPES = ["profile", "skill", "mcp_server", "native_tool_group", "capability", "admin_section"] as const;
 export type ResourceType = (typeof RESOURCE_TYPES)[number];
 
 /** One id that can go in a rule (`GET /admin/access/catalog`). */
@@ -71,7 +71,7 @@ export interface ResourceOption {
 export type Catalog = Record<ResourceType, ResourceOption[]>;
 
 /** Empty catalogue, used until `GET /admin/access/catalog` answers. */
-export const EMPTY_CATALOG: Catalog = { profile: [], skill: [], mcp_server: [], native_tool_group: [], capability: [] };
+export const EMPTY_CATALOG: Catalog = { profile: [], skill: [], mcp_server: [], native_tool_group: [], capability: [], admin_section: [] };
 
 /**
  * Options of one type as shown to the admin. Capabilities are translated
@@ -79,6 +79,13 @@ export const EMPTY_CATALOG: Catalog = { profile: [], skill: [], mcp_server: [], 
  * other types keep the catalogue names.
  */
 export function optionsFor(catalog: Catalog, rt: ResourceType, t: T): ResourceOption[] {
+  // Admin areas: "agents:write" -> "Gestione agenti · Scrittura".
+  if (rt === "admin_section") {
+    return catalog.admin_section.map((o) => {
+      const [area, level] = o.id.split(":");
+      return { ...o, name: `${t(`${k}.areas.${area}.name`)} · ${t(`${k}.levels.${level}`)}` };
+    });
+  }
   if (rt !== "capability") return catalog[rt];
   return catalog.capability.map((o) => {
     const key = `${k}.capabilities.${o.id.replace(/\./g, "_")}`;

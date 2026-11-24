@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/cn";
-import { adminUiBase } from "@/lib/config";
+import { adminUiBase, apiBase } from "@/lib/config";
 import { setStoredAuth } from "@/lib/auth/storage";
 import { useStoredToken } from "@/lib/auth/use-stored-auth";
 import { getLocale, setLocale, subscribe, type Locale } from "@/lib/i18n/i18n-store";
@@ -42,7 +42,11 @@ export function SidebarProfileMenu({
   avatarUrl?: string;
   profileColor?: string;
   isLoggedIn: boolean;
-  /** Ruolo `admin` da `/auth/me`; solo UX: l'accesso reale è imposto dal backend e dall'admin-ui. */
+  /**
+   * May open the admin panel (`admin_access` from `/auth/me`: super-admin, any
+   * admin area, or not "chat UI only"). UX only: the backend and the admin-ui
+   * enforce access.
+   */
   isAdmin?: boolean;
   variant?: "expanded" | "collapsed";
 }) {
@@ -55,6 +59,39 @@ export function SidebarProfileMenu({
   const [theme, setTheme] = useChatTheme();
   const locale = useSyncExternalStore(subscribe, getLocale, () => "en" as Locale);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  /**
+   * Open the admin panel already signed in (no second login): the backend
+   * turns the chat session into a one-time handoff code
+   * (`POST /auth/sso/admin-handoff`) and returns the admin-ui URL that
+   * exchanges it. The tab is opened synchronously (popup blockers) and then
+   * pointed at that URL; on any error it falls back to the admin-ui home,
+   * which shows its own login.
+   */
+  const openAdminPanel = async () => {
+    setOpen(false);
+    const win = window.open("", "_blank");
+    let url = adminUiBase();
+    try {
+      const res = await fetch(`${apiBase()}/auth/sso/admin-handoff`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ return_to: "/" }),
+      });
+      if (res.ok) {
+        const data = (await res.json()) as { url?: string };
+        if (data.url) url = data.url;
+      }
+    } catch {
+      /* network error: plain admin-ui URL */
+    }
+    if (win) {
+      win.opener = null;
+      win.location.href = url;
+    } else {
+      window.location.href = url;
+    }
+  };
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popoverRef = useRef<HTMLDivElement>(null);
 
@@ -221,17 +258,15 @@ export function SidebarProfileMenu({
           <span className="font-medium">{t("sidebar.settings")}</span>
         </Link>
         {isAdmin ? (
-          <a
-            href={adminUiBase()}
-            target="_blank"
-            rel="noopener noreferrer"
+          <button
+            type="button"
             role="menuitem"
-            className="focus-ring flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition hover:bg-muted/55 hover:text-foreground"
-            onClick={() => setOpen(false)}
+            className="focus-ring flex w-full cursor-pointer items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-muted-foreground transition hover:bg-muted/55 hover:text-foreground"
+            onClick={() => void openAdminPanel()}
           >
             <ShieldCheck className="h-4 w-4 shrink-0" aria-hidden />
             <span className="font-medium">{t("sidebar.profile_menu.admin_panel")}</span>
-          </a>
+          </button>
         ) : null}
         <button
           type="button"

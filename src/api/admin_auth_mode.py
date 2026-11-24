@@ -427,6 +427,10 @@ async def set_user_exempt(
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ) -> Dict[str, Any]:
     """Esonera o reintegra un utente nel conteggio migrazione."""
+    # Phase 5 anti-escalation: not oneself, not a super-admin.
+    from src.access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     tenant = _tenant_id()
     async with get_async_session_maker()() as session:
         user = await session.get(User, user_id)
@@ -512,6 +516,10 @@ async def unlink_sso_identity(
     riceve via email il link per impostarla (senza SMTP una password
     temporanea, solo in questa risposta) e la migrazione viene riaperta.
     """
+    # Phase 5 anti-escalation: not oneself, not a super-admin.
+    from src.access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     tenant = _tenant_id()
     async with get_async_session_maker()() as session:
         user = await session.get(User, user_id)
@@ -716,6 +724,10 @@ async def reset_user_two_factor(
     user_id: str,
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ) -> Dict[str, Any]:
+    # Phase 5 anti-escalation: not oneself, not a super-admin.
+    from src.access import escalation
+
+    await escalation.ensure_can_manage_user(auth, user_id)
     from src.auth.mfa.totp import reset_user_totp
 
     async with get_async_session_maker()() as session:

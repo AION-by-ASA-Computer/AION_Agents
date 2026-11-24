@@ -25,7 +25,6 @@
     "version_unknown": "Version unbekannt",
     "groups": {
       "agents": "Agenten",
-      "operations": "Betrieb",
       "observability": "Beobachtbarkeit",
       "access": "Zugriff",
       "platform": "Plattform"
@@ -34,7 +33,10 @@
     "theme_dark": "Zum dunklen Design wechseln",
     "whatsapp": "WhatsApp",
     "telegram": "Telegram",
-    "service_accounts": "Dienstkonten"
+    "service_accounts": "Dienstkonten",
+    "no_access_title": "Kein Zugriff auf diesen Bereich",
+    "no_access_body": "Bitten Sie einen Administrator, Ihnen diesen Bereich des Panels freizugeben.",
+    "read_only": "Nur Lesen: Sie können diesen Bereich ansehen, aber nicht ändern."
   },
   "admin_dashboard": {
     "title": "Übersicht",
@@ -49,7 +51,8 @@
       "warn": "Prüfen",
       "error": "Gestört",
       "checking": "Wird geprüft…",
-      "idle": "Nicht konfiguriert"
+      "idle": "Nicht konfiguriert",
+      "unchecked": "Nicht geprüft"
     },
     "command": {
       "label": "Admin-Seiten durchsuchen",
@@ -3198,6 +3201,29 @@
         "summary_all": "alle Funktionen",
         "summary_nothing": "keine Funktion",
         "some_empty_hint": "Keine Funktion ausgewählt: entspricht „Keine Funktion“."
+      },
+      "admin_section": {
+        "tab": "Admin-Panel",
+        "title": "Bereiche des Admin-Panels",
+        "all": "Alle Bereiche",
+        "some": "Einige Bereiche",
+        "nothing": "Kein Bereich",
+        "all_hint": "",
+        "some_hint": "",
+        "nothing_hint": "",
+        "none_group": "Die Gruppe gewährt keine Panel-Bereiche.",
+        "none_user": "Keine eigene Regel: Die Gruppen entscheiden.",
+        "search": "Suchen",
+        "empty": "Kein Bereich.",
+        "selected": "{{count}} Bereiche",
+        "summary_count": "{{count}} Berechtigungen",
+        "effective_title": "Admin-Panel jetzt",
+        "effective_unlimited": "Kein Bereich: nur die Übersicht.",
+        "effective_all": "Alle Bereiche.",
+        "effective_nothing": "Kein Bereich.",
+        "summary_all": "alle Bereiche",
+        "summary_nothing": "kein Bereich",
+        "some_empty_hint": "Kein Bereich ausgewählt."
       }
     },
     "access": {
@@ -3236,7 +3262,51 @@
       "private_profiles_create": {
         "name": "Private Profile",
         "description": "Eigene Agentenprofile im Chat erstellen (Meine Profile)."
+      },
+      "admin_panel_access": {
+        "name": "Admin-Panel",
+        "description": "Admin-Panel öffnen (Übersicht). Ausschließen = nur Chat; durch andere Regeln gewährte Bereiche bleiben sichtbar."
+      },
+      "telegram_use": {
+        "name": "Telegram",
+        "description": "Persönliche Telegram-Bots erstellen und verknüpfen."
+      },
+      "whatsapp_use": {
+        "name": "WhatsApp",
+        "description": "Die eigene WhatsApp-Nummer verknüpfen."
+      },
+      "api_keys_create": {
+        "name": "API-Schlüssel",
+        "description": "Persönliche API-Schlüssel erstellen."
       }
+    },
+    "areas": {
+      "access": {
+        "name": "Zugriffsverwaltung",
+        "description": "Menü Zugriff: Benutzer, Login und SSO, Gruppen, Dienstkonten, Sicherheit."
+      },
+      "agents": {
+        "name": "Agentenverwaltung",
+        "description": "Menü Agenten: Profile, Skills, Speicher, geplante Jobs."
+      },
+      "settings": {
+        "name": "Einstellungen",
+        "description": "Seite Einstellungen: Modelle, Speicher, Web, Sprache, Sandbox, SMTP, Dateiserver. Gilt für die ganze Plattform."
+      },
+      "external": {
+        "name": "Externe Anwendungen",
+        "description": "MCP Hub, WhatsApp und Telegram."
+      },
+      "observability": {
+        "name": "Beobachtbarkeit",
+        "description": "Metriken, Feedback, Diagnose und System."
+      },
+      "hint": "Regeln des Benutzers und seiner Gruppen addieren sich: Pro Bereich gilt die höchste Stufe. Ohne Bereiche ist nur die Übersicht sichtbar; Super-Admins haben immer alles."
+    },
+    "levels": {
+      "none": "Keine",
+      "read": "Lesen",
+      "write": "Schreiben"
     }
   }
 }

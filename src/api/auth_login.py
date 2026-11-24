@@ -21,7 +21,7 @@ import os
 import time
 from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Query
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from src.chat_auth import (
@@ -225,6 +225,16 @@ async def login(body: LoginBody):
         except Exception as _e:
             logger.warning("SSO login check failed: %s", _e)
 
+    # Admin panel login (Phase 5): refused early for "chat-ui only" users
+    # without any admin area, so the admin-ui can explain why instead of
+    # opening an empty panel. The token itself is the same as for the chat.
+    if body.client == "admin" and "admin" not in list(row.get("roles") or []):
+        from src.access.policy import can_enter_admin_panel
+        from src.access.principal import load_principal
+
+        if not can_enter_admin_panel(await load_principal(user_id_raw)):
+            raise HTTPException(403, detail={"code": "admin_panel_not_allowed"})
+
     # 2FA TOTP: password OK ma il token di sessione si emette solo dopo il codice.
     from src.auth.mfa import totp as _totp
 
@@ -308,7 +318,11 @@ async def me(authorization: Optional[str] = Header(None)):
 
     # Effective permissions for the clients (show/hide UI; the backend always
     # re-checks). Format "<resource_type>:<resource_id>:<action>".
-    from src.access.policy import effective_permissions
+    from src.access.policy import (
+        admin_areas,
+        can_enter_admin_panel,
+        effective_permissions,
+    )
     from src.access.principal import Principal, load_principal
 
     principal = await load_principal(user_row_id)
@@ -319,6 +333,11 @@ async def me(authorization: Optional[str] = Header(None)):
     access_payload = {
         "groups": list(principal.groups),
         "permissions": effective_permissions(principal),
+        # Admin panel (Phase 5): may the user open it, and with which areas
+        # ({"agents": "write", ...}); the admin-ui builds menu and read-only
+        # mode from these, the backend re-checks every /admin/* request.
+        "admin_access": can_enter_admin_panel(principal),
+        "admin_areas": admin_areas(principal),
     }
 
     async with get_async_session_maker()() as session:
@@ -893,49 +912,37 @@ async def _resolve_api_key_identity(
 
 async def require_admin_role(
     ctx: ChatAuthIdentity = Depends(require_chat_auth),
+    request: Request = None,  # type: ignore[assignment]
 ) -> ChatAuthIdentity:
-    """Guard per ``/admin/*``: richiede ruolo ``admin``.
+    """Guard of every ``/admin/*`` router (admin panel permissions, Phase 5).
 
-    - Se ``AION_ADMIN_PASSWORD_AUTH=0`` (escape-hatch dev) e nessun token e'
-      stato fornito, ``ctx.via == "anonymous"`` (vedi ``require_chat_auth``)
-      e il check viene saltato.
-    - Se ``AION_ADMIN_PASSWORD_AUTH=1`` (default): l'utente DEVE essere
-      autenticato (un Bearer token e' richiesto da ``require_chat_auth``) E
-      avere il ruolo ``admin``.
+    The request's method and path are looked up in the route table of
+    ``src.access.admin_areas`` (area + ``read``/``write``, dashboard data for
+    every panel user, super-admin only routes); the caller's effective areas
+    are read from the DB (``src.access.policy.admin_areas``: sum of direct and
+    group rules, everything for the ``admin`` role). Unmapped routes are
+    super-admin only.
+
+    - ``AION_ADMIN_PASSWORD_AUTH=0`` (dev escape hatch): no check at all.
+    - Anonymous callers: 401.
+    - API keys and the internal BFF secret never inherit their owner's roles
+      or areas: only chat tokens can use the admin panel.
+    - Called without a request (direct calls in tests / helpers): super-admin.
+
+    Endpoints also use it as a parameter dependency to get the caller's
+    identity; FastAPI runs it once per request.
     """
-    # Equivalent to require_permission("admin_section", "write") on "any
-    # section": today that means the super-admin role. Phase 5 replaces the
-    # router-level use of this guard with per-section permissions.
-    return await _check_permission(ctx, "write", "admin_section", "*")
+    from src.access.admin_areas import (
+        KIND_AREA,
+        KIND_PANEL,
+        Requirement,
+        route_requirement,
+    )
 
-
-async def _check_permission(
-    ctx: ChatAuthIdentity,
-    action: str,
-    resource_type: str,
-    resource_id: Optional[str],
-) -> ChatAuthIdentity:
-    """Shared body of ``require_admin_role`` / ``require_permission``.
-
-    Admin-section checks honour the ``AION_ADMIN_PASSWORD_AUTH=0`` dev escape
-    hatch and always require an authenticated caller. The decision itself is
-    delegated to ``src.access.policy.can``. Roles come from ``ctx`` (already
-    refreshed from the DB for chat tokens) and NOT from the user row, so API
-    keys and the internal BFF secret never inherit their owner's admin role.
-    """
-    from dataclasses import replace
-
-    from src.access.policy import RESOURCE_ADMIN_SECTION, can
-    from src.access.principal import Principal, load_principal
-
-    is_admin_check = resource_type == RESOURCE_ADMIN_SECTION
-    if is_admin_check and not admin_password_auth_enabled():
+    if not admin_password_auth_enabled():
         return ctx
-
-    if ctx.via == "anonymous" and is_admin_check:
-        # Nessun token presentato: ma password_auth chat era disattivata.
-        # Forziamo qui l'autenticazione perche' il pannello admin va comunque
-        # protetto secondo la policy "sempre attiva".
+    if ctx.via == "anonymous":
+        # No token: the admin panel is always protected (Grafana-style policy).
         raise HTTPException(
             401,
             detail=(
@@ -944,16 +951,111 @@ async def _check_permission(
             ),
         )
 
+    requirement: Optional[Requirement] = None
+    if request is not None:
+        path = request.scope.get("path") or request.url.path
+        root = request.scope.get("root_path") or ""
+        if root and path.startswith(root):
+            path = path[len(root) :]
+        requirement = route_requirement(request.method, path)
+
+    principal = await _admin_principal(ctx)
+    if _admin_allowed(principal, requirement):
+        return ctx
+    detail: Dict[str, Any] = {
+        "code": "permission_denied",
+        "message": "Admin permission required",
+    }
+    if requirement is not None and requirement.kind == KIND_AREA:
+        detail["areas"] = list(requirement.areas)
+        detail["action"] = requirement.action
+    elif requirement is not None and requirement.kind == KIND_PANEL:
+        detail["code"] = "admin_panel_not_allowed"
+    raise HTTPException(403, detail=detail)
+
+
+async def _admin_principal(ctx: ChatAuthIdentity):
+    """Principal used for admin checks: DB areas only for chat tokens.
+
+    Roles come from ``ctx`` (refreshed from the DB for chat tokens); API keys
+    and internal calls get an empty principal (no roles, no areas).
+    """
+    from dataclasses import replace
+
+    from src.access.principal import Principal, load_principal
+
+    if ctx.via != "chat_token" or not ctx.user_row_id:
+        return Principal(user_row_id=ctx.user_row_id, roles=tuple(ctx.roles or []))
+    return replace(await load_principal(ctx.user_row_id), roles=tuple(ctx.roles or []))
+
+
+async def admin_caller_areas(ctx: ChatAuthIdentity) -> Optional[Dict[str, str]]:
+    """Admin areas of the caller, for endpoints that check more finely than
+    the route table (e.g. ``/admin/settings`` per key).
+
+    ``None`` means unrestricted: super-admin, or admin auth disabled
+    (``AION_ADMIN_PASSWORD_AUTH=0``). Otherwise ``{area: level}``.
+    """
+    from src.access.policy import admin_areas
+
+    if not admin_password_auth_enabled():
+        return None
+    principal = await _admin_principal(ctx)
+    if principal.is_superadmin:
+        return None
+    return admin_areas(principal)
+
+
+def _admin_allowed(principal, requirement) -> bool:
+    """Decision for one admin request (see ``require_admin_role``)."""
+    from src.access.admin_areas import KIND_AREA, KIND_PANEL, level_allows
+    from src.access.policy import admin_areas, can_enter_admin_panel
+
+    if principal.is_superadmin:
+        return True
+    if requirement is None or requirement.kind not in (KIND_AREA, KIND_PANEL):
+        return False  # unmapped or super-admin only
+    if requirement.kind == KIND_PANEL:
+        return can_enter_admin_panel(principal)
+    areas = admin_areas(principal)
+    return any(
+        level_allows(areas.get(a), requirement.action) for a in requirement.areas
+    )
+
+
+async def _check_permission(
+    ctx: ChatAuthIdentity,
+    action: str,
+    resource_type: str,
+    resource_id: Optional[str],
+) -> ChatAuthIdentity:
+    """Body of ``require_permission``: one ``src.access.policy.can`` check.
+
+    Admin-section checks honour the ``AION_ADMIN_PASSWORD_AUTH=0`` dev escape
+    hatch and always require an authenticated caller. Roles come from ``ctx``
+    (already refreshed from the DB for chat tokens) and NOT from the user row,
+    so API keys and the internal BFF secret never inherit their owner's admin
+    role or areas.
+    """
+    from src.access.policy import RESOURCE_ADMIN_SECTION, can
+
+    is_admin_check = resource_type == RESOURCE_ADMIN_SECTION
+    if is_admin_check and not admin_password_auth_enabled():
+        return ctx
+    if ctx.via == "anonymous" and is_admin_check:
+        raise HTTPException(401, detail="Admin authentication required.")
+
     if is_admin_check:
-        # Admin sections depend on roles only (Phase 0): skip the DB read.
-        principal = Principal(user_row_id=ctx.user_row_id, roles=tuple(ctx.roles or []))
+        principal = await _admin_principal(ctx)
     else:
+        from dataclasses import replace
+
+        from src.access.principal import load_principal
+
         principal = replace(
             await load_principal(ctx.user_row_id), roles=tuple(ctx.roles or [])
         )
     if not can(principal, action, resource_type, resource_id):
-        if is_admin_check:
-            raise HTTPException(403, detail="Admin role required")
         raise HTTPException(
             403,
             detail={
@@ -964,13 +1066,23 @@ async def _check_permission(
     return ctx
 
 
+async def ensure_capability(ctx: ChatAuthIdentity, capability: str) -> None:
+    """403 ``permission_denied`` unless the caller may use ``capability``.
+
+    For endpoints that already resolved the caller (e.g. ``_me`` helpers of
+    ``/v1/me/*``): admins can switch chat-ui features off per user / group
+    (``capability`` rules, Phase 5), allowed while no rule restricts them.
+    """
+    await _check_permission(ctx, "use", "capability", capability)
+
+
 def require_permission(
     resource_type: str, action: str, resource_id: Optional[str] = "*"
 ):
     """FastAPI dependency factory: 403 unless the caller may ``action`` on
     ``resource_type``/``resource_id`` (see ``src.access.policy.can``).
 
-    Example: ``Depends(require_permission("admin_section", "write", "profiles"))``.
+    Example: ``Depends(require_permission("admin_section", "write", "agents"))``.
     Returns the caller's ``ChatAuthIdentity``.
     """
 

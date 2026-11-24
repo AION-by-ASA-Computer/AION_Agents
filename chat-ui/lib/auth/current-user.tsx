@@ -40,6 +40,8 @@ export type CurrentUser = {
   roles: string[];
   groups: string[];
   permissions: string[];
+  /** May the user open the admin panel (Phase 5: super-admin, any area, or not "chat-ui only"). */
+  admin_access?: boolean;
   metadata?: { avatar_url?: string; profile_color?: string; language?: string };
 };
 
@@ -140,9 +142,12 @@ export function CurrentUserProvider({ children }: { children: React.ReactNode })
     return {
       user,
       loading,
+      // Backend decision when available (Phase 5), role / admin areas otherwise.
       isAdmin:
         !!user &&
-        (user.roles.includes("admin") || hasPermission(perms, "admin_section", "read")),
+        (typeof user.admin_access === "boolean"
+          ? user.admin_access
+          : user.roles.includes("admin") || hasPermission(perms, "admin_section", "read")),
       can: (resourceType, action, resourceId) =>
         hasPermission(perms, resourceType, action, resourceId),
       reload: load,

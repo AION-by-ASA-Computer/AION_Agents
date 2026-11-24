@@ -15,6 +15,9 @@ nothing, ``["*"]`` = everything); semantics in ``src/access/store.py`` and
 ``PLAN_access_control.md``. Editable types: ``profile`` (Phase 1),
 ``skill``, ``mcp_server``, ``native_tool_group`` (Phase 2).
 
+Writes are refused by ``src.access.escalation`` when a non-super-admin
+targets themself, a super-admin or a group containing either (Phase 5).
+
 Persistence (and principal cache invalidation) is in ``src.access.store``;
 this module validates input, maps errors to HTTP and writes the audit log.
 Used by the admin-ui Users page (tabs "Account" and "Gruppi").
@@ -30,7 +33,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 
-from src.access import store
+from src.access import escalation, store
 from src.access.catalog import resource_catalog, resource_ids
 from src.access.principal import load_principal
 from src.api.auth_login import ChatAuthIdentity, require_admin_role
@@ -103,6 +106,10 @@ def _validate_rules(
     least one existing id. Ids are checked against ``src.access.catalog`` so a
     typo cannot silently lock users out. Unknown profiles keep the Phase 1
     error code ``unknown_profiles``; other types return ``unknown_resources``.
+
+    ``admin_section`` (Phase 5) accepts only exact ``<area>:<level>`` ids (no
+    ``*``, no patterns: the full panel is the super-admin role); when both
+    levels of an area are sent, only ``write`` is kept (it includes read).
     """
     import fnmatch
 
@@ -114,9 +121,15 @@ def _validate_rules(
                 detail={"code": "resource_type_not_editable", "resource_type": rt},
             )
         normalized = store.normalize_rule(entries)
+        exact_only = rt in ("profile", "admin_section", "capability")
+        if rt == "admin_section" and normalized == [store.WILDCARD]:
+            raise HTTPException(
+                422,
+                detail={"code": "unknown_resources", "resource_type": rt, "ids": ["*"]},
+            )
         if normalized and normalized != [store.WILDCARD]:
             known = set(resource_ids(rt))
-            globs_ok = rt != "profile"
+            globs_ok = not exact_only
             unknown = [
                 i
                 for i in normalized
@@ -138,6 +151,13 @@ def _validate_rules(
                         "ids": unknown,
                     },
                 )
+        if rt == "admin_section" and normalized:
+            write_areas = {i.split(":")[0] for i in normalized if i.endswith(":write")}
+            normalized = [
+                i
+                for i in normalized
+                if not (i.endswith(":read") and i.split(":")[0] in write_areas)
+            ]
         out[rt] = normalized
     return out
 
@@ -252,6 +272,7 @@ async def update_group(
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ) -> Dict[str, Any]:
     """Rename / re-describe a group."""
+    await escalation.ensure_can_manage_group(auth, group_id)
     try:
         g = await store.update_group(
             group_id,
@@ -277,6 +298,7 @@ async def delete_group(
     group_id: str, auth: ChatAuthIdentity = Depends(require_admin_role)
 ) -> Dict[str, Any]:
     """Delete a group: its members lose the group's rules immediately."""
+    await escalation.ensure_can_manage_group(auth, group_id)
     g = await _group_or_404(group_id)
     await store.delete_group(group_id, _tenant_id())
     await _audit(auth, "group.delete", "group", group_id, {"slug": g.slug})
@@ -290,6 +312,7 @@ async def set_group_members(
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ) -> Dict[str, Any]:
     """Replace the members of a group (``users.id`` list)."""
+    await escalation.ensure_can_set_members(auth, group_id, body.user_ids)
     try:
         diff = await store.set_members(
             group_id, body.user_ids, tenant_id=_tenant_id(), actor=auth.identifier
@@ -319,6 +342,7 @@ async def set_group_rules(
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ) -> Dict[str, Any]:
     """Replace the group's rules for the resource types in the body."""
+    await escalation.ensure_can_manage_group(auth, group_id)
     await _group_or_404(group_id)
     rules = _validate_rules(body.rules)
     await store.set_rules(
@@ -355,6 +379,7 @@ async def set_user_groups(
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ) -> Dict[str, Any]:
     """Replace the groups of a user."""
+    await escalation.ensure_can_set_user_groups(auth, user_id, body.group_ids)
     await _get_user_or_404(user_id)
     try:
         diff = await store.set_user_groups(
@@ -383,6 +408,7 @@ async def set_user_rules(
     auth: ChatAuthIdentity = Depends(require_admin_role),
 ) -> Dict[str, Any]:
     """Replace the user's direct rules for the resource types in the body."""
+    await escalation.ensure_can_manage_user(auth, user_id)
     await _get_user_or_404(user_id)
     rules = _validate_rules(body.rules)
     await store.set_rules(

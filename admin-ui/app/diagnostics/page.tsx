@@ -13,6 +13,7 @@ import { Stream } from "@/components/diagnostics/Stream";
 import { ReportReader } from "@/components/diagnostics/ReportReader";
 import { History } from "@/components/diagnostics/History";
 import { ResultDialog } from "@/components/diagnostics/ResultDialog";
+import { useCanWrite } from "@/lib/auth/admin-access";
 
 const k = "admin_diagnostics";
 type Tab = "stream" | "report" | "history";
@@ -20,6 +21,9 @@ type Tab = "stream" | "report" | "history";
 export default function DiagnosticsPage() {
   const t = useT();
   const d = useDiagnostics(t);
+  // Starting / cancelling a test run is a write on the observability area: read-only
+  // users browse scenarios, the stream and past reports, without the run controls.
+  const canWrite = useCanWrite("observability");
   const [tab, setTab] = useState<Tab>("stream");
   const [filter, setFilter] = useState("all");
   const [autoScroll, setAutoScroll] = useState(true);
@@ -55,30 +59,32 @@ export default function DiagnosticsPage() {
           <h1 className="text-balance text-2xl font-semibold tracking-[-0.02em] sm:text-[28px]">{t(`${k}.title`)}</h1>
           <p className="mt-1 max-w-[60ch] text-sm text-muted-foreground">{t(`${k}.subtitle`)}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="w-full sm:w-64">
-            <Select
-              size="sm"
-              value={d.profile}
-              onChange={d.setProfile}
-              options={profileOptions}
-              disabled={d.running || d.profilesLoading}
-              placeholder={d.profilesLoading ? t(`${k}.profile_loading`) : t(`${k}.profile_label`)}
-              aria-label={t(`${k}.profile_label`)}
-            />
+        {canWrite && (
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="w-full sm:w-64">
+              <Select
+                size="sm"
+                value={d.profile}
+                onChange={d.setProfile}
+                options={profileOptions}
+                disabled={d.running || d.profilesLoading}
+                placeholder={d.profilesLoading ? t(`${k}.profile_loading`) : t(`${k}.profile_label`)}
+                aria-label={t(`${k}.profile_label`)}
+              />
+            </div>
+            {d.running ? (
+              <button type="button" className={dangerBtn} onClick={d.stop}>
+                <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
+                {t(`${k}.stop`)}
+              </button>
+            ) : (
+              <button type="button" className={solidBtn} onClick={d.run} disabled={d.profilesLoading}>
+                <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
+                {t(`${k}.run`)}
+              </button>
+            )}
           </div>
-          {d.running ? (
-            <button type="button" className={dangerBtn} onClick={d.stop}>
-              <Square className="h-3.5 w-3.5 fill-current" aria-hidden />
-              {t(`${k}.stop`)}
-            </button>
-          ) : (
-            <button type="button" className={solidBtn} onClick={d.run} disabled={d.profilesLoading}>
-              <Play className="h-3.5 w-3.5 fill-current" aria-hidden />
-              {t(`${k}.run`)}
-            </button>
-          )}
-        </div>
+        )}
       </header>
 
       <Scenarios tests={d.tests} onOpen={setOpenId} t={t} />
