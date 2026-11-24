@@ -64,7 +64,7 @@ Custom Python tools can push directly with `chart_queue.push(session_id, chart_d
 
 | Action | Effect on charts |
 | :--- | :--- |
-| Delete conversation (`DELETE /chat-ui/conversations/{id}`, `DELETE /v1/conversations/{id}`) | SQLite rows of the conversation (and its side threads) and the live Redis key are removed. Conversations are soft-deleted, so this is explicit. |
+| Delete conversation (`DELETE /chat-ui/conversations/{id}`, `DELETE /v1/conversations/{id}`) | SQLite rows of the conversation (and its branches and side threads) and the live Redis key are removed by the conversation purge (`src/runtime/conversation_purge.py`). |
 | Delete last turn (`DELETE /chat-ui/conversations/{id}/messages/{mid}`) | Rows linked to the removed messages are deleted; the live key is cleared. |
 | Hard purge of a conversation row | `ON DELETE CASCADE` on `session_charts.conversation_id`. |
 

@@ -427,8 +427,28 @@
     "rename": "Renommer",
     "search_placeholder": "Rechercher des conversations…",
     "theme": "Thème",
+    "section_collapse": "Réduire la section",
+    "section_expand": "Développer la section",
     "from_whatsapp": "Conversation depuis WhatsApp",
-    "from_telegram": "Conversation depuis Telegram"
+    "from_telegram": "Conversation depuis Telegram",
+    "folders": {
+      "title": "Dossiers",
+      "new": "Nouveau dossier",
+      "name_placeholder": "Nom du dossier",
+      "options": "Options du dossier",
+      "delete": "Supprimer le dossier",
+      "delete_confirm": "Supprimer le dossier ? Les chats sont conservés.",
+      "empty": "Aucun chat ici",
+      "count": "{{count}} chats",
+      "move_to": "Déplacer vers un dossier",
+      "remove_from_folder": "Retirer du dossier",
+      "no_folders": "Aucun dossier. Créez-en un avec + à côté de Dossiers.",
+      "drop_here": "Déposez ici pour retirer du dossier",
+      "name_taken": "Un dossier portant ce nom existe déjà.",
+      "name_too_long": "Nom trop long (128 caractères max.).",
+      "limit_reached": "Nombre maximal de dossiers atteint.",
+      "error": "L'opération a échoué. Réessayez."
+    }
   },
   "schedulesPage": {
     "title": "Automatisations",
@@ -1270,6 +1290,8 @@
     "hint_notes": "Notes Mnemos du projet : faits, écueils, décisions et leçons apprises.",
     "hint_user": "Vos notes Mnemos personnelles — préférences, identité et faits transversaux.",
     "no_capabilities": "Ce profil n'expose pas de mémoire SQL ou Mnemos.",
+    "protocol_warning_title": "Skill memory_protocol non activée",
+    "protocol_warning_body": "La mémoire fonctionne, mais sans cette skill l'agent enregistre et rappelle rarement des notes. Demandez à un administrateur d'ajouter memory_protocol aux skills du profil.",
     "tab_debug": "Débogage",
     "tab_notes": "Projet",
     "tab_user": "Vous",

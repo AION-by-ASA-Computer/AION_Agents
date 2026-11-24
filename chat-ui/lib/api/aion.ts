@@ -464,6 +464,8 @@ export type ConversationSummary = {
   parent_conversation_id?: string | null;
   /** Number of live side threads opened from this conversation. */
   thread_count?: number;
+  /** Sidebar folder (`/chat-ui/folders`); null/absent = no folder ("Recent"). */
+  folder_id?: string | null;
 };
 
 /** TextQuoteSelector-style anchor of a side thread inside its source assistant message. */
@@ -523,13 +525,129 @@ export async function createSideThread(
   return (await r.json()) as SideThreadSummary & { created: boolean };
 }
 
-export async function listChatUiConversations(userId: string, token?: string | null): Promise<ConversationSummary[]> {
-  const r = await fetch(`${apiBase()}/chat-ui/conversations?limit=80&exclude_scheduled=true`, {
+/**
+ * Sidebar conversation list.
+ *
+ * Without `opts.folderId` it returns the 80 most recent chats of every folder
+ * (Favorites + Recent). With a folder id it returns that folder's chats (up to
+ * 200, loaded when the folder is expanded, so older chats are not cut off by
+ * the 80-item window); `"none"` returns only chats without a folder.
+ */
+export async function listChatUiConversations(
+  userId: string,
+  token?: string | null,
+  opts?: { folderId?: string; signal?: AbortSignal },
+): Promise<ConversationSummary[]> {
+  const params = new URLSearchParams({
+    limit: opts?.folderId ? "200" : "80",
+    exclude_scheduled: "true",
+  });
+  if (opts?.folderId) params.set("folder_id", opts.folderId);
+  const r = await fetch(`${apiBase()}/chat-ui/conversations?${params.toString()}`, {
     headers: baseUserHeaders(userId, token),
+    signal: opts?.signal,
   });
   if (!r.ok) return [];
   const j = (await r.json()) as { data?: ConversationSummary[] };
   return j.data || [];
+}
+
+/** A user's sidebar folder (purely organisational, see docs/clients/chat-folders.md). */
+export type ChatFolder = {
+  id: string;
+  name: string;
+  /** Ascending sidebar order. */
+  position: number;
+  /** Chats in the folder (not archived, no side threads/branches). */
+  conversation_count: number;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+/** Error raised by folder mutations; `code` is the backend `detail` (e.g. `folder_name_taken`). */
+export class ChatFolderError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+  ) {
+    super(code);
+  }
+}
+
+/** Throws a {@link ChatFolderError} carrying the backend `detail` when `r` is not ok. */
+async function ensureFolderOk(r: Response): Promise<void> {
+  if (r.ok) return;
+  let code = `http_${r.status}`;
+  try {
+    const j = (await r.json()) as { detail?: unknown };
+    if (typeof j.detail === "string") code = j.detail;
+  } catch {
+    /* non-JSON error body */
+  }
+  throw new ChatFolderError(r.status, code);
+}
+
+/** Folders of the user in sidebar order; empty list on error (sidebar keeps working). */
+export async function listChatFolders(userId: string, token?: string | null): Promise<ChatFolder[]> {
+  try {
+    const r = await fetch(`${apiBase()}/chat-ui/folders`, { headers: baseUserHeaders(userId, token) });
+    if (!r.ok) return [];
+    const j = (await r.json()) as { data?: ChatFolder[] };
+    return j.data || [];
+  } catch {
+    return [];
+  }
+}
+
+/** Creates a folder at the end of the list. Throws `ChatFolderError` (409 `folder_name_taken`, 422…). */
+export async function createChatFolder(name: string, userId: string, token?: string | null): Promise<ChatFolder> {
+  const r = await fetch(`${apiBase()}/chat-ui/folders`, {
+    method: "POST",
+    headers: jsonHeaders(userId, token),
+    body: JSON.stringify({ name }),
+  });
+  await ensureFolderOk(r);
+  return (await r.json()) as ChatFolder;
+}
+
+/** Renames and/or repositions a folder. Throws `ChatFolderError`. */
+export async function updateChatFolder(
+  folderId: string,
+  patch: { name?: string; position?: number },
+  userId: string,
+  token?: string | null,
+): Promise<ChatFolder> {
+  const r = await fetch(`${apiBase()}/chat-ui/folders/${encodeURIComponent(folderId)}`, {
+    method: "PATCH",
+    headers: jsonHeaders(userId, token),
+    body: JSON.stringify(patch),
+  });
+  await ensureFolderOk(r);
+  return (await r.json()) as ChatFolder;
+}
+
+/** Deletes a folder; its chats are kept and go back to "no folder". Throws `ChatFolderError`. */
+export async function deleteChatFolder(folderId: string, userId: string, token?: string | null): Promise<void> {
+  const r = await fetch(`${apiBase()}/chat-ui/folders/${encodeURIComponent(folderId)}`, {
+    method: "DELETE",
+    headers: baseUserHeaders(userId, token),
+  });
+  await ensureFolderOk(r);
+}
+
+/** Moves a chat into `folderId`, or out of any folder with `null`. Throws `ChatFolderError`. */
+export async function moveConversationToFolder(
+  conversationId: string,
+  folderId: string | null,
+  userId: string,
+  token?: string | null,
+): Promise<void> {
+  const r = await fetch(`${apiBase()}/chat-ui/conversations/${encodeURIComponent(conversationId)}/folder`, {
+    method: "PUT",
+    headers: jsonHeaders(userId, token),
+    body: JSON.stringify({ folder_id: folderId }),
+  });
+  await ensureFolderOk(r);
 }
 
 export type ChatHistoryStep = {
@@ -787,11 +905,15 @@ export async function updateConversationTitle(
   return r.json();
 }
 
+/**
+ * Permanently deletes a chat with its branches, side threads, session files and data.
+ * `deleted_ids` lists every conversation removed (the chat itself first); null on failure.
+ */
 export async function deleteConversation(
   conversationId: string,
   userId: string,
   token?: string | null
-): Promise<{ success: boolean } | null> {
+): Promise<{ success: boolean; deleted_ids?: string[] } | null> {
   const r = await fetch(`${apiBase()}/chat-ui/conversations/${encodeURIComponent(conversationId)}`, {
     method: "DELETE",
     headers: baseUserHeaders(userId, token),

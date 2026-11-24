@@ -167,6 +167,13 @@ async def _patch_sqlite_columns(engine: AsyncEngine, conn) -> None:
             ("forked_from_id", "forked_from_id VARCHAR(64)"),
             ("forked_at_message_id", "forked_at_message_id VARCHAR(64)"),
             ("fork_seq", "fork_seq INTEGER"),
+            # Chat folders (i7f8l9d037). create_all has already created
+            # chat_folders, so the REFERENCES target exists; SQLite allows
+            # ADD COLUMN with a FK because the default is NULL.
+            (
+                "folder_id",
+                "folder_id VARCHAR(64) REFERENCES chat_folders(id) ON DELETE SET NULL",
+            ),
         ):
             await _sqlite_add_column_if_missing(conn, "conversations", col, ddl)
         await _sqlite_create_index_if_missing(
@@ -186,6 +193,12 @@ async def _patch_sqlite_columns(engine: AsyncEngine, conn) -> None:
             "ix_conversations_forked_from_id",
             "CREATE INDEX IF NOT EXISTS ix_conversations_forked_from_id "
             "ON conversations(forked_from_id)",
+        )
+        await _sqlite_create_index_if_missing(
+            conn,
+            "ix_conversations_folder_id",
+            "CREATE INDEX IF NOT EXISTS ix_conversations_folder_id "
+            "ON conversations(folder_id)",
         )
 
     # Observability + timeline columns (migrate_v3 / g3h4i5j6k007). Skipped when

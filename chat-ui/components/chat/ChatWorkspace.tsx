@@ -142,6 +142,7 @@ import { readStoredSqlProject } from "@/components/memory/ProjectMemoryToolbar";
 import { ProjectCreateModal } from "@/components/memory/ProjectCreateModal";
 import { fetchSqlProjects, type SqlProject } from "@/lib/api/query-memory";
 import {
+  hasMemoryProtocolSkill,
   hasMnemosTools,
   hasSqlQueryMemory,
   hasWebResearch,
@@ -839,9 +840,17 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
     () => hasMnemosTools(activeProfileRow),
     [activeProfileRow]
   );
+  // Memory dock tab and "+" menu project entry: Mnemos OR query memory
+  // (independent systems sharing only projects); see showProjectMemoryUi.
   const showProjectMemory = useMemo(
     () => showProjectMemoryUi(activeProfileRow),
     [activeProfileRow]
+  );
+  // Mnemos without the memory_protocol skill: keep the memory, warn in the panel.
+  // No warning while profiles are loading (no row yet).
+  const missingMemoryProtocol = useMemo(
+    () => Boolean(activeProfileRow) && showNavigationMemory && !hasMemoryProtocolSkill(activeProfileRow),
+    [activeProfileRow, showNavigationMemory]
   );
   // The web search toggle exists only when the profile carries the
   // web_research native group (the backend drops the tools otherwise). While
@@ -4011,6 +4020,7 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
           onProjectChange={handleProjectChange}
           showSqlQueryMemory={showSqlQueryMemory}
           showNavigationMemory={showNavigationMemory}
+          missingMemoryProtocol={missingMemoryProtocol}
         />
       )}
       {dockTab === "khub_file" && (
@@ -5976,7 +5986,10 @@ export function ChatWorkspace({ conversationId: initialConversationId }: { conve
                                     messages[messages.length - 1]?.id === m.id
                                   }
                                   pinned
-                                  onMemorize={() => handleMemorize(m.id)}
+                                  // Mnemos only: memorize_instruction makes the agent call memory_note,
+                                  // which does not exist without the mnemos group (query memory alone
+                                  // saves SQL through its own tools during normal turns).
+                                  onMemorize={showNavigationMemory ? () => handleMemorize(m.id) : undefined}
                                   threadCount={sideThreadsByMessage.get(m.id)?.length ?? 0}
                                   onOpenThreads={() => {
                                     const list = sideThreadsByMessage.get(m.id);

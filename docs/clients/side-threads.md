@@ -86,8 +86,8 @@ All endpoints use the usual chat-ui auth (`Authorization: Bearer <chat token>`; 
   Parent uploads are synced into the thread workspace.
 - `GET /chat-ui/conversations/{id}` — also returns `parent_conversation_id`,
   `parent_message_id`, `parent_title`, `anchor`.
-- `DELETE /chat-ui/conversations/{id}` — archives the child threads too and releases
-  their MCP sessions.
+- `DELETE /chat-ui/conversations/{id}` — permanently deletes the child threads too
+  (see [Deleting a conversation](../api-and-runtime/rest-api.md#delete-conversation)).
 - `POST /v1/chat/stream` — now rejects (`404`) an existing `session_id` owned by another user.
 
 ## Agent context

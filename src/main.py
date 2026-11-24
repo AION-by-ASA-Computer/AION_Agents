@@ -936,6 +936,30 @@ async def _realign_session_profile(
     )
 
 
+async def evict_session_agents(session_id: str) -> int:
+    """Drop every in-process artefact built for a deleted chat session.
+
+    Called by ``src/runtime/conversation_purge.py`` when a conversation is
+    deleted: removes the cached agents of the session (all profiles) and the
+    module-level MCP wrapper functions registered for it. Without this the LRU
+    cache would keep the deleted session's agent (and its tool closures) alive
+    until evicted by size. In-flight builds are left alone: their leader
+    resolves and removes its own future (popping it here would strand waiters).
+    Returns the number of cached agents removed.
+    """
+    sid = (session_id or "").strip()
+    if not sid:
+        return 0
+    # Cache keys are "<session>\0<profile>\0<...>" (see get_agent).
+    prefix = f"{sid}\0"
+    async with _AGENT_CACHE_LOCK:
+        stale = [k for k in _AGENT_CACHE if k.startswith(prefix)]
+        for key in stale:
+            _AGENT_CACHE.pop(key, None)
+    _purge_aion_mcp_tool_functions(sid)
+    return len(stale)
+
+
 def clear_agent_cache() -> None:
     """Drop cached agents (e.g. after LLM provider or token limit changes)."""
     _AGENT_CACHE.clear()

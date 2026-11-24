@@ -16,6 +16,7 @@ from pydantic import AliasChoices, BaseModel, Field
 
 from src.api.auth_login import ChatAuthIdentity, require_chat_auth
 from src.api.auth.scopes import Scope
+from src.api.chat_folders import folder_filter_values
 from src.api.contract_models import MessagesResponse, StreamStatus, UpdatedResponse
 from src.api.ownership import chat_user_id_scope, claim_conversation_for_write
 from src.data.engine import get_async_session_maker
@@ -186,9 +187,19 @@ async def list_conversations_chat_ui(
         False,
         description="Include conversation branches (forked conversations) in the list",
     ),
+    folder_id: Optional[str] = Query(
+        None,
+        description=(
+            "Sidebar folder filter: a folder id, or 'none' for chats without a "
+            "folder. Omitted = every chat (see src/api/chat_folders.py)."
+        ),
+    ),
     user_id: str = Depends(chat_user_id_scope(Scope.CONVERSATIONS_READ)),
 ):
     _require_unified()
+    # Direct calls (tests) pass FastAPI Query objects for omitted params.
+    if hasattr(folder_id, "default"):
+        folder_id = folder_id.default
     if hasattr(limit, "default"):
         limit = limit.default
     if hasattr(exclude_scheduled, "default"):
@@ -208,6 +219,11 @@ async def list_conversations_chat_ui(
             conds.append(Conversation.parent_conversation_id.is_(None))
         if not include_branches:
             conds.append(Conversation.forked_from_id.is_(None))
+        folder_values = folder_filter_values(folder_id)
+        if folder_values == [None]:
+            conds.append(Conversation.folder_id.is_(None))
+        elif folder_values:
+            conds.append(Conversation.folder_id == folder_values[0])
         q = (
             select(Conversation)
             .where(*conds)
@@ -234,6 +250,7 @@ async def list_conversations_chat_ui(
                 "updated_at": r.updated_at.isoformat() if r.updated_at else None,
                 "parent_conversation_id": r.parent_conversation_id,
                 "thread_count": thread_counts.get(r.id, 0),
+                "folder_id": r.folder_id,
             }
         )
         if len(data) >= limit:
@@ -837,6 +854,7 @@ async def get_conversation_chat_ui(
             "forked_from_id": r.forked_from_id,
             "forked_at_message_id": r.forked_at_message_id,
             "fork_seq": r.fork_seq,
+            "folder_id": r.folder_id,
         }
 
 
@@ -1468,52 +1486,29 @@ async def delete_conversation_chat_ui(
     conv_id: str,
     user_id: str = Depends(chat_user_id_scope(Scope.CONVERSATIONS_WRITE)),
 ):
+    """Permanently delete a chat (sidebar "Delete") and everything tied to it.
+
+    Removes the conversation, its branches (when deleting a root chat) and its
+    side threads: DB rows, session folder ``data/sessions/<id>/``, storage
+    files, MCP workers and cached agents (see ``src/runtime/conversation_purge.py``).
+    ``deleted_ids`` lets chat-ui leave the page if the open chat was among them.
+    """
     _require_unified()
     tenant = (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default"
+
+    from src.runtime.conversation_purge import (
+        collect_conversation_family,
+        purge_conversations,
+    )
 
     async with get_async_session_maker()() as session:
         r = await session.get(Conversation, conv_id)
         if not r or r.tenant_id != tenant or r.user_id != user_id:
             raise HTTPException(404, "Not found")
+        ids = await collect_conversation_family(session, r)
 
-        now = datetime.now(timezone.utc)
-        r.archived_at = now
-        session.add(r)
-        children = (
-            (
-                await session.execute(
-                    select(Conversation).where(
-                        Conversation.parent_conversation_id == conv_id,
-                        Conversation.archived_at.is_(None),
-                    )
-                )
-            )
-            .scalars()
-            .all()
-        )
-        for child in children:
-            child.archived_at = now
-            session.add(child)
-        await session.commit()
-        released_ids = [conv_id] + [c.id for c in children]
-
-    # Conversations are soft-deleted (archived_at): drop their chart history
-    # explicitly (SQLite rows + live Redis entries), the FK cascade won't fire.
-    from src.charts_store import delete_conversation_charts
-
-    await delete_conversation_charts(released_ids)
-
-    try:
-        from src.mcp_manager import mcp_manager
-
-        for sid in released_ids:
-            await mcp_manager.release_session(sid)
-    except Exception as e:
-        logger.warning(
-            "Failed to release MCP session for conversation %s: %s", conv_id, e
-        )
-
-    return {"success": True}
+    result = await purge_conversations(ids, tenant_id=tenant)
+    return {"success": True, "deleted_ids": result["conversation_ids"]}
 
 
 @router.get("/khub/file")
