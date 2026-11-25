@@ -5,6 +5,29 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0](https://github.com/AION-by-ASA-Computer/AION_Agents/compare/v1.7.1...v1.8.0) (2026-11-25)
+
+
+### Features
+
+* **branding:** tenant logo, favicon and primary colour ([765af94](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/765af94d94f140ece6c4d394bf7e4ee49825176e))
+* chat folder and delete session fix ([0e3e0d2](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/0e3e0d2aadf7e59b1633a8d7f9bdd4000d9491fa))
+* chat folder and delete session fix ([48465ce](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/48465ce2f3375fef03fcaddb5c63f0891ed6fb67))
+* **subagents:** native delegate_to_agent tool + automatic delegation skill ([9bb2a9b](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/9bb2a9bc788f8db09870b9c02e8eb38d2e211a35))
+* **subagents:** native delegate_to_agent tool with automatic delegation skill ([30862ae](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/30862aedae12467ac3785b55605ed9c6e646cead))
+* users group creation and fix permission access ([2252f2a](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/2252f2a49c7c68b6624426802c5446d1bded2acf))
+* users groups ([12297af](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/12297aff983dd8319cbb5a13423b0b728558bc8f))
+
+
+### Bug Fixes
+
+* **ci:** ruff formatting and CodeQL URL-sanitization alerts in tests ([6961779](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/69617796a37e7ba605b51bd69c011fa4ce59279f))
+* docker build ([ad00f80](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/ad00f806125a2971c41bfcb5294ee4c1518aca0c))
+* docs update ([ab8c56a](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/ab8c56ab88ca54a1c8b74c186ed78cdde076dd54))
+* documentation clarity and structure ([3cd976f](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/3cd976ff785dc3529865345e18f9313bc59b22b9))
+* docx usage and word generation ([6adaf70](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/6adaf70f5c2c7ae4afee4c59276833540d4b1bdb))
+* grafica ([4fb1435](https://github.com/AION-by-ASA-Computer/AION_Agents/commit/4fb1435c4c2d781a26a0fb0c623ab1935cc28f27))
+
 ## [1.7.1](https://github.com/AION-by-ASA-Computer/AION_Agents/compare/v1.7.0...v1.7.1) (2026-11-17)
 
 
