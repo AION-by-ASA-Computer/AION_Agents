@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} skills",
       "meta_tools_one": "{{count}} outil",
       "meta_tools_other": "{{count}} outils",
+      "meta_subagents_one": "{{count}} sous-agent",
+      "meta_subagents_other": "{{count}} sous-agents",
       "back": "Tous les profils"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Instructions",
       "tab_skills": "Skills",
       "tab_tools": "Outils",
+      "tab_subagents": "Sous-agents",
       "instructions_placeholder": "Tu es un assistant expert qui…",
       "save": "Enregistrer",
       "saving": "Enregistrement…",
@@ -340,6 +343,17 @@
       "filter_aria": "Filtrer les outils",
       "filter_all": "Tous",
       "filter_attached": "Associés"
+    },
+    "subagents": {
+      "title": "Sous-agents",
+      "hint": "L'agent peut déléguer une tâche autonome à ces profils avec l'outil delegate_to_agent. Chaque sous-agent travaille dans sa propre conversation en lecture seule et ne peut pas déléguer à son tour. Les utilisateurs n'accèdent qu'aux profils qui leur sont autorisés.",
+      "no_description": "Aucune description : ajoutez-en une, l'agent s'en sert pour choisir à qui déléguer.",
+      "missing": "Introuvable",
+      "missing_hint": "Ce profil n'existe plus : retirez-le avant d'enregistrer.",
+      "search": "Rechercher des profils",
+      "filter_aria": "Filtrer les sous-agents",
+      "none": "Aucun profil ne correspond à la recherche.",
+      "no_profiles": "Il n'y a pas encore d'autres profils : créez-en un pour l'utiliser comme sous-agent."
     },
     "wizard": {
       "title": "Créer un profil avec l’IA",
@@ -1724,7 +1738,8 @@
       "sandbox": "Sandbox",
       "retention": "Conservation",
       "smtp": "E-mail (SMTP)",
-      "smb": "Serveur de fichiers"
+      "smb": "Serveur de fichiers",
+      "branding": "Marque"
     },
     "page": {
       "title": "Paramètres",
@@ -2323,6 +2338,58 @@
         "cancel": "Annuler",
         "confirm": "Retirer",
         "deleting": "Retrait…"
+      }
+    },
+    "branding": {
+      "title": "Marque",
+      "description": "Logo, favicon et couleur principale de votre entreprise dans le chat, le panneau d'administration et les e-mails envoyés aux utilisateurs.",
+      "loading": "Chargement des paramètres de marque…",
+      "load_failed": "Impossible de charger les paramètres de marque.",
+      "powered_by_note": "Avec un logo personnalisé, « Powered by AION » (lien vers aion-asa.com) s'affiche toujours sous le logo et en pied des e-mails. Il ne peut pas être désactivé.",
+      "logo": "Logo",
+      "logo_hint": "Affiché sur les pages de connexion, les barres latérales et les e-mails. Ajoutez une version pour le thème sombre si la version claire se lit mal sur fond sombre.",
+      "logo_light": "Logo thème clair",
+      "logo_dark": "Logo thème sombre",
+      "optional": "Facultatif",
+      "logo_dark_fallback": "Le logo clair est utilisé",
+      "logo_formats": "PNG, JPEG, WebP ou SVG, jusqu'à 1 Mo. Un logo horizontal sur fond transparent donne le meilleur résultat.",
+      "favicon": "Favicon",
+      "favicon_hint": "Icône de l'onglet du navigateur pour le chat et le panneau d'administration.",
+      "favicon_formats": "PNG, ICO ou SVG, jusqu'à 256 Ko. Carrée, au moins 32×32.",
+      "email_svg_note": "Les e-mails n'intègrent que des logos PNG ou JPEG : avec ce format ils gardent l'en-tête par défaut. Ajoutez un logo clair PNG/JPEG pour l'afficher aussi dans les e-mails.",
+      "no_image": "Aucune image",
+      "upload": "Importer",
+      "replace": "Remplacer",
+      "remove": "Supprimer",
+      "uploaded": "Image enregistrée.",
+      "removed": "Image supprimée.",
+      "colors": "Couleur principale",
+      "colors_hint": "Utilisée pour les boutons, liens, contours de focus et mises en avant. Vide = rouge AION par défaut.",
+      "color_light": "Thème clair",
+      "color_dark": "Thème sombre",
+      "color_default": "Par défaut AION",
+      "color_dark_fallback": "Identique au thème clair",
+      "low_contrast": "Contraste faible avec le fond de la page : boutons et liens risquent d'être peu visibles.",
+      "preview": "Aperçu",
+      "preview_button": "Bouton",
+      "preview_link": "Lien",
+      "theme_light": "Clair",
+      "theme_dark": "Sombre",
+      "reset_colors": "Rétablir les couleurs AION",
+      "unsaved": "Modifications non enregistrées",
+      "save": "Enregistrer les couleurs",
+      "saving": "Enregistrement…",
+      "saved": "Couleurs enregistrées.",
+      "err_save": "Impossible d'enregistrer les paramètres de marque.",
+      "err_upload": "Impossible d'importer l'image.",
+      "err_network": "Erreur réseau : réessayez.",
+      "errors": {
+        "invalid_color": "Utilisez une couleur hexadécimale comme #1d4ed8.",
+        "empty_file": "Le fichier est vide.",
+        "too_large": "Le fichier est trop volumineux (max {{max}}).",
+        "unsupported_type": "Format non pris en charge.",
+        "unsafe_svg": "Ce SVG contient des scripts ou du contenu externe et ne peut pas être utilisé.",
+        "invalid_kind": "Type d'image inconnu."
       }
     }
   },

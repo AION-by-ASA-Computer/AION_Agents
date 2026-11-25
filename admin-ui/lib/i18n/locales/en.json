@@ -273,6 +273,8 @@
       "meta_skills_other": "{{count}} skills",
       "meta_tools_one": "{{count}} tool",
       "meta_tools_other": "{{count}} tools",
+      "meta_subagents_one": "{{count}} sub-agent",
+      "meta_subagents_other": "{{count}} sub-agents",
       "back": "All profiles"
     },
     "empty": {
@@ -292,6 +294,7 @@
       "tab_instructions": "Instructions",
       "tab_skills": "Skills",
       "tab_tools": "Tools",
+      "tab_subagents": "Sub-agents",
       "instructions_placeholder": "You are an expert assistant that…",
       "save": "Save",
       "saving": "Saving…",
@@ -340,6 +343,17 @@
       "filter_aria": "Filter tools",
       "filter_all": "All",
       "filter_attached": "Attached"
+    },
+    "subagents": {
+      "title": "Sub-agents",
+      "hint": "The agent can delegate a self-contained task to these profiles with the delegate_to_agent tool. Each sub-agent runs in its own read-only conversation and cannot delegate further. Users only reach the profiles they are allowed to use.",
+      "no_description": "No description: add one, the agent uses it to choose whom to delegate to.",
+      "missing": "Missing",
+      "missing_hint": "This profile no longer exists: remove it before saving.",
+      "search": "Search profiles",
+      "filter_aria": "Filter sub-agents",
+      "none": "No profile matches the search.",
+      "no_profiles": "There are no other profiles yet: create one to use it as a sub-agent."
     },
     "wizard": {
       "title": "Create a profile with AI",
@@ -1725,7 +1739,8 @@
       "sandbox": "Sandbox",
       "retention": "Retention",
       "smtp": "Email (SMTP)",
-      "smb": "File server"
+      "smb": "File server",
+      "branding": "Brand"
     },
     "page": {
       "title": "Settings",
@@ -2324,6 +2339,58 @@
         "cancel": "Cancel",
         "confirm": "Remove",
         "deleting": "Removing…"
+      }
+    },
+    "branding": {
+      "title": "Brand",
+      "description": "Your company logo, favicon and primary colour in the chat, the admin panel and the emails sent to users.",
+      "loading": "Loading brand settings…",
+      "load_failed": "Could not load the brand settings.",
+      "powered_by_note": "With a custom logo, \"Powered by AION\" (link to aion-asa.com) is always shown under it and in the email footer. It cannot be turned off.",
+      "logo": "Logo",
+      "logo_hint": "Shown on login pages, sidebars and emails. Upload a version for the dark theme if the light one is hard to see on dark backgrounds.",
+      "logo_light": "Light theme logo",
+      "logo_dark": "Dark theme logo",
+      "optional": "Optional",
+      "logo_dark_fallback": "Using the light logo",
+      "logo_formats": "PNG, JPEG, WebP or SVG, up to 1 MB. A wide logo with a transparent background works best.",
+      "favicon": "Favicon",
+      "favicon_hint": "Browser tab icon for the chat and the admin panel.",
+      "favicon_formats": "PNG, ICO or SVG, up to 256 KB. Square, at least 32×32.",
+      "email_svg_note": "Emails only embed PNG or JPEG logos: with this format they keep the default header. Upload a PNG/JPEG light logo to show it in emails too.",
+      "no_image": "No image",
+      "upload": "Upload",
+      "replace": "Replace",
+      "remove": "Remove",
+      "uploaded": "Image saved.",
+      "removed": "Image removed.",
+      "colors": "Primary colour",
+      "colors_hint": "Used for buttons, links, focus rings and highlights. Empty = AION default red.",
+      "color_light": "Light theme",
+      "color_dark": "Dark theme",
+      "color_default": "AION default",
+      "color_dark_fallback": "Same as the light theme",
+      "low_contrast": "Low contrast with the page background: buttons and links may be hard to see.",
+      "preview": "Preview",
+      "preview_button": "Button",
+      "preview_link": "Link",
+      "theme_light": "Light",
+      "theme_dark": "Dark",
+      "reset_colors": "Restore AION colours",
+      "unsaved": "Unsaved changes",
+      "save": "Save colours",
+      "saving": "Saving…",
+      "saved": "Colours saved.",
+      "err_save": "Could not save the brand settings.",
+      "err_upload": "Could not upload the image.",
+      "err_network": "Network error: try again.",
+      "errors": {
+        "invalid_color": "Use a hex colour like #1d4ed8.",
+        "empty_file": "The file is empty.",
+        "too_large": "The file is too large (max {{max}}).",
+        "unsupported_type": "Unsupported format.",
+        "unsafe_svg": "This SVG contains scripts or external content and cannot be used.",
+        "invalid_kind": "Unknown image type."
       }
     }
   },

@@ -11,6 +11,14 @@ from src.runtime.plan_display import (
 )
 
 
+# ``tool_event`` payload types emitted by src/runtime/subagent_orchestrator.py
+# on the parent session bus.
+SUBAGENT_EVENT_TYPES = frozenset({"subagent_start", "subagent_step", "subagent_end"})
+
+# Max child tool steps kept per sub-agent in the persisted timeline.
+SUBAGENT_MAX_STEPS = 40
+
+
 def _seg_id(prefix: str, n: int) -> str:
     return f"{prefix}_{n}"
 
@@ -27,6 +35,9 @@ class TimelineBuilder:
         self._active_tool_by_name: Dict[str, str] = {}
         self._artifacts: Dict[str, Dict[str, Any]] = {}
         self._artifact_order: List[str] = []
+        # Sub-agent progress keyed by the parent ``delegate_to_agent`` tool
+        # call id; attached to that tool segment as ``subagent``.
+        self._subagents: Dict[str, Dict[str, Any]] = {}
 
     def apply_chunk(self, chunk: Dict[str, Any]) -> None:
         ctype = str(chunk.get("type") or "")
@@ -79,6 +90,10 @@ class TimelineBuilder:
                     if ev.get("tool_call_id"):
                         seg["toolCallId"] = str(ev["tool_call_id"])
                     self.segments.append(seg)
+                return
+
+            if et in SUBAGENT_EVENT_TYPES:
+                self._apply_subagent_event(ev)
                 return
 
             if et == "request_sync":
@@ -404,8 +419,82 @@ class TimelineBuilder:
             }
         )
 
+    def _apply_subagent_event(self, ev: Dict[str, Any]) -> None:
+        """Merge a ``subagent_start|step|end`` event into its parent tool segment.
+
+        Mirrors the chat-ui reducer: the ``delegate_to_agent`` tool card shows
+        the sub-agent status, its tool steps and a result preview, and links to
+        the child conversation. Steps are capped so long runs keep the
+        persisted timeline small (the transcript holds the full detail).
+        """
+        tid = str(ev.get("parent_tool_call_id") or "").strip()
+        if not tid:
+            return
+        et = str(ev.get("type") or "")
+        state = self._subagents.setdefault(
+            tid,
+            {
+                "runId": str(ev.get("run_id") or ""),
+                "conversationId": str(ev.get("child_conversation_id") or ""),
+                "profile": str(ev.get("profile") or ""),
+                "status": "running",
+                "steps": [],
+                "stepCount": 0,
+            },
+        )
+        if et == "subagent_start":
+            state["profileName"] = str(ev.get("profile_name") or state["profile"])
+            state["task"] = str(ev.get("task") or "")
+            state["status"] = "running"
+        elif et == "subagent_step":
+            step = ev.get("step") if isinstance(ev.get("step"), dict) else {}
+            sid = str(step.get("id") or "")
+            steps: List[Dict[str, Any]] = state["steps"]
+            existing = next((x for x in steps if sid and x.get("id") == sid), None)
+            if existing is not None:
+                existing["status"] = str(step.get("status") or existing["status"])
+            else:
+                if str(step.get("status") or "") == "running":
+                    state["stepCount"] = int(state.get("stepCount") or 0) + 1
+                steps.append(
+                    {
+                        "id": sid,
+                        "name": str(step.get("name") or "tool"),
+                        "status": str(step.get("status") or "running"),
+                    }
+                )
+                del steps[:-SUBAGENT_MAX_STEPS]
+        elif et == "subagent_end":
+            state["status"] = str(ev.get("status") or "done")
+            if isinstance(ev.get("steps"), int):
+                state["stepCount"] = ev["steps"]
+            if ev.get("error"):
+                state["error"] = str(ev["error"])
+            state["resultPreview"] = str(ev.get("result_preview") or "")
+            files = ev.get("files")
+            if isinstance(files, list):
+                state["files"] = [str(f) for f in files][:50]
+            # Steps still marked running when the child ended were interrupted.
+            for x in state["steps"]:
+                if x.get("status") == "running":
+                    x["status"] = "done" if state["status"] == "done" else "error"
+        idx = next(
+            (
+                i
+                for i, seg in enumerate(self.segments)
+                if seg.get("kind") == "tool" and seg.get("id") == tid
+            ),
+            -1,
+        )
+        if idx >= 0:
+            self.segments[idx] = {**self.segments[idx], "subagent": dict(state)}
+
     def _upsert_tool(self, seg: Dict[str, Any]) -> None:
         tid = seg.get("id")
+        # Keep the sub-agent block when tool_end / tool_error rewrite the segment.
+        sub = self._subagents.get(str(tid or ""))
+        if sub is not None and "subagent" not in seg:
+            seg = {**seg, "subagent": dict(sub)}
         idx = next(
             (
                 i

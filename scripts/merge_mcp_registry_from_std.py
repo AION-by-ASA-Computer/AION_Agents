@@ -25,8 +25,10 @@ _SKIP_KEYS = frozenset({"_removed"})
 
 # Slugs removed from the product. Upgrade must delete them from local registries.
 # Marketplace servers that are not in this set are left untouched.
+# ``aion_subagents`` was replaced by the native ``delegate_to_agent`` tool
+# (profile key ``subagents``, see docs/agents/subagents.md).
 RETIRED_MCP_SLUGS = frozenset(
-    {"mempalace", "memory", "sql_query_memory", "sqlquerymemory"}
+    {"mempalace", "memory", "sql_query_memory", "sqlquerymemory", "aion_subagents"}
 )
 
 

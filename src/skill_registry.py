@@ -10,6 +10,8 @@ from typing import Any, Dict, List, Optional
 
 import frontmatter
 
+from .runtime.profile_schema import is_system_skill
+
 logger = logging.getLogger("aion.skills")
 
 # Companion markdown files merged into skill_view body for package skills.
@@ -128,7 +130,14 @@ class SkillRegistry:
                 meta_raw = dict(post.metadata) if post.metadata else {}
                 body = post.content or ""
                 slug = meta_raw.get("name") or f.stem
-                if slug in self._hidden:
+                # Runtime-managed skills (``SYSTEM_SKILLS``, e.g. ``delegation``)
+                # come only from the shipped dir: a local or generated copy (old
+                # admin edits, stale v1 files) is ignored and they cannot be
+                # hidden, so delegation always runs on the shipped protocol.
+                if is_system_skill(slug):
+                    if d.resolve() != self.curated_fallback_dir.resolve():
+                        continue
+                elif slug in self._hidden:
                     continue
                 version = int(meta_raw.get("version", 1))
                 base = self._default_meta(slug)

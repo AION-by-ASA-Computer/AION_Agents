@@ -128,6 +128,21 @@ def build_link(base_url: str, raw_token: str) -> str:
     return f"{base_url.rstrip('/')}/set-password#token={raw_token}"
 
 
+async def _email_branding(tenant_id: str):
+    """Tenant branding for platform emails, or None (default look) on any error.
+
+    Branding is cosmetic: a DB hiccup here must never prevent a password link
+    from being delivered.
+    """
+    try:
+        from src.branding.service import get_email_branding
+
+        return await get_email_branding(tenant_id)
+    except Exception:  # noqa: BLE001
+        logger.warning("Branding email non disponibile; uso il default", exc_info=True)
+        return None
+
+
 async def issue_setup_links(
     tenant_id: str,
     user_ids: List[str],
@@ -205,6 +220,8 @@ async def issue_setup_links(
         await session.commit()
 
     lang = cfg.email_language
+    # Tenant logo/colour for the emails; a branding failure must not block delivery.
+    branding = await _email_branding(tenant_id)
     for item in to_send:
         info = item["info"]
         subject, text, html = email_templates.render(
@@ -217,6 +234,7 @@ async def issue_setup_links(
                 "expires": _format_expiry(expires, lang),
                 "platform": platform_name(),
             },
+            branding=branding,
         )
         error: Optional[str] = None
         try:
@@ -227,6 +245,7 @@ async def issue_setup_links(
                 text=text,
                 html=html,
                 cfg=cfg,
+                branding=branding,
             )
         except EmailSendError as e:
             error = e.code

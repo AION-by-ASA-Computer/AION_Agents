@@ -128,11 +128,7 @@ AION implements a hook system inspired by Claude Code and Hermes that allows ext
 
 ### Subagent Pattern
 
-:::warning
-Sub-agents are under development and **are not working** in this version of the codebase.
-
-The architecture provides for delegating tasks to specialized **Subagents** (isolated profiles operating in child conversations via the `delegate_to_subagent` tool), in order to guarantee context isolation and prevent pollution of the main context. However, this functionality is currently not active or usable.
-:::
+The agent can delegate a self-contained task to another profile listed in its `subagents` allowlist through the native `delegate_to_agent` tool. The child runs one headless pipeline turn in a hidden conversation `sub_<slug>_<hex>` with `message_source="subagent"` (forced normal mode, no LTM extraction, no skill distillation, no further delegation). Its tool steps are relayed on the parent stream as `subagent_start` / `subagent_step` / `subagent_end` tool events and merged into the `delegate_to_agent` tool segment of the timeline. See **[Sub-agents](../agents/subagents.md)**.
 
 ### Slash Commands
 Slash commands (e.g. `/help`, `/clear`, `/compact`, `/ttc`) are managed by the `SlashCommandRouter` via the `on_user_message` hook. If a message starts with `/`, it is routed to the corresponding command handler, skipping the normal LLM call if the command is self-contained. The old `/plan` no longer creates plans: it replies with a message indicating to use **Plan mode** in the chat-ui.

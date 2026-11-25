@@ -753,7 +753,7 @@ export function DeepResearchPanel({
                         <div className="flex flex-wrap items-center gap-2 w-full sm:w-auto">
                           <button
                             type="button"
-                            className="focus-ring inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white px-4 py-2 text-xs font-semibold shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
+                            className="focus-ring inline-flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-rose-500 to-brand-end hover:from-rose-600 hover:to-brand-end-hover text-white px-4 py-2 text-xs font-semibold shadow-md shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all hover:scale-[1.02] active:scale-[0.98] cursor-pointer"
                             onClick={() => openReport(j.session_id, token)}
                           >
                             <ExternalLink className="h-3.5 w-3.5" />

@@ -121,9 +121,14 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
     <div className="flex h-full min-h-0 flex-col">
       <div className={cn("flex shrink-0 items-center gap-2", rail ? "justify-center px-2 pb-3 pt-3" : "px-4 pb-3 pt-3.5")}>
         {!rail && (
-          <Link href="/" className="focus-ring min-w-0 flex-1 rounded-lg" aria-label={t("admin_nav.dashboard")}>
-            <AdminBrand className="max-w-[120px]" />
-          </Link>
+          <div className="min-w-0 flex-1">
+            <AdminBrand
+              href="/"
+              linkLabel={t("admin_nav.dashboard")}
+              className="max-w-[120px]"
+              placement="sidebar"
+            />
+          </div>
         )}
         <button
           type="button"
@@ -307,7 +312,7 @@ export default function AppShell({ children }: { children: React.ReactNode }) {
             <Menu className="h-5 w-5" />
           </button>
           <div className="lg:hidden">
-            <AdminBrand className="max-w-[96px]" />
+            <AdminBrand className="max-w-[96px]" placement="topbar" />
           </div>
           <div className="ml-auto flex min-w-0 items-center gap-2 text-xs text-muted-foreground">
             <span className="hidden shrink-0 sm:inline">{t("admin_nav.api")}</span>

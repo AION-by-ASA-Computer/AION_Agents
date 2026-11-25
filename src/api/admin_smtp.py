@@ -13,6 +13,7 @@ from pydantic import BaseModel, Field
 
 from src.api.auth_login import ChatAuthIdentity, require_admin_role
 from src.auth.password_setup import normalize_email, platform_name
+from src.branding.service import get_email_branding
 from src.data.audit import record_admin_action
 from src.data.engine import get_async_session_maker
 from src.data.models import User
@@ -137,12 +138,27 @@ async def test_smtp(
     cfg = await get_smtp_config(tid)
     if cfg is None:
         raise HTTPException(409, detail={"code": "smtp_not_configured"})
+    # The test email carries the tenant branding too, so the admin can check
+    # how logo and colours look in a real mailbox.
+    try:
+        branding = await get_email_branding(tid)
+    except Exception:  # noqa: BLE001 - cosmetic, never block the SMTP test
+        logger.warning("Branding unavailable for SMTP test", exc_info=True)
+        branding = None
     subject, text, html = email_templates.render(
-        "test", cfg.email_language, {"platform": platform_name()}
+        "test", cfg.email_language, {"platform": platform_name()}, branding=branding
     )
     error: Optional[str] = None
     try:
-        await send_email(tid, to=to, subject=subject, text=text, html=html, cfg=cfg)
+        await send_email(
+            tid,
+            to=to,
+            subject=subject,
+            text=text,
+            html=html,
+            cfg=cfg,
+            branding=branding,
+        )
     except EmailSendError as e:
         error = e.code
         logger.warning("SMTP test failed: %s", e)

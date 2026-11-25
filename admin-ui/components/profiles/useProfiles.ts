@@ -18,6 +18,13 @@ export type Profile = {
   critical_skills: string[];
   mcp_servers: string[];
   native_tool_groups: string[];
+  /**
+   * Sub-agent allowlist: slugs of the other profiles this agent may delegate
+   * to with the `delegate_to_agent` tool (see docs/agents/subagents.md).
+   * Empty = the agent cannot delegate. The backend rejects unknown slugs and
+   * drops the profile's own slug on save.
+   */
+  subagents: string[];
 };
 
 export type ProfileSummary = Profile;
@@ -43,6 +50,7 @@ function normalize(data: Partial<Profile> & { name?: string }): Profile {
     critical_skills: Array.isArray(data.critical_skills) ? data.critical_skills : [],
     mcp_servers: Array.isArray(data.mcp_servers) ? data.mcp_servers : [],
     native_tool_groups: Array.isArray(data.native_tool_groups) ? data.native_tool_groups : [],
+    subagents: Array.isArray(data.subagents) ? data.subagents : [],
   };
 }
 
@@ -218,6 +226,7 @@ export function useProfiles() {
         critical_skills: [],
         native_tool_groups: ["web_research", "mnemos"],
         mcp_servers: [],
+        subagents: [],
       },
       false,
     );
@@ -340,6 +349,18 @@ export function useProfiles() {
     [update],
   );
 
+  /**
+   * Adds or removes a profile from the selected profile's sub-agent allowlist.
+   * Only edits the draft: nothing is persisted until `save`.
+   */
+  const toggleSubagent = useCallback(
+    (slug: string) =>
+      update((p) => ({
+        subagents: p.subagents.includes(slug) ? p.subagents.filter((s) => s !== slug) : [...p.subagents, slug],
+      })),
+    [update],
+  );
+
   const exportOne = useCallback(async () => {
     if (!selected) return;
     try {
@@ -409,6 +430,7 @@ export function useProfiles() {
             critical_skills: [],
             mcp_servers: Array.isArray(data.mcp_servers) ? data.mcp_servers : [],
             native_tool_groups: [],
+            subagents: [],
           },
           false,
         );
@@ -480,6 +502,7 @@ export function useProfiles() {
     toggleCritical,
     toggleMcp,
     toggleNative,
+    toggleSubagent,
     exportOne,
     exportAll,
     importFile,

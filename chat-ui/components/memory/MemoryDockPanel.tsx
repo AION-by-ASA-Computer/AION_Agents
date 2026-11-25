@@ -157,7 +157,7 @@ export function MemoryDockPanel({
               {/* Centered Hero Section (Like Plan & Deep Research) */}
               <div className="flex flex-col items-center text-center">
                 {/* Large Centered Red Icon Container */}
-                <div className="relative mb-3 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-red-600 text-white shadow-lg shadow-rose-500/25 ring-4 ring-rose-500/10">
+                <div className="relative mb-3 flex size-14 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-brand-end text-white shadow-lg shadow-rose-500/25 ring-4 ring-rose-500/10">
                   <Database size={28} />
                 </div>
 
@@ -365,7 +365,7 @@ export function MemoryDockPanel({
           <button
             type="button"
             onClick={() => setCreateOpen(true)}
-            className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 py-2.5 px-4 text-xs font-bold text-white shadow-lg shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
+            className="focus-ring flex flex-1 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-rose-500 to-brand-end hover:from-rose-600 hover:to-brand-end-hover py-2.5 px-4 text-xs font-bold text-white shadow-lg shadow-rose-500/25 border border-rose-400/30 backdrop-blur-xl transition-all duration-200 hover:scale-[1.01] active:scale-[0.98] cursor-pointer"
           >
             <Plus size={15} className="shrink-0" />
             <span>{t("memory_project.new_project") || "Nuovo progetto"}</span>

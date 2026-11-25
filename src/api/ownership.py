@@ -196,6 +196,38 @@ async def assert_conversation_access(
     raise _not_found()
 
 
+SUBAGENT_READ_ONLY_DETAIL = "subagent_conversation_read_only"
+
+
+async def is_subagent_conversation(conversation_id: str) -> bool:
+    """True when the conversation was spawned by a sub-agent delegation.
+
+    Sub-agent conversations (``src/runtime/subagent_orchestrator.py``) are a
+    read-only record of what the child agent did. Their ids always start with
+    ``sub_``, so other ids skip the DB lookup entirely; the column is the
+    source of truth (a client may pick a ``sub_`` id for a normal chat).
+    """
+    if not (conversation_id or "").startswith("sub_") or not _unified_db_enabled():
+        return False
+    from src.data.engine import get_async_session_maker
+    from src.data.models import Conversation
+
+    async with get_async_session_maker()() as session:
+        row = await session.get(Conversation, conversation_id)
+    return bool(row is not None and row.spawned_by_conversation_id)
+
+
+async def assert_not_subagent_conversation(conversation_id: str) -> None:
+    """Raise 409 ``subagent_conversation_read_only`` for sub-agent conversations.
+
+    Called by every user-facing write on a conversation (new chat turn,
+    metadata/title update, fork, side thread, message edits): only the
+    sub-agent runner writes there, through the pipeline directly.
+    """
+    if await is_subagent_conversation(conversation_id):
+        raise HTTPException(status_code=409, detail=SUBAGENT_READ_ONLY_DETAIL)
+
+
 async def claim_conversation_for_write(conversation_id: str, user_id: str) -> bool:
     """Da chiamare prima di creare/aggiornare una riga ``conversations``.
 
@@ -203,10 +235,16 @@ async def claim_conversation_for_write(conversation_id: str, user_id: str) -> bo
     utente potrebbe creare la riga su una sessione in cui un altro ha gia'
     caricato file (marker ``.aion_owner``) e appropriarsene. Rivendica la
     sessione se libera, 404 se appartiene ad altri.
+
+    Sub-agent conversations are read-only for users: after the ownership check
+    (so other users still get 404) a write there answers 409.
     """
-    return await assert_conversation_access(
+    existed = await assert_conversation_access(
         conversation_id, user_id, allow_missing=True, claim_if_missing=True
     )
+    if existed:
+        await assert_not_subagent_conversation(conversation_id)
+    return existed
 
 
 def api_key_context_principal(ctx) -> str:

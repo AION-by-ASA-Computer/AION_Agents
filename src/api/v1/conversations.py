@@ -11,7 +11,11 @@ from sqlalchemy import select, update
 
 from src.api.auth import AuthContext, Scope, require_scope
 from src.api.profile_access import enforce_profile_access
-from src.api.ownership import api_key_context_principal, owned_by
+from src.api.ownership import (
+    SUBAGENT_READ_ONLY_DETAIL,
+    api_key_context_principal,
+    owned_by,
+)
 from src.data.engine import get_async_session_maker
 from src.identity import sanitize_user_id
 from src.data.ids import new_uuid7_str
@@ -98,6 +102,8 @@ async def list_conversations(
             Conversation.tenant_id == ctx.tenant_id,
             Conversation.user_id == owner,
             Conversation.archived_at.is_(None),
+            # Sub-agent transcripts belong to their parent conversation.
+            Conversation.spawned_by_conversation_id.is_(None),
         )
         q = q.order_by(Conversation.updated_at.desc()).limit(limit)
         rows = (await session.execute(q)).scalars().all()
@@ -149,6 +155,9 @@ async def patch_conversation(
         r = await session.get(Conversation, conversation_id)
         if not owned_by(r, ctx.tenant_id, api_key_context_principal(ctx)):
             raise HTTPException(404, "Not found")
+        if r.spawned_by_conversation_id:
+            # Sub-agent transcripts are read-only (see src/api/ownership.py).
+            raise HTTPException(409, SUBAGENT_READ_ONLY_DETAIL)
         vals: Dict[str, Any] = {"updated_at": datetime.now(timezone.utc)}
         if "title" in body:
             vals["title"] = body["title"]
@@ -172,9 +181,9 @@ async def delete_conversation(
 ):
     """Permanently delete a conversation (API key clients).
 
-    Same purge as the chat-ui delete: the conversation, its branches/side
-    threads, DB rows, session folder, storage files and runtime state
-    (``src/runtime/conversation_purge.py``).
+    Same purge as the chat-ui delete: the conversation, its branches, side
+    threads and sub-agent transcripts, DB rows, session folder, storage files
+    and runtime state (``src/runtime/conversation_purge.py``).
     """
     _require_unified()
     from src.runtime.conversation_purge import (

@@ -197,6 +197,7 @@ class AgentProfile:
         critical_skills: Optional[List[str]] = None,
         native_tool_groups: Optional[List[str]] = None,
         max_agent_steps: Optional[int] = None,
+        subagents: Optional[List[str]] = None,
     ):
         self.name = name
         self.description = description
@@ -207,10 +208,35 @@ class AgentProfile:
         self.slug = slug or name.replace(" ", "_").lower()
         self.critical_skills = critical_skills
         self.max_agent_steps = max_agent_steps
+        # Profile slugs this profile may delegate to (``delegate_to_agent``).
+        self.subagents = list(subagents or [])
+
+    def _system_skill_names(self) -> List[str]:
+        """Runtime-managed skills this profile gets, derived from its other keys.
+
+        Today only ``delegation``: added when the profile has sub-agents (it
+        drives the ``delegate_to_agent`` tool) and the skill file is installed.
+        Admins never list it themselves; see ``SYSTEM_SKILLS`` in
+        ``src/runtime/profile_schema.py``.
+        """
+        from .runtime.profile_schema import DELEGATION_SKILL
+
+        if self.subagents and skill_registry.skill_exists(DELEGATION_SKILL):
+            return [DELEGATION_SKILL]
+        return []
 
     def resolved_skills(self) -> List[str]:
-        """Expands glob/wildcard patterns (e.g. 'sql_*') against available skills in the registry."""
+        """Skills active for this profile: glob patterns (e.g. 'sql_*') expanded
+        against the registry, plus the runtime-managed system skills.
+
+        System skills listed (or matched by a glob) in the profile are skipped
+        and only re-added by ``_system_skill_names``, so e.g. ``delegation`` is
+        active exactly when the profile has sub-agents. Used by the system
+        prompt and by the ``skill_view`` profile gate.
+        """
         import fnmatch
+
+        from .runtime.profile_schema import is_system_skill
 
         all_names = skill_registry.get_all_names()
         out: List[str] = []
@@ -218,13 +244,17 @@ class AgentProfile:
         for item in self.skills or []:
             if "*" in item or "?" in item:
                 for match in sorted(fnmatch.filter(all_names, item)):
-                    if match not in seen:
+                    if match not in seen and not is_system_skill(match):
                         seen.add(match)
                         out.append(match)
             else:
-                if item not in seen:
+                if item not in seen and not is_system_skill(item):
                     seen.add(item)
                     out.append(item)
+        for name in self._system_skill_names():
+            if name not in seen:
+                seen.add(name)
+                out.append(name)
         return out
 
     def _resolved_critical_skill_names(self) -> frozenset:
@@ -241,7 +271,11 @@ class AgentProfile:
                 else:
                     base_set.add(item)
             base = frozenset(base_set)
-        return ALWAYS_CRITICAL_SKILL_NAMES | base
+        # System skills (e.g. ``delegation``) are always inlined in full: they
+        # are short and the model must see them to use the feature at all.
+        return (
+            ALWAYS_CRITICAL_SKILL_NAMES | base | frozenset(self._system_skill_names())
+        )
 
     def generate_system_prompt(
         self,
@@ -524,6 +558,7 @@ class ProfileManager:
             critical_skills=schema.critical_skills,
             native_tool_groups=schema.native_tool_groups,
             max_agent_steps=schema.max_agent_steps,
+            subagents=schema.subagents,
         )
 
     def load_all(self):
@@ -561,6 +596,7 @@ class ProfileManager:
                 stem_low,
                 skill_exists=skill_registry.skill_exists,
                 server_exists=mcp_manager.server_exists,
+                profile_exists=lambda s: s in files_by_slug,
             )
             report.merge(ref_report)
         return report
@@ -630,6 +666,7 @@ class ProfileManager:
                     getattr(p, "native_tool_groups", None) or []
                 ),
                 "critical_skills": list(getattr(p, "critical_skills", None) or []),
+                "subagents": list(getattr(p, "subagents", None) or []),
             }
             for p in self._profiles.values()
         ]

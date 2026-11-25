@@ -62,6 +62,10 @@ async def collect_conversation_family(
       sidebar and only reachable through the root, so they would be orphaned.
       Deleting a single branch leaves the root and sibling branches intact.
     * Side threads (``parent_conversation_id``) of every collected chat go too.
+    * Sub-agent transcripts (``spawned_by_conversation_id``, created by the
+      ``delegate_to_agent`` tool) of every collected chat go too: they are
+      hidden from the sidebar and only reachable from the parent's timeline.
+      Sub-agents run at depth 1, so they never spawn children of their own.
 
     Only rows of the same tenant and user are collected.
     """
@@ -95,6 +99,20 @@ async def collect_conversation_family(
         .all()
     )
     ids.extend(t for t in thread_ids if t not in ids)
+    # Last step, so delegations made from a branch or a side thread are
+    # collected as well (their spawner is already in ``ids``).
+    child_ids = (
+        (
+            await session.execute(
+                select(Conversation.id).where(
+                    Conversation.spawned_by_conversation_id.in_(list(ids)), *scope
+                )
+            )
+        )
+        .scalars()
+        .all()
+    )
+    ids.extend(c for c in child_ids if c not in ids)
     return ids
 
 

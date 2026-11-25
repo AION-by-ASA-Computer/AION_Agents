@@ -2114,6 +2114,213 @@
         "title": "SseStreamErrorFrame",
         "type": "object"
       },
+      "SseSubagentEnd": {
+        "additionalProperties": true,
+        "description": "The sub-agent finished: done | error | cancelled | timeout.",
+        "properties": {
+          "child_conversation_id": {
+            "title": "Child Conversation Id",
+            "type": "string"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "files": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Files"
+          },
+          "parent_tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Tool Call Id"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "result_preview": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Result Preview"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "steps": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steps"
+          },
+          "type": {
+            "const": "subagent_end",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "child_conversation_id",
+          "profile",
+          "type",
+          "status"
+        ],
+        "title": "SseSubagentEnd",
+        "type": "object"
+      },
+      "SseSubagentStart": {
+        "additionalProperties": true,
+        "description": "The child conversation exists and its turn is starting.",
+        "properties": {
+          "child_conversation_id": {
+            "title": "Child Conversation Id",
+            "type": "string"
+          },
+          "parent_tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Tool Call Id"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "profile_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Profile Name"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "task": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Task"
+          },
+          "type": {
+            "const": "subagent_start",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "child_conversation_id",
+          "profile",
+          "type"
+        ],
+        "title": "SseSubagentStart",
+        "type": "object"
+      },
+      "SseSubagentStep": {
+        "additionalProperties": true,
+        "description": "A tool call of the sub-agent started or finished.",
+        "properties": {
+          "child_conversation_id": {
+            "title": "Child Conversation Id",
+            "type": "string"
+          },
+          "parent_tool_call_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Tool Call Id"
+          },
+          "profile": {
+            "title": "Profile",
+            "type": "string"
+          },
+          "run_id": {
+            "title": "Run Id",
+            "type": "string"
+          },
+          "step": {
+            "additionalProperties": true,
+            "description": "{id, name, status: running|done|error}",
+            "title": "Step",
+            "type": "object"
+          },
+          "type": {
+            "const": "subagent_step",
+            "title": "Type",
+            "type": "string"
+          }
+        },
+        "required": [
+          "run_id",
+          "child_conversation_id",
+          "profile",
+          "type",
+          "step"
+        ],
+        "title": "SseSubagentStep",
+        "type": "object"
+      },
       "SseToken": {
         "additionalProperties": true,
         "properties": {
@@ -2282,6 +2489,9 @@
             "discriminator": {
               "mapping": {
                 "orchestration_plan_pending": "#/components/schemas/SseOrchestrationPlanPending",
+                "subagent_end": "#/components/schemas/SseSubagentEnd",
+                "subagent_start": "#/components/schemas/SseSubagentStart",
+                "subagent_step": "#/components/schemas/SseSubagentStep",
                 "tool_end": "#/components/schemas/SseToolEnd",
                 "tool_error": "#/components/schemas/SseToolError",
                 "tool_start": "#/components/schemas/SseToolStart"
@@ -2300,6 +2510,15 @@
               },
               {
                 "$ref": "#/components/schemas/SseOrchestrationPlanPending"
+              },
+              {
+                "$ref": "#/components/schemas/SseSubagentStart"
+              },
+              {
+                "$ref": "#/components/schemas/SseSubagentStep"
+              },
+              {
+                "$ref": "#/components/schemas/SseSubagentEnd"
               }
             ],
             "title": "Event"

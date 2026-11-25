@@ -9,7 +9,7 @@ export const PROFILE_ACCENT_COLORS = [
   { id: "cyan", value: "#06b6d4", className: "bg-cyan-500" },
   { id: "emerald", value: "#10b981", className: "bg-emerald-500" },
   { id: "amber", value: "#f59e0b", className: "bg-amber-500" },
-  { id: "rose", value: "#f43f5e", className: "bg-rose-500" },
+  { id: "rose", value: "#f43f5e", className: "bg-[#f43f5e]" }, // literal: rose-* follows tenant branding
   { id: "slate", value: "#64748b", className: "bg-slate-500" },
   { id: "primary", value: "", className: "bg-primary" },
 ] as const;

@@ -29,7 +29,7 @@ import { SkillPreview } from "@/components/skills/SkillPreview";
 import { PickerList, type PickerItem } from "@/components/profiles/PickerList";
 import { NATIVE_TOOL_BUNDLES, profileSlug, useProfiles } from "@/components/profiles/useProfiles";
 
-type Tab = "instructions" | "skills" | "tools";
+type Tab = "instructions" | "skills" | "tools" | "subagents";
 
 /** All / attached segmented control shared by the skills and tools pickers. */
 function AttachedFilter({
@@ -81,6 +81,9 @@ export default function ProfilesPage() {
   const [attachedOnly, setAttachedOnly] = useState(false);
   const [toolQuery, setToolQuery] = useState("");
   const [toolsAttachedOnly, setToolsAttachedOnly] = useState(false);
+  // Search + attached filter of the "Sub-agent" tab, separate from the tools tab.
+  const [subagentQuery, setSubagentQuery] = useState("");
+  const [subagentsAttachedOnly, setSubagentsAttachedOnly] = useState(false);
   const [aiOpen, setAiOpen] = useState(false);
   const [aiPrompt, setAiPrompt] = useState("");
   const [wizardOpen, setWizardOpen] = useState(false);
@@ -194,6 +197,43 @@ export default function ProfilesPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, p.mcpDescriptions, p.mcpAwaitingSetup, toolQuery, toolsAttachedOnly, t]);
 
+  // Sub-agent catalog: every other profile, with its description as the
+  // preview of what the parent agent will see in the `delegate_to_agent` tool.
+  // Slugs still in the allowlist whose profile was deleted stay listed with a
+  // "missing" badge so the admin can remove them (the backend refuses to save
+  // unknown slugs).
+  const subagentItems: PickerItem[] = useMemo(() => {
+    if (!selected) return [];
+    const self = profileSlug(selected);
+    const known = new Set<string>();
+    const rows: PickerItem[] = p.profiles
+      .map((row) => {
+        const slug = profileSlug(row);
+        known.add(slug);
+        return {
+          id: slug,
+          description: row.description || t(`${k}.subagents.no_description`),
+          on: selected.subagents.includes(slug),
+        };
+      })
+      .filter((it) => it.id !== self);
+    for (const slug of selected.subagents) {
+      if (!known.has(slug)) {
+        rows.push({ id: slug, description: t(`${k}.subagents.missing_hint`), on: true, blockedLabel: t(`${k}.subagents.missing`) });
+      }
+    }
+    const q = subagentQuery.trim().toLowerCase();
+    return rows
+      .sort((a, b) => a.id.localeCompare(b.id))
+      .filter((it) => !subagentsAttachedOnly || it.on)
+      .filter((it) => !q || it.id.toLowerCase().includes(q) || it.description.toLowerCase().includes(q));
+  }, [selected, p.profiles, subagentQuery, subagentsAttachedOnly, t]);
+
+  // True when the tenant has no other profile to delegate to (empty state of
+  // the tab, as opposed to "nothing matches the search").
+  const noSubagentCandidates =
+    !!selected && p.profiles.every((row) => profileSlug(row) === profileSlug(selected)) && selected.subagents.length === 0;
+
   const hasBlockedMcp = !!selected && selected.mcp_servers.some((s) => p.mcpAwaitingSetup(s));
 
   const runWizard = async () => {
@@ -230,6 +270,7 @@ export default function ProfilesPage() {
       label: t(`${k}.editor.tab_tools`),
       count: selected ? selected.mcp_servers.length + selected.native_tool_groups.length : undefined,
     },
+    { id: "subagents", label: t(`${k}.editor.tab_subagents`), count: selected?.subagents.length },
   ];
 
   const showEmpty = p.listLoaded && p.profiles.length === 0 && !selected;
@@ -326,6 +367,7 @@ export default function ProfilesPage() {
                           </div>
                           <div className="mt-0.5 truncate text-xs text-muted-foreground tabular-nums">
                             {plural("meta_skills", row.skills.length)} · {plural("meta_tools", row.mcp_servers.length + row.native_tool_groups.length)}
+                            {(row.subagents?.length ?? 0) > 0 && <> · {plural("meta_subagents", row.subagents.length)}</>}
                           </div>
                         </button>
                       </li>
@@ -599,6 +641,41 @@ export default function ProfilesPage() {
                         )}
                         {nativeItems.length === 0 && mcpItems.length === 0 && (
                           <p className="py-10 text-center text-sm text-muted-foreground">{t(`${k}.tools.none`)}</p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Sub-agent allowlist: the profiles this agent may delegate to via delegate_to_agent. */}
+                    {tab === "subagents" && (
+                      <div className="flex flex-col gap-4">
+                        <p className="px-1 text-sm text-muted-foreground">{t(`${k}.subagents.hint`)}</p>
+                        {noSubagentCandidates ? (
+                          <p className="py-10 text-center text-sm text-muted-foreground">{t(`${k}.subagents.no_profiles`)}</p>
+                        ) : (
+                          <>
+                            <div className="flex flex-col gap-2 sm:flex-row">
+                              <div className="flex-1">
+                                <SearchField
+                                  value={subagentQuery}
+                                  onChange={setSubagentQuery}
+                                  placeholder={t(`${k}.subagents.search`)}
+                                  className="bg-background"
+                                />
+                              </div>
+                              <AttachedFilter
+                                value={subagentsAttachedOnly}
+                                onChange={setSubagentsAttachedOnly}
+                                ariaLabel={t(`${k}.subagents.filter_aria`)}
+                                allLabel={t(`${k}.tools.filter_all`)}
+                                attachedLabel={t(`${k}.tools.filter_attached`)}
+                              />
+                            </div>
+                            {subagentItems.length > 0 ? (
+                              <PickerList items={subagentItems} onToggle={p.toggleSubagent} />
+                            ) : (
+                              <p className="py-10 text-center text-sm text-muted-foreground">{t(`${k}.subagents.none`)}</p>
+                            )}
+                          </>
                         )}
                       </div>
                     )}

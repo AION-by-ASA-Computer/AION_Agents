@@ -1062,6 +1062,44 @@
       },
       "rows": "{{count}} Zeilen",
       "aria": "Diagramm: {{title}}"
+    },
+    "subagent": {
+      "label": "Sub-Agent",
+      "unknown_agent": "Profil",
+      "starting": "Sub-Agent wird gestartet…",
+      "running_step": "Führt {{name}} aus…",
+      "steps": "{{count}} Schritte",
+      "activity": "Aktivität",
+      "earlier_steps": "…und {{count}} frühere Schritte",
+      "result": "Ergebnis",
+      "files": "Erzeugte Dateien",
+      "open_transcript": "Transkript öffnen",
+      "show_brief": "Gesendete Anweisungen anzeigen",
+      "hide_brief": "Anweisungen ausblenden",
+      "transcript_aria": "Herkunft des Sub-Agents",
+      "back_to_parent": "Zurück zu „{{title}}“",
+      "read_only_banner": "Transkript des Sub-Agents {{profile}} (schreibgeschützt)",
+      "status": {
+        "running": "Läuft",
+        "done": "Fertig",
+        "error": "Fehler",
+        "denied": "Nicht erlaubt",
+        "timeout": "Zeitüberschreitung",
+        "cancelled": "Abgebrochen"
+      },
+      "panel": {
+        "tab": "Sub-Agent",
+        "aria": "Transkript des Sub-Agents: {{name}}",
+        "open_full": "Ganzseitig öffnen",
+        "brief": "Anweisungen vom Hauptagenten",
+        "brief_more": "Alles anzeigen",
+        "brief_less": "Weniger anzeigen",
+        "loading": "Transkript wird geladen…",
+        "working": "Arbeitet…",
+        "empty": "Für diesen Lauf wurde keine Antwort gespeichert.",
+        "error": "Transkript konnte nicht geladen werden: {{msg}}",
+        "read_only": "Schreibgeschützt · vom Hauptagenten verfasst"
+      }
     }
   },
   "login": {

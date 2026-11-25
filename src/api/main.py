@@ -588,6 +588,8 @@ from .admin_smtp import router as admin_smtp_router
 from .admin_update import router as admin_update_router
 from .admin_smb import router as admin_smb_router
 from .admin_groups import router as admin_groups_router
+from .admin_branding import router as admin_branding_router
+from .branding import router as branding_router
 from .auth_password_setup import router as auth_password_setup_router
 from .chat_ui import router as chat_ui_router
 from .chat_folders import router as chat_folders_router
@@ -602,6 +604,9 @@ app.include_router(admin_update_router)
 app.include_router(admin_smb_router)
 # User groups + access rules (/admin/groups*, /admin/users/{id}/rules|groups|effective-access).
 app.include_router(admin_groups_router)
+app.include_router(admin_branding_router)
+# Public, pre-login: logo/colours for the login pages of chat-ui and admin-ui.
+app.include_router(branding_router)
 app.include_router(auth_password_setup_router)
 app.include_router(chat_ui_router)
 # Sidebar folders (/chat-ui/folders*, PUT /chat-ui/conversations/{id}/folder).
