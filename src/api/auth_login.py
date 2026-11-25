@@ -306,6 +306,21 @@ async def me(authorization: Optional[str] = Header(None)):
     except Exception as _e:
         logger.warning("SSO me check failed: %s", _e)
 
+    # Effective permissions for the clients (show/hide UI; the backend always
+    # re-checks). Format "<resource_type>:<resource_id>:<action>".
+    from src.access.policy import effective_permissions
+    from src.access.principal import Principal, load_principal
+
+    principal = await load_principal(user_row_id)
+    if not principal.exists:
+        principal = Principal(
+            user_row_id=user_row_id, roles=tuple(parsed.get("roles") or [])
+        )
+    access_payload = {
+        "groups": list(principal.groups),
+        "permissions": effective_permissions(principal),
+    }
+
     async with get_async_session_maker()() as session:
         u = await session.get(User, user_row_id)
         if not u:
@@ -313,6 +328,7 @@ async def me(authorization: Optional[str] = Header(None)):
                 "user_id": uid,
                 "identifier": parsed["identifier"],
                 "metadata": {},
+                **access_payload,
                 "roles": parsed.get("roles", []),
                 "must_change_password": False,
                 "password_change_required": False,
@@ -341,6 +357,7 @@ async def me(authorization: Optional[str] = Header(None)):
             "email": u.email,
             "metadata": meta,
             "roles": get_roles(u),
+            **access_payload,
             "must_change_password": bool(getattr(u, "must_change_password", False))
             and not sso_linked,
             # Password temporanea: cambio obbligatorio, non rimandabile
@@ -584,6 +601,30 @@ def _resolve_roles(ctx: "ChatAuthIdentity") -> List[str]:
     return ctx.roles or []
 
 
+async def _current_roles(
+    user_row_id: Optional[str], token_roles: List[str]
+) -> List[str]:
+    """Roles of a chat-token user, read from the DB (cached in ``src.access``).
+
+    The roles embedded in the token are a snapshot taken at login; reading the
+    DB makes promotions and revocations effective without re-login. The token
+    roles are kept only when the user row does not exist (legacy tokens,
+    single-user setups) or the DB is unreachable, which is today's behaviour.
+    """
+    if not user_row_id:
+        return list(token_roles)
+    try:
+        from src.access.principal import load_principal
+
+        principal = await load_principal(user_row_id)
+    except Exception as e:
+        logger.warning("roles refresh failed for %s: %s", user_row_id, e)
+        return list(token_roles)
+    if not principal.exists:
+        return list(token_roles)
+    return list(principal.roles)
+
+
 async def require_chat_auth(
     authorization: Optional[str] = Header(None),
     x_api_key: Optional[str] = Header(None, alias="X-Api-Key"),
@@ -736,7 +777,9 @@ async def _resolve_chat_identity(
         via="chat_token",
         user_row_id=parsed.get("user_row_id"),
         identifier=parsed.get("identifier"),
-        roles=parsed.get("roles") or [],
+        roles=await _current_roles(
+            parsed.get("user_row_id"), parsed.get("roles") or []
+        ),
     )
 
     # Fix 0.4 / §3.6: blocco sso_link_required per token chat.
@@ -860,10 +903,36 @@ async def require_admin_role(
       autenticato (un Bearer token e' richiesto da ``require_chat_auth``) E
       avere il ruolo ``admin``.
     """
-    if not admin_password_auth_enabled():
+    # Equivalent to require_permission("admin_section", "write") on "any
+    # section": today that means the super-admin role. Phase 5 replaces the
+    # router-level use of this guard with per-section permissions.
+    return await _check_permission(ctx, "write", "admin_section", "*")
+
+
+async def _check_permission(
+    ctx: ChatAuthIdentity,
+    action: str,
+    resource_type: str,
+    resource_id: Optional[str],
+) -> ChatAuthIdentity:
+    """Shared body of ``require_admin_role`` / ``require_permission``.
+
+    Admin-section checks honour the ``AION_ADMIN_PASSWORD_AUTH=0`` dev escape
+    hatch and always require an authenticated caller. The decision itself is
+    delegated to ``src.access.policy.can``. Roles come from ``ctx`` (already
+    refreshed from the DB for chat tokens) and NOT from the user row, so API
+    keys and the internal BFF secret never inherit their owner's admin role.
+    """
+    from dataclasses import replace
+
+    from src.access.policy import RESOURCE_ADMIN_SECTION, can
+    from src.access.principal import Principal, load_principal
+
+    is_admin_check = resource_type == RESOURCE_ADMIN_SECTION
+    if is_admin_check and not admin_password_auth_enabled():
         return ctx
 
-    if ctx.via == "anonymous":
+    if ctx.via == "anonymous" and is_admin_check:
         # Nessun token presentato: ma password_auth chat era disattivata.
         # Forziamo qui l'autenticazione perche' il pannello admin va comunque
         # protetto secondo la policy "sempre attiva".
@@ -875,9 +944,42 @@ async def require_admin_role(
             ),
         )
 
-    if "admin" not in (ctx.roles or []):
-        raise HTTPException(403, detail="Admin role required")
+    if is_admin_check:
+        # Admin sections depend on roles only (Phase 0): skip the DB read.
+        principal = Principal(user_row_id=ctx.user_row_id, roles=tuple(ctx.roles or []))
+    else:
+        principal = replace(
+            await load_principal(ctx.user_row_id), roles=tuple(ctx.roles or [])
+        )
+    if not can(principal, action, resource_type, resource_id):
+        if is_admin_check:
+            raise HTTPException(403, detail="Admin role required")
+        raise HTTPException(
+            403,
+            detail={
+                "code": "permission_denied",
+                "permission": f"{resource_type}:{resource_id or '*'}:{action}",
+            },
+        )
     return ctx
+
+
+def require_permission(
+    resource_type: str, action: str, resource_id: Optional[str] = "*"
+):
+    """FastAPI dependency factory: 403 unless the caller may ``action`` on
+    ``resource_type``/``resource_id`` (see ``src.access.policy.can``).
+
+    Example: ``Depends(require_permission("admin_section", "write", "profiles"))``.
+    Returns the caller's ``ChatAuthIdentity``.
+    """
+
+    async def _dep(
+        ctx: ChatAuthIdentity = Depends(require_chat_auth),
+    ) -> ChatAuthIdentity:
+        return await _check_permission(ctx, action, resource_type, resource_id)
+
+    return _dep
 
 
 # --- Change password (richiede token valido) --------------------------------

@@ -4,6 +4,7 @@ import Script from "next/script";
 import "./globals.css";
 import "katex/dist/katex.min.css";
 import { AuthGate } from "@/components/auth/AuthGate";
+import { CurrentUserProvider } from "@/lib/auth/current-user";
 import { LanguageSync } from "@/components/i18n/LanguageSync";
 import { FontSizeSync } from "@/components/theme/FontSizeSync";
 import { BrandingSync } from "@/components/brand/BrandingSync";
@@ -103,7 +104,9 @@ export default function RootLayout({
         <LanguageSync />
         <FontSizeSync />
         <BrandingSync />
-        <AuthGate>{children}</AuthGate>
+        <AuthGate>
+          <CurrentUserProvider>{children}</CurrentUserProvider>
+        </AuthGate>
       </body>
     </html>
   );

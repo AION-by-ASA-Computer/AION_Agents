@@ -178,19 +178,21 @@ class AionAdapter:
     async def list_profiles(self, user: AionUserRef) -> list[ProfileInfo]:
         """Profili che l'utente può usare (``user_profile_access``; vuoto = tutti),
         ristretti all'allowlist del canale (``allowed_profiles``; vuota = nessuno)."""
+        from src.access.policy import filter_profiles
+        from src.access.principal import load_principal
         from src.agent_profile import profile_manager
-        from src.api.profile_access import allowed_profile_slugs
 
-        allowed = set(await allowed_profile_slugs(user.row_id))
+        usable = filter_profiles(
+            await load_principal(user.row_id), profile_manager.list_profiles()
+        )
         out = [
             ProfileInfo(
                 slug=p["slug"],
                 name=p.get("name") or p["slug"],
                 description=p.get("description") or "",
             )
-            for p in profile_manager.list_profiles()
-            if (not allowed or p["slug"] in allowed)
-            and p["slug"].lower() in _policy().allowed_profile_set
+            for p in usable
+            if p["slug"].lower() in _policy().allowed_profile_set
         ]
         return sorted(out, key=lambda p: p.name.lower())
 

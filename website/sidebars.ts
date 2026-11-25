@@ -118,6 +118,7 @@ const sidebars: SidebarsConfig = {
         'security/password-setup-email',
         'security/sso-migration',
         'security/two-factor-auth',
+        'security/groups-and-permissions',
         'security/session-isolation',
         'security/pii-review-token',
       ],

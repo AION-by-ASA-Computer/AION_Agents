@@ -1284,6 +1284,7 @@
       "aria": "Secciones de usuarios",
       "accounts": "Cuentas",
       "signin": "Acceso",
+      "groups": "Grupos",
       "migration": "Migración"
     },
     "cols": {
@@ -1319,7 +1320,8 @@
       "delete": "Eliminar a {{name}}",
       "send_reset": "Enviar a {{name}} un enlace de restablecimiento de contraseña",
       "resend_invite": "Reenviar la invitación a {{name}}",
-      "issue_temp": "Generar una contraseña temporal para {{name}}"
+      "issue_temp": "Generar una contraseña temporal para {{name}}",
+      "access": "Accesos de {{name}}"
     },
     "form": {
       "title_new": "Nuevo usuario",
@@ -1428,7 +1430,8 @@
       "invite_failed": "Usuario creado, pero la invitación a {{email}} no se envió: {{error}}. Puedes reenviarla desde la lista.",
       "link_failed": "No se pudo enviar el enlace: {{error}}",
       "link_sent_reset": "Enlace de restablecimiento enviado a {{email}}.",
-      "link_sent_invite": "Invitación enviada a {{email}}."
+      "link_sent_invite": "Invitación enviada a {{email}}.",
+      "access_saved": "Accesos actualizados."
     },
     "filter": {
       "aria": "Filtrar por {{col}}",
@@ -1646,7 +1649,8 @@
       "body": "La contraseña actual de {{name}} dejará de funcionar de inmediato y se generará una contraseña temporal para comunicársela. En el primer inicio de sesión deberá elegir una nueva.",
       "cancel": "Cancelar",
       "confirm": "Generar contraseña temporal"
-    }
+    },
+    "groups_aria": "Grupos del usuario"
   },
   "admin_security": {
     "title": "Seguridad",
@@ -3073,6 +3077,130 @@
       "key_create_failed": "No se pudo crear la clave: {{error}}",
       "key_revoked": "Clave \"{{name}}\" revocada",
       "key_revoke_failed": "No se pudo revocar la clave: {{error}}"
+    }
+  },
+  "admin_groups": {
+    "title": "Grupos",
+    "subtitle": "Agrupa usuarios y cuentas de servicio y decide qué perfiles pueden usar. Quien no está en ningún grupo y no tiene reglas propias no tiene límites.",
+    "add": "Nuevo grupo",
+    "loading": "Cargando grupos…",
+    "error": "No se pudieron cargar los grupos.",
+    "retry": "Reintentar",
+    "search": "Buscar grupos",
+    "count_one": "{{count}} grupo",
+    "count_other": "{{count}} grupos",
+    "count_filtered": "{{shown}} de {{total}}",
+    "members_count_one": "{{count}} miembro",
+    "members_count_other": "{{count}} miembros",
+    "cols": {
+      "group": "Grupo",
+      "members": "Miembros",
+      "actions": "Acciones"
+    },
+    "row": {
+      "members": "Miembros de {{name}}",
+      "rules": "Reglas de acceso de {{name}}",
+      "edit": "Editar {{name}}",
+      "delete": "Eliminar {{name}}"
+    },
+    "empty": {
+      "title": "Sin grupos",
+      "body": "Los grupos dan las mismas reglas a varias personas. Mientras un usuario no esté en un grupo con una regla (o no tenga una regla propia) puede usar todos los perfiles.",
+      "search": "Ningún grupo coincide con la búsqueda.",
+      "clear_filters": "Borrar búsqueda"
+    },
+    "form": {
+      "create_title": "Nuevo grupo",
+      "edit_title": "Editar grupo",
+      "name": "Nombre",
+      "name_placeholder": "P. ej. Equipo de ventas",
+      "slug": "Identificador",
+      "slug_hint": "Minúsculas, números, - y _. Lo usan la API y los registros.",
+      "slug_invalid": "Usa solo minúsculas, números, - y _ (máx. 64).",
+      "slug_taken": "Ya existe un grupo con este identificador.",
+      "description": "Descripción",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saving": "Guardando…"
+    },
+    "members": {
+      "title": "Miembros de {{name}}",
+      "body": "Las reglas del grupo se aplican a todas las cuentas seleccionadas.",
+      "search": "Buscar usuarios",
+      "service": "Cuenta de servicio",
+      "empty": "No se encontró ninguna cuenta.",
+      "selected": "{{count}} seleccionados",
+      "cancel": "Cancelar",
+      "save": "Guardar miembros",
+      "saving": "Guardando…"
+    },
+    "rules": {
+      "title": "Reglas de acceso de {{name}}",
+      "body": "Las reglas se suman a las de los demás grupos del usuario y a sus reglas propias. Un grupo sin regla sobre un tipo no lo limita.",
+      "profiles": "Perfiles utilizables",
+      "cancel": "Cancelar",
+      "save": "Guardar reglas",
+      "saving": "Guardando…"
+    },
+    "rule": {
+      "aria": "Tipo de regla",
+      "mode": {
+        "none": "Sin regla",
+        "all": "Todos los perfiles",
+        "some": "Solo algunos perfiles",
+        "nothing": "Ningún perfil"
+      },
+      "mode_hint": {
+        "none_group": "El grupo no limita los perfiles de sus miembros.",
+        "none_user": "Sin regla propia: deciden los grupos (sin reglas, sin límites).",
+        "all": "Concede todos los perfiles, aunque otros grupos limiten algunos.",
+        "some": "Concede solo los perfiles seleccionados abajo.",
+        "nothing": "No concede ningún perfil."
+      },
+      "no_profiles": "Todavía no hay perfiles.",
+      "selected": "{{count}} perfiles seleccionados",
+      "summary": {
+        "no_rule": "sin regla",
+        "all": "todos los perfiles",
+        "nothing": "ningún perfil",
+        "count": "{{count}} perfiles"
+      }
+    },
+    "access": {
+      "title": "Accesos de {{name}}",
+      "loading": "Cargando…",
+      "load_failed": "No se pudieron cargar los accesos del usuario.",
+      "groups": "Grupos",
+      "no_groups": "No hay grupos. Créalos desde la página Grupos.",
+      "direct_profiles": "Regla propia de perfiles",
+      "effective": "Perfiles utilizables ahora",
+      "effective_unlimited": "Todos los perfiles (sin reglas).",
+      "effective_all": "Todos los perfiles.",
+      "effective_nothing": "Ningún perfil.",
+      "effective_hint": "Estado guardado: no incluye cambios sin guardar.",
+      "source_user": "Regla propia",
+      "source_group": "Grupo {{name}}",
+      "close": "Cerrar",
+      "save": "Guardar",
+      "saving": "Guardando…"
+    },
+    "delete": {
+      "title": "¿Eliminar el grupo?",
+      "body": "Los miembros pierden de inmediato las reglas del grupo {{name}}.",
+      "confirm_label": "Escribe {{name}} para confirmar",
+      "cancel": "Cancelar",
+      "confirm": "Eliminar",
+      "deleting": "Eliminando…"
+    },
+    "toast": {
+      "load_failed": "Error al cargar: {{error}}",
+      "save_failed": "Error al guardar: {{error}}",
+      "delete_failed": "Error al eliminar: {{error}}",
+      "created": "Grupo creado.",
+      "updated": "Grupo actualizado.",
+      "deleted": "Grupo eliminado.",
+      "members_saved": "Miembros actualizados.",
+      "rules_saved": "Reglas actualizadas."
     }
   }
 }
