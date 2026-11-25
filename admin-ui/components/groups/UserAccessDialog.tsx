@@ -1,8 +1,10 @@
 "use client";
 
 /**
- * "Access" dialog of the Users page: a user's groups, their direct profile
- * rule and the resulting effective access with the reason ("from group X").
+ * "Access" dialog of the Users page: a user's groups, their direct rules
+ * (profiles, skills, MCP servers, native tools; one tab each via `RulesTabs`)
+ * and, under each tab, the resulting effective access with the reason
+ * ("from group X").
  *
  * Self-contained: on open it loads `GET /admin/users/{id}/groups`,
  * `.../rules` and `.../effective-access`; on save it writes
@@ -10,15 +12,27 @@
  * reloads the effective view and calls `onSaved` (the page refreshes its list).
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import { apiBase } from "@/lib/api";
 import { apiFetch } from "@/lib/api/headers";
 import { cn } from "@/lib/cn";
 import { Dialog } from "@/components/profiles/Dialog";
 import { ghostBtn, solidBtn } from "@/components/ui/classes";
-import { RuleEditor } from "./RuleEditor";
-import { describeRule, k, readError, type EffectiveAccess, type Group, type ProfileOption, type Rule, type T } from "./shared";
+import { RulesTabs } from "./RulesTabs";
+import {
+  describeRule,
+  k,
+  optionsFor,
+  readError,
+  rulesFrom,
+  type Catalog,
+  type EffectiveAccess,
+  type Group,
+  type ResourceType,
+  type Rules,
+  type T,
+} from "./shared";
 
 type LoadState = "loading" | "ready" | "error";
 
@@ -26,7 +40,7 @@ export function UserAccessDialog({
   userId,
   userName,
   groups,
-  profiles,
+  catalog,
   t,
   onSaved,
   onError,
@@ -36,7 +50,8 @@ export function UserAccessDialog({
   userName: string;
   /** Every group of the tenant (`GET /admin/groups`). */
   groups: Group[];
-  profiles: ProfileOption[];
+  /** Ids per resource type (`GET /admin/access/catalog`). */
+  catalog: Catalog;
   t: T;
   onSaved: () => void;
   onError: (message: string) => void;
@@ -45,9 +60,8 @@ export function UserAccessDialog({
   const [state, setState] = useState<LoadState>("loading");
   const [busy, setBusy] = useState(false);
   const [groupIds, setGroupIds] = useState<string[]>([]);
-  const [profileRule, setProfileRule] = useState<Rule>(null);
-  const [effective, setEffective] = useState<EffectiveAccess | null>(null);
-  const profileNames = useMemo(() => new Map(profiles.map((p) => [p.slug, p.name])), [profiles]);
+  const [rules, setRules] = useState<Rules>(rulesFrom(null));
+  const [effective, setEffective] = useState<Partial<Record<ResourceType, EffectiveAccess>>>({});
   // Latest error callback without re-running the load effect when the parent
   // passes a new inline function on every render.
   const onErrorRef = useRef(onError);
@@ -62,7 +76,7 @@ export function UserAccessDialog({
     const res = await apiFetch(`${base}/effective-access`);
     if (!res.ok) throw new Error((await readError(res)).message);
     const data = await res.json();
-    setEffective(data.access?.profile ?? null);
+    setEffective(data.access ?? {});
   }, [base]);
 
   useEffect(() => {
@@ -77,7 +91,7 @@ export function UserAccessDialog({
         await loadEffective();
         if (cancelled) return;
         setGroupIds((gData.items || []).map((x: Group) => x.id));
-        setProfileRule(rData.rules?.profile ?? null);
+        setRules(rulesFrom(rData.rules));
         setState("ready");
       } catch (err) {
         if (cancelled) return;
@@ -97,7 +111,7 @@ export function UserAccessDialog({
         apiFetch(`${base}/${path}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
       const g = await put("groups", { group_ids: groupIds });
       if (!g.ok) throw new Error((await readError(g)).message);
-      const r = await put("rules", { rules: { profile: profileRule } });
+      const r = await put("rules", { rules });
       if (!r.ok) throw new Error((await readError(r)).message);
       await loadEffective();
       onSaved();
@@ -149,34 +163,16 @@ export function UserAccessDialog({
           </section>
 
           <section className="flex flex-col gap-2">
-            <h3 className="text-sm font-semibold">{t(`${k}.access.direct_profiles`)}</h3>
-            <RuleEditor value={profileRule} onChange={setProfileRule} profiles={profiles} subject="user" t={t} />
+            <h3 className="text-sm font-semibold">{t(`${k}.access.direct_rules`)}</h3>
+            <RulesTabs
+              rules={rules}
+              onChange={(rt, rule) => setRules((r) => ({ ...r, [rt]: rule }))}
+              catalog={catalog}
+              subject="user"
+              t={t}
+              renderExtra={(rt) => <EffectivePanel rt={rt} effective={effective[rt]} catalog={catalog} t={t} />}
+            />
           </section>
-
-          {effective && (
-            <section className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-secondary/30 px-4 py-3">
-              <h3 className="text-sm font-semibold">{t(`${k}.access.effective`)}</h3>
-              <p className="text-sm">
-                {!effective.limited
-                  ? t(`${k}.access.effective_unlimited`)
-                  : effective.allowed === null
-                    ? t(`${k}.access.effective_all`)
-                    : effective.allowed.length === 0
-                      ? t(`${k}.access.effective_nothing`)
-                      : effective.allowed.map((s) => profileNames.get(s) || s).join(", ")}
-              </p>
-              <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
-                {effective.sources.map((s) => (
-                  <li key={`${s.kind}:${s.id}`}>
-                    {s.kind === "user" ? t(`${k}.access.source_user`) : t(`${k}.access.source_group`, { name: s.name || s.id })}
-                    {": "}
-                    {describeRule(t, s.rule, profileNames)}
-                  </li>
-                ))}
-              </ul>
-              <p className="text-xs text-muted-foreground">{t(`${k}.access.effective_hint`)}</p>
-            </section>
-          )}
 
           <div className="flex justify-end gap-2">
             <button type="button" className={ghostBtn} onClick={onClose}>
@@ -190,5 +186,39 @@ export function UserAccessDialog({
         </div>
       )}
     </Dialog>
+  );
+}
+
+/**
+ * Saved effective access of one resource type: what the user can use now and
+ * the rule of each source (own rule, each group). Hidden until loaded.
+ */
+function EffectivePanel({ rt, effective, catalog, t }: { rt: ResourceType; effective?: EffectiveAccess; catalog: Catalog; t: T }) {
+  if (!effective) return null;
+  const names = new Map(optionsFor(catalog, rt, t).map((o) => [o.id, o.name]));
+  const tt = (key: string) => t(`${k}.types.${rt}.${key}`);
+  return (
+    <section className="flex flex-col gap-2 rounded-2xl border border-border/70 bg-secondary/30 px-4 py-3">
+      <h4 className="text-sm font-semibold">{tt("effective_title")}</h4>
+      <p className="text-sm">
+        {!effective.limited
+          ? tt("effective_unlimited")
+          : effective.allowed === null
+            ? tt("effective_all")
+            : effective.allowed.length === 0
+              ? tt("effective_nothing")
+              : effective.allowed.map((s) => names.get(s) || s).join(", ")}
+      </p>
+      <ul className="flex flex-col gap-0.5 text-xs text-muted-foreground">
+        {effective.sources.map((s) => (
+          <li key={`${s.kind}:${s.id}`}>
+            {s.kind === "user" ? t(`${k}.access.source_user`) : t(`${k}.access.source_group`, { name: s.name || s.id })}
+            {": "}
+            {describeRule(t, s.rule, rt, names)}
+          </li>
+        ))}
+      </ul>
+      <p className="text-xs text-muted-foreground">{t(`${k}.access.effective_hint`)}</p>
+    </section>
   );
 }

@@ -38,6 +38,7 @@ const sidebars: SidebarsConfig = {
         'user-guide/using-the-chat',
         'clients/side-threads',
         'clients/chat-folders',
+        'clients/private-profiles',
       ],
     },
   ],

@@ -1225,6 +1225,21 @@ async def get_agent(
         (os.getenv("AION_DEFAULT_TENANT_ID") or "default").strip() or "default",
     )
 
+    # Private profile (Phase 3): only its owner may run it, and only with the
+    # skills / MCP servers / native tools the owner's rules allow *now*
+    # (revocations apply at once). Global profiles are never filtered here.
+    if profile_manager.private_profile_owner(profile.slug) is not None:
+        from .access.policy import ProfileAccessDenied, resolve_profile_for
+        from .access.principal import load_principal_for
+        from .access.private_profiles import effective_private_profile
+
+        owner_principal = await load_principal_for(user_id, tenant_id)
+        try:
+            resolve_profile_for(owner_principal, profile.slug)
+        except ProfileAccessDenied as denied:
+            raise ProfileNotFoundError(profile.slug, denied.allowed) from None
+        profile = effective_private_profile(profile, owner_principal)
+
     skill_registry.reload_if_stale()
 
     from src.runtime.user_language import load_user_ui_language

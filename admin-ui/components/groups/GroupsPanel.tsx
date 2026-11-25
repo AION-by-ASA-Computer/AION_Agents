@@ -7,7 +7,8 @@
  * rules that apply to every member. There is no default group: a user in no
  * group and without direct rules has no limits; a rule on a group limits its
  * members to the union of the rules of their groups (and their own direct
- * rule). Phase 1 rules cover agent profiles only (see PLAN_access_control.md).
+ * rule). Rules cover agent profiles, skills, MCP servers and native tools
+ * (see PLAN_access_control.md).
  *
  * From this tab an admin lists, creates, renames and deletes groups, edits
  * members (`GroupMembersDialog`) and rules (`GroupRulesDialog`).
@@ -30,7 +31,7 @@ import { DeleteDialog } from "@/components/ui/ConfirmDialogs";
 import { GroupFormDialog, type GroupFormValues } from "@/components/groups/GroupFormDialog";
 import { GroupMembersDialog, type AccountOption } from "@/components/groups/GroupMembersDialog";
 import { GroupRulesDialog } from "@/components/groups/GroupRulesDialog";
-import { k, readError, type Group, type GroupDetail, type ProfileOption } from "@/components/groups/shared";
+import { EMPTY_CATALOG, fetchCatalog, k, readError, rulesFrom, type Catalog, type Group, type GroupDetail, type Rules } from "@/components/groups/shared";
 
 /** Columns: group, members, actions (table from md up). */
 const GRID = "md:grid-cols-[minmax(0,1fr)_7rem_10rem]";
@@ -83,7 +84,7 @@ export function GroupsPanel({ onToast, onChanged }: { onToast: (toast: ToastStat
   const t = useT();
   const [groups, setGroups] = useState<Group[]>([]);
   const [listState, setListState] = useState<ListState>("loading");
-  const [profiles, setProfiles] = useState<ProfileOption[]>([]);
+  const [catalog, setCatalog] = useState<Catalog>(EMPTY_CATALOG);
   const [query, setQuery] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -114,11 +115,8 @@ export function GroupsPanel({ onToast, onChanged }: { onToast: (toast: ToastStat
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- fetch on mount
     void loadGroups();
-    // Profiles only feed the rules dialog: a failure just leaves the list empty.
-    apiFetch(`${apiBase()}/admin/profiles`)
-      .then((res) => (res.ok ? res.json() : Promise.reject(res)))
-      .then((data) => setProfiles(data || []))
-      .catch(() => {});
+    // The catalogue only feeds the rules dialog: on failure its lists are empty.
+    void fetchCatalog(apiFetch, apiBase()).then(setCatalog);
   }, [loadGroups]);
 
   const rows = useMemo(() => {
@@ -207,7 +205,7 @@ export function GroupsPanel({ onToast, onChanged }: { onToast: (toast: ToastStat
     }
   };
 
-  const saveRules = async (rules: { profile: string[] | null }) => {
+  const saveRules = async (rules: Rules) => {
     if (!rulesOf) return;
     setSaving(true);
     try {
@@ -383,8 +381,8 @@ export function GroupsPanel({ onToast, onChanged }: { onToast: (toast: ToastStat
       {rulesOf && (
         <GroupRulesDialog
           groupName={rulesOf.name}
-          profiles={profiles}
-          initialProfileRule={"profile" in rulesOf.rules ? rulesOf.rules.profile : null}
+          catalog={catalog}
+          initialRules={rulesFrom(rulesOf.rules)}
           busy={saving}
           t={t}
           onSave={(rules) => void saveRules(rules)}

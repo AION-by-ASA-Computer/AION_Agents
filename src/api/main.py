@@ -292,6 +292,16 @@ async def _lifespan(app: FastAPI):
                 logger.warning("Timeline backfill skipped: %s", tl_exc)
             await asyncio.sleep(0.1)
 
+            # Private profiles of end users live in the DB; mirror them in the
+            # profile manager so every lookup by slug finds them (Phase 3).
+            try:
+                from src.access.private_profiles import load_private_profiles
+
+                n_pp = await load_private_profiles()
+                logger.info("Private profiles loaded: %d", n_pp)
+            except Exception as pp_exc:  # noqa: BLE001
+                logger.warning("Private profiles not loaded: %s", pp_exc)
+
             # Bootstrap admin di default (stile Grafana): garantisce che il
             # pannello /admin sia sempre raggiungibile al primo boot anche
             # se setup_aion_env.py non e' stato eseguito (es. setup
@@ -633,16 +643,20 @@ async def get_allowed_profiles_for_user(user_id: Optional[str]) -> List[dict]:
     """Profiles the user (``users.id``) may use, for profile pickers.
 
     Delegates to ``src.access`` so listing and enforcement never diverge.
-    Also used by ``/v1/models`` (``openai_compat``).
+    The user's own private profiles (Phase 3) follow the allowed global ones,
+    marked ``"private": true``. Also used by ``/v1/models`` (``openai_compat``).
     """
     from src.access.policy import filter_profiles
     from src.access.principal import load_principal
+    from src.access.private_profiles import list_owned, profile_to_dict
     from src.agent_profile import profile_manager
 
     all_profiles = profile_manager.list_profiles()
     if not user_id or user_id == "default":
         return all_profiles
-    return filter_profiles(await load_principal(user_id), all_profiles)
+    principal = await load_principal(user_id)
+    own = [profile_to_dict(r, principal) for r in await list_owned(principal)]
+    return filter_profiles(principal, all_profiles) + own
 
 
 @app.get("/profiles", response_model=List[ProfileSummary])

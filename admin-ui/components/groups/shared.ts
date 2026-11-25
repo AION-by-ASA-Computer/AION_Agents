@@ -56,11 +56,56 @@ export interface EffectiveAccess {
   sources: AccessSource[];
 }
 
-/** Agent profile as returned by `GET /admin/profiles`. */
-export interface ProfileOption {
-  slug: string;
+/** Resource types an admin can write rules for (`EDITABLE_RESOURCE_TYPES` in `src/access/store.py`). */
+export const RESOURCE_TYPES = ["profile", "skill", "mcp_server", "native_tool_group", "capability"] as const;
+export type ResourceType = (typeof RESOURCE_TYPES)[number];
+
+/** One id that can go in a rule (`GET /admin/access/catalog`). */
+export interface ResourceOption {
+  id: string;
   name: string;
   description?: string;
+}
+
+/** Existing ids per resource type, as returned by `GET /admin/access/catalog`. */
+export type Catalog = Record<ResourceType, ResourceOption[]>;
+
+/** Empty catalogue, used until `GET /admin/access/catalog` answers. */
+export const EMPTY_CATALOG: Catalog = { profile: [], skill: [], mcp_server: [], native_tool_group: [], capability: [] };
+
+/**
+ * Options of one type as shown to the admin. Capabilities are translated
+ * (`admin_groups.capabilities.<id with _>`): the backend only knows ids;
+ * other types keep the catalogue names.
+ */
+export function optionsFor(catalog: Catalog, rt: ResourceType, t: T): ResourceOption[] {
+  if (rt !== "capability") return catalog[rt];
+  return catalog.capability.map((o) => {
+    const key = `${k}.capabilities.${o.id.replace(/\./g, "_")}`;
+    return { ...o, name: t(`${key}.name`), description: t(`${key}.description`) };
+  });
+}
+
+/** Rules of one subject (user or group); `null` = no rule for that type. */
+export type Rules = Record<ResourceType, Rule>;
+
+/** Rules as stored (absent type = no rule) -> one entry per editable type. */
+export function rulesFrom(stored: Record<string, string[]> | undefined | null): Rules {
+  const out = {} as Rules;
+  for (const rt of RESOURCE_TYPES) out[rt] = stored && rt in stored ? stored[rt] : null;
+  return out;
+}
+
+/** Loads `GET /admin/access/catalog`; on failure every list is empty. */
+export async function fetchCatalog(fetcher: (url: string) => Promise<Response>, base: string): Promise<Catalog> {
+  try {
+    const res = await fetcher(`${base}/admin/access/catalog`);
+    if (!res.ok) return EMPTY_CATALOG;
+    const data = await res.json();
+    return { ...EMPTY_CATALOG, ...(data.types || {}) };
+  } catch {
+    return EMPTY_CATALOG;
+  }
 }
 
 /** Same slug shape the backend accepts (`src/access/store.py`). */
@@ -89,11 +134,11 @@ export async function readError(res: Response): Promise<{ code: string; message:
   }
 }
 
-/** Short, translated description of a rule ("No rule", "All", "3 profiles", "None"). */
-export function describeRule(t: T, rule: Rule, names?: Map<string, string>): string {
-  if (rule === null) return t(`${k}.rule.summary.no_rule`);
-  if (rule.includes("*")) return t(`${k}.rule.summary.all`);
-  if (rule.length === 0) return t(`${k}.rule.summary.nothing`);
+/** Short, translated description of a rule ("No rule", "All skills", "3 profiles", "No MCP server"). */
+export function describeRule(t: T, rule: Rule, rt: ResourceType, names?: Map<string, string>): string {
+  if (rule === null) return t(`${k}.rule.no_rule_short`);
+  if (rule.includes("*")) return t(`${k}.types.${rt}.summary_all`);
+  if (rule.length === 0) return t(`${k}.types.${rt}.summary_nothing`);
   if (names && rule.length <= 3) return rule.map((s) => names.get(s) || s).join(", ");
-  return t(`${k}.rule.summary.count`, { count: rule.length });
+  return t(`${k}.types.${rt}.summary_count`, { count: rule.length });
 }

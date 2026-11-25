@@ -435,9 +435,42 @@ class ProfileManager:
         self.base_path = self.write_path
         self._profiles: Dict[str, AgentProfile] = {}
         self._by_slug: Dict[str, AgentProfile] = {}
+        # Private profiles of end users (DB table ``user_profiles``), kept in
+        # memory so every ``get_profile(slug)`` call site works for them too.
+        # Filled by ``src.access.private_profiles``; never touched by
+        # ``load_all`` (file reloads) and never listed by ``list_profiles``
+        # (global catalogue). Ownership is enforced by ``src.access.policy``.
+        self._private: Dict[str, AgentProfile] = {}
+        self._private_owner: Dict[str, str] = {}
         self._dir_mtime: float = 0.0
         migrate_profiles_to_write_dir()
         self.load_all()
+
+    # --- private profiles overlay (access control, Phase 3) -------------------
+
+    def replace_private_profiles(self, entries: List[tuple]) -> None:
+        """Replace the whole overlay with ``[(AgentProfile, owner_user_id)]``."""
+        self._private = {p.slug: p for p, _ in entries}
+        self._private_owner = {p.slug: owner for p, owner in entries}
+
+    def put_private_profile(self, profile: AgentProfile, owner_user_id: str) -> None:
+        """Add or replace one private profile (after a create / update)."""
+        self._private[profile.slug] = profile
+        self._private_owner[profile.slug] = owner_user_id
+
+    def drop_private_profile(self, slug: str) -> None:
+        """Forget a deleted private profile."""
+        self._private.pop(slug, None)
+        self._private_owner.pop(slug, None)
+
+    def drop_private_profiles_of(self, owner_user_id: str) -> None:
+        """Forget every private profile of a deleted user."""
+        for slug in [s for s, o in self._private_owner.items() if o == owner_user_id]:
+            self.drop_private_profile(slug)
+
+    def private_profile_owner(self, slug: str) -> Optional[str]:
+        """``users.id`` of the owner, ``None`` when ``slug`` is not private."""
+        return self._private_owner.get((slug or "").strip().lower())
 
     def _profile_dirs(self) -> List[Path]:
         if self.write_path.resolve() == self.std_path.resolve():
@@ -574,6 +607,8 @@ class ProfileManager:
         key = name.strip().lower()
         if key in self._by_slug:
             return self._by_slug[key]
+        if key in self._private:
+            return self._private[key]
         if _legacy_name_lookup_enabled():
             if name in self._profiles:
                 return self._profiles[name]

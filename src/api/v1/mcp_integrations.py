@@ -1,4 +1,12 @@
-"""User-facing MCP integrations (chat JWT, not X-API-Key)."""
+"""User-facing MCP integrations (chat JWT, not X-API-Key).
+
+Access control (Phase 2 of ``PLAN_access_control.md``): when the user or one
+of their groups has an ``mcp_server`` rule, the list, activation, credential
+save and OAuth start only accept the servers that rule allows **plus** the
+servers of the profiles the user may use (``configurable_mcp_servers``), so a
+user can always set up what an assigned profile needs. Switching a server
+off is always allowed (subject to ``user_may_disable``).
+"""
 
 from __future__ import annotations
 
@@ -62,6 +70,34 @@ def _require_credentials_enabled() -> None:
         )
 
 
+async def _mcp_scope(auth: ChatAuthIdentity) -> Optional[set]:
+    """MCP servers this caller may configure; ``None`` = no limit.
+
+    Anonymous callers have no rules and therefore no limit (they cannot
+    write anything anyway, see ``_require_identity_for_mutation``).
+    """
+    from src.access.mcp_filter import configurable_mcp_servers
+    from src.access.principal import load_principal_for
+
+    principal = await load_principal_for(
+        auth.user_row_id or auth.identifier, _tenant_id()
+    )
+    return await configurable_mcp_servers(principal)
+
+
+async def _require_mcp_allowed(auth: ChatAuthIdentity, server_slug: str) -> None:
+    """403 ``mcp_server_not_allowed`` when access rules exclude the server."""
+    scope = await _mcp_scope(auth)
+    if scope is not None and server_slug not in scope:
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "mcp_server_not_allowed",
+                "message": f"Integration '{server_slug}' is not allowed for this user",
+            },
+        )
+
+
 def _require_identity_for_mutation(auth: ChatAuthIdentity) -> None:
     if auth.via == "anonymous" or not (auth.identifier or auth.user_row_id):
         raise HTTPException(
@@ -104,9 +140,14 @@ async def list_available_integrations(
     tenant = _tenant_id()
     anonymous = auth.via == "anonymous" or not (auth.identifier or auth.user_row_id)
 
+    # Servers the access rules let this user configure (None = all). Part of
+    # the cache key, so a rule change shows up without waiting for the TTL.
+    scope = None if anonymous else await _mcp_scope(auth)
+
     # Response-level TTL cache (keyed by user_id; anonymous callers bypass)
     if not anonymous:
-        cache_key = f"{user_id}:{tenant}"
+        scope_key = "*" if scope is None else ",".join(sorted(scope))
+        cache_key = f"{user_id}:{tenant}:{scope_key}"
         now = time.monotonic()
         cached = _INTEGRATIONS_CACHE.get(cache_key)
         if cached is not None:
@@ -135,6 +176,9 @@ async def list_available_integrations(
             .scalars()
             .all()
         )
+
+    if scope is not None:
+        rows = [r for r in rows if r.server_slug in scope]
 
     # Batch-fetch preferences and credential hints for all enabled slugs
     enabled_slugs = {r.server_slug for r in rows if r.server_slug in registry_slugs}
@@ -319,6 +363,10 @@ async def patch_integration_preference(
             .scalars()
             .first()
         )
+    # Turning a server on needs an access rule allowing it; off is always fine.
+    if body.is_active:
+        await _require_mcp_allowed(auth, server_slug)
+
     if cfg:
         if not cfg.is_enabled_for_users and body.is_active:
             raise HTTPException(status_code=404, detail="Integration not enabled")
@@ -416,6 +464,7 @@ async def save_credentials(
         raise HTTPException(
             status_code=404, detail="Integration not found or not enabled"
         )
+    await _require_mcp_allowed(auth, body.server_slug)
 
     # Connectors whose credentials reach the process as one wildcard JSON
     # (smb_files) only accept their own key format; checked before any write
@@ -957,6 +1006,7 @@ async def oauth_start(
         raise HTTPException(
             status_code=400, detail=f"Server '{server_slug}' not found."
         )
+    await _require_mcp_allowed(auth, server_slug)
 
     try:
         oauth_cfg = json.loads(cfg.oauth_config_json) if cfg.oauth_config_json else {}

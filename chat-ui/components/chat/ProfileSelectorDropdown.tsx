@@ -3,11 +3,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, ChevronDown, Search } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { useT } from "@/lib/i18n/use-t";
 
 export type ProfileItem = {
   name: string;
   slug: string;
   description?: string;
+  /** The user's own private profile ("I miei profili"): shown with a badge. */
+  private?: boolean;
 };
 
 export function ProfileSelectorDropdown({
@@ -23,6 +26,7 @@ export function ProfileSelectorDropdown({
   label?: string;
   className?: string;
 }) {
+  const t = useT();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -156,7 +160,14 @@ export function ProfileSelectorDropdown({
                       {p.name.charAt(0).toUpperCase()}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <div className="text-xs font-semibold text-foreground truncate">{p.name}</div>
+                      <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
+                        <span className="truncate">{p.name}</span>
+                        {p.private ? (
+                          <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-px text-[10px] font-semibold text-primary">
+                            {t("myProfilesPage.badge_private")}
+                          </span>
+                        ) : null}
+                      </div>
                       {p.description ? (
                         <div className="text-[11px] text-muted-foreground truncate max-w-sm">
                           {p.description}

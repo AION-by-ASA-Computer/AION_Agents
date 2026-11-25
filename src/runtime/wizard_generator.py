@@ -5,7 +5,7 @@ import json
 import logging
 import os
 import re
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Set
 
 import frontmatter
 from haystack.dataclasses import ChatMessage
@@ -22,6 +22,34 @@ logger = logging.getLogger("aion.runtime.wizard_generator")
 
 MANDATORY_SKILLS = ["core_protocol", "artifact_protocol"]
 MANDATORY_MCPS = ["session_sandbox", "skills_hub"]
+
+
+def _restrict_catalog(
+    skills_context: List[Dict[str, Any]],
+    mcps_context: List[Dict[str, Any]],
+    allowed_skills: Optional[Set[str]],
+    allowed_mcps: Optional[Set[str]],
+) -> tuple:
+    """Catalogues (and mandatory items) limited to what a user may add.
+
+    ``None`` = no limit (admin wizard). The private-profile wizard
+    (``/v1/me/profiles/wizard-*``, access control Phase 3) passes the user's
+    allowed skills / MCP servers, so the LLM only sees, and the result only
+    contains, items the user may put in their own profile. The wizard itself
+    (instructions of ``aion_wizard_creator``) is not subject to the user's
+    profile rules: it is a tool, not a profile the user chats with.
+    """
+    if allowed_skills is not None:
+        skills_context = [s for s in skills_context if s["name"] in allowed_skills]
+    if allowed_mcps is not None:
+        mcps_context = [m for m in mcps_context if m["name"] in allowed_mcps]
+    mandatory_skills = [
+        s for s in MANDATORY_SKILLS if allowed_skills is None or s in allowed_skills
+    ]
+    mandatory_mcps = [
+        m for m in MANDATORY_MCPS if allowed_mcps is None or m in allowed_mcps
+    ]
+    return skills_context, mcps_context, mandatory_skills, mandatory_mcps
 
 
 def _normalize_skill_result(
@@ -268,7 +296,11 @@ async def suggest_profile_enhancements(
 
 
 async def generate_profile_wizard(
-    prompt: str, history: Optional[List[Dict[str, str]]] = None
+    prompt: str,
+    history: Optional[List[Dict[str, str]]] = None,
+    *,
+    allowed_skills: Optional[Set[str]] = None,
+    allowed_mcps: Optional[Set[str]] = None,
 ) -> Dict[str, Any]:
     """Genera un profilo agente strictly in ENGLISH basandosi su aion_wizard_creator ed i cataloghi reali."""
     profile_manager.load_all_if_stale()
@@ -299,6 +331,9 @@ async def generate_profile_wizard(
         }
         for name, cfg in mcp_registry.items()
     ]
+    skills_context, mcps_context, mandatory_skills, mandatory_mcps = _restrict_catalog(
+        skills_context, mcps_context, allowed_skills, allowed_mcps
+    )
 
     system_prompt = (
         f"{base_instructions}\n\n"
@@ -314,8 +349,8 @@ async def generate_profile_wizard(
         "   - STRICTLY FORBIDDEN CHARACTERS: Never use special symbols like '&', '/', '\\', '(', ')', '-', '+', ':', ',', '#', '@', '!', '?'.\n"
         "   - Always spell out conjunctions (e.g., use 'and' instead of '&'). Example: 'Document Analyst and Researcher' instead of 'Document Analyst & Researcher'.\n"
         "   - The 'slug' MUST strictly be lowercase snake_case containing ONLY [a-z0-9_] (e.g., 'document_analyst_and_researcher').\n"
-        f"3. MANDATORY SKILLS TO INCLUDE: {json.dumps(MANDATORY_SKILLS)}\n"
-        f"4. MANDATORY MCP SERVERS TO INCLUDE: {json.dumps(MANDATORY_MCPS)}\n"
+        f"3. MANDATORY SKILLS TO INCLUDE: {json.dumps(mandatory_skills)}\n"
+        f"4. MANDATORY MCP SERVERS TO INCLUDE: {json.dumps(mandatory_mcps)}\n"
         "5. Choose additional relevant skills and MCP servers ONLY from the provided catalogs.\n"
         "6. INSTRUCTION CONCISENESS & FLEXIBILITY:\n"
         "   - Keep 'instructions' clear, well-structured, and concise by default (avoid generic fluff, filler text, or redundant preamble).\n"
@@ -338,6 +373,11 @@ async def generate_profile_wizard(
 
     existing_skills = set(skill_registry.get_all_names())
     existing_mcps = set(mcp_registry.keys())
+    # Never return items outside the user's rules, whatever the LLM answered.
+    if allowed_skills is not None:
+        existing_skills &= allowed_skills
+    if allowed_mcps is not None:
+        existing_mcps &= allowed_mcps
 
     selected_skills = [
         s for s in raw.get("skills", []) if isinstance(s, str) and s in existing_skills
@@ -374,7 +414,11 @@ async def generate_profile_wizard(
 
 
 async def refine_profile_wizard(
-    prompt: str, current_profile: Dict[str, Any]
+    prompt: str,
+    current_profile: Dict[str, Any],
+    *,
+    allowed_skills: Optional[Set[str]] = None,
+    allowed_mcps: Optional[Set[str]] = None,
 ) -> Dict[str, Any]:
     """Rifinisce ed aggiorna in-place un profilo agente esistente leggendo lo stato corrente del form."""
     profile_manager.load_all_if_stale()
@@ -405,6 +449,9 @@ async def refine_profile_wizard(
         }
         for name, cfg in mcp_registry.items()
     ]
+    skills_context, mcps_context, mandatory_skills, mandatory_mcps = _restrict_catalog(
+        skills_context, mcps_context, allowed_skills, allowed_mcps
+    )
 
     system_prompt = (
         f"{base_instructions}\n\n"
@@ -426,8 +473,8 @@ async def refine_profile_wizard(
         "   - Always spell out conjunctions (e.g., use 'and' instead of '&'). Example: 'Document Analyst and Researcher' instead of 'Document Analyst & Researcher'.\n"
         "   - The 'slug' MUST strictly be lowercase snake_case containing ONLY [a-z0-9_] (e.g., 'document_analyst_and_researcher').\n"
         "3. Retain existing skills and MCPs unless specifically asked to remove them.\n"
-        f"4. MANDATORY SKILLS TO ALWAYS INCLUDE: {json.dumps(MANDATORY_SKILLS)}\n"
-        f"5. MANDATORY MCP SERVERS TO ALWAYS INCLUDE: {json.dumps(MANDATORY_MCPS)}\n"
+        f"4. MANDATORY SKILLS TO ALWAYS INCLUDE: {json.dumps(mandatory_skills)}\n"
+        f"5. MANDATORY MCP SERVERS TO ALWAYS INCLUDE: {json.dumps(mandatory_mcps)}\n"
         "6. INSTRUCTION CONCISENESS & FLEXIBILITY:\n"
         "   - Keep 'instructions' clear, well-structured, and concise by default (avoid generic fluff, filler text, or redundant preamble).\n"
         "   - However, if the user explicitly requests a complex profile with extensive rules, detailed domain constraints, or multi-step protocols, satisfy all requirements fully without omitting requested details.\n"
@@ -447,6 +494,11 @@ async def refine_profile_wizard(
 
     existing_skills = set(skill_registry.get_all_names())
     existing_mcps = set(mcp_registry.keys())
+    # Never return items outside the user's rules, whatever the LLM answered.
+    if allowed_skills is not None:
+        existing_skills &= allowed_skills
+    if allowed_mcps is not None:
+        existing_mcps &= allowed_mcps
 
     selected_skills = [
         s for s in raw.get("skills", []) if isinstance(s, str) and s in existing_skills

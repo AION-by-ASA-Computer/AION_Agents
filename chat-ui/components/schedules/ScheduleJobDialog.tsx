@@ -361,6 +361,7 @@ export function ScheduleJobDialog({
         name: row.name,
         slug: (row as { slug?: string }).slug || row.name,
         description: row.description,
+        private: row.private,
       }));
       setProfiles(mapped);
       if (!job && mapped[0]?.slug) setProfile(mapped[0].slug);

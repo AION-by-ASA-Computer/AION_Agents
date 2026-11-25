@@ -1,4 +1,4 @@
-"""Admin API for user groups and access rules (access control, Phase 1).
+"""Admin API for user groups and access rules (access control, Phases 1-2).
 
 Endpoints (all super-admin only, like every ``/admin/*`` route):
 
@@ -8,14 +8,16 @@ Endpoints (all super-admin only, like every ``/admin/*`` route):
 - ``/admin/users/{id}/groups``: read / replace a user's groups;
   ``/admin/users/{id}/rules``: read / replace the user's direct rules;
   ``/admin/users/{id}/effective-access``: what the user can use and *why*.
+- ``/admin/access/catalog``: ids that can go in a rule, per resource type.
 
 Rules are ``{resource_type: [ids] | null}`` (``null`` = no rule, ``[]`` =
 nothing, ``["*"]`` = everything); semantics in ``src/access/store.py`` and
-``PLAN_access_control.md``. Phase 1 accepts only ``profile`` rules.
+``PLAN_access_control.md``. Editable types: ``profile`` (Phase 1),
+``skill``, ``mcp_server``, ``native_tool_group`` (Phase 2).
 
 Persistence (and principal cache invalidation) is in ``src.access.store``;
 this module validates input, maps errors to HTTP and writes the audit log.
-Used by the admin-ui pages "Gruppi" and "Utenti".
+Used by the admin-ui Users page (tabs "Account" and "Gruppi").
 """
 
 from __future__ import annotations
@@ -29,6 +31,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy import select
 
 from src.access import store
+from src.access.catalog import resource_catalog, resource_ids
 from src.access.principal import load_principal
 from src.api.auth_login import ChatAuthIdentity, require_admin_role
 from src.data.audit import record_admin_action
@@ -93,11 +96,16 @@ def _group_out(g: store.GroupInfo) -> Dict[str, Any]:
 def _validate_rules(
     rules: Dict[str, Optional[List[str]]],
 ) -> Dict[str, Optional[List[str]]]:
-    """422 on resource types not editable yet or unknown profile slugs.
+    """422 on resource types not editable yet or ids that do not exist.
 
-    ``*`` is always accepted. Profile slugs are checked against the profile
-    catalogue so a typo cannot silently lock users out.
+    ``*`` is always accepted, and so are glob patterns (``sql_*``) for
+    skills, MCP servers and native tool groups as long as they match at
+    least one existing id. Ids are checked against ``src.access.catalog`` so a
+    typo cannot silently lock users out. Unknown profiles keep the Phase 1
+    error code ``unknown_profiles``; other types return ``unknown_resources``.
     """
+    import fnmatch
+
     out: Dict[str, Optional[List[str]]] = {}
     for rt, entries in rules.items():
         if rt not in store.EDITABLE_RESOURCE_TYPES:
@@ -106,14 +114,29 @@ def _validate_rules(
                 detail={"code": "resource_type_not_editable", "resource_type": rt},
             )
         normalized = store.normalize_rule(entries)
-        if rt == "profile" and normalized and normalized != [store.WILDCARD]:
-            from src.agent_profile import profile_manager
-
-            known = {p.get("slug") for p in profile_manager.list_profiles()}
-            unknown = [s for s in normalized if s not in known]
+        if normalized and normalized != [store.WILDCARD]:
+            known = set(resource_ids(rt))
+            globs_ok = rt != "profile"
+            unknown = [
+                i
+                for i in normalized
+                if i not in known
+                and not (
+                    globs_ok and ("*" in i or "?" in i) and fnmatch.filter(known, i)
+                )
+            ]
             if unknown:
+                if rt == "profile":
+                    raise HTTPException(
+                        422, detail={"code": "unknown_profiles", "profiles": unknown}
+                    )
                 raise HTTPException(
-                    422, detail={"code": "unknown_profiles", "profiles": unknown}
+                    422,
+                    detail={
+                        "code": "unknown_resources",
+                        "resource_type": rt,
+                        "ids": unknown,
+                    },
                 )
         out[rt] = normalized
     return out
@@ -149,6 +172,19 @@ async def _audit(
         resource_id=rid,
         payload=payload,
     )
+
+
+# --- catalogue ---------------------------------------------------------------
+
+
+@router.get("/access/catalog")
+async def get_access_catalog() -> Dict[str, Any]:
+    """Ids that can go in a rule, per editable resource type.
+
+    ``{"types": {"profile": [{id, name, description}], "skill": [...], ...}}``,
+    used by the rule editors of the admin-ui.
+    """
+    return {"types": {rt: resource_catalog(rt) for rt in store.EDITABLE_RESOURCE_TYPES}}
 
 
 # --- groups ------------------------------------------------------------------

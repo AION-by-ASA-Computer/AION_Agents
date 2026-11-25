@@ -1,40 +1,57 @@
 ---
 title: User groups and access rules
 sidebar_position: 7
-description: Group users and limit which agent profiles they can use, with rules on groups or on single accounts.
+description: Group users and limit which agent profiles, skills, MCP servers and native tools they can use, with rules on groups or on single accounts.
 ---
 
 # User groups and access rules
 
 Administrators can put users (people and service accounts) into **groups** and
-attach **access rules** to a group or to a single account. A rule says which
-agent profiles the account may use. Use groups when several people should see
-the same set of profiles, for example "Sales" only uses the sales assistants.
-This page is for administrators; the last section is for developers.
+attach **access rules** to a group or to a single account. Use groups when
+several people should see the same things, for example "Sales" only uses the
+sales assistants. This page is for administrators; the last section is for
+developers.
 
-Today rules cover **agent profiles**. Skills, MCP servers and other user
-permissions use the same model and will be added later
-(see `PLAN_access_control.md` in the repository).
+Rules exist for four types of resource, each set on its own tab:
+
+| Type | What a rule decides |
+|---|---|
+| **Profiles** | Which agent profiles the account can chat and schedule jobs with |
+| **Skills** | Which skills the account can add to its own profiles |
+| **MCP** | Which MCP servers (integrations) the account can turn on and set up by itself |
+| **Native tools** | Which native tool groups (web research, memory, …) the account can add to its own profiles |
+| **Features** | End-user features that can be turned off, today **Profili personali** (creating [private profiles](../clients/private-profiles.md) in chat-ui) |
+
+Rules on skills, MCP servers and native tools **never limit a profile the
+user can use**. If an administrator gives a user the profile "Data agent",
+that profile works in full even if it contains a skill or an MCP server the
+user has no rule for. These rules only decide what the user can choose by
+themself: today the integrations they can turn on in chat-ui
+(**Integrations**), and later their private profiles. The MCP servers used by
+the user's profiles always stay available in Integrations, so the user can
+enter the credentials those profiles need.
 
 ## How rules combine
 
 The model is designed so that nobody has to be placed in a hidden "default"
 group:
 
+Each type is evaluated on its own:
+
 - **No rule means no limit.** A user who is in no group and has no rule of
-  their own can use every profile. That is the state of every new account.
+  their own can use everything. That is the state of every new account.
 - **Only subjects with a rule count.** For each user, AION looks at their own
-  rule and at the rule of each of their groups. Groups without a profile rule
-  are ignored.
+  rule and at the rule of each of their groups. Groups without a rule for that
+  type are ignored.
 - **Rules add up.** If at least one of them has a rule, the user can use the
   union of what those rules grant.
 
 | Rule (on a user or a group) | Meaning |
 |---|---|
-| No rule | Does not limit profiles; ignored when combining |
-| All profiles (`*`) | Grants every profile, even if another group grants only a few |
-| Only some profiles | Grants the selected profiles |
-| No profile | Has a rule, but grants nothing |
+| No rule | Does not limit this type; ignored when combining |
+| All (`*`) | Grants everything of this type, even if another group grants only a few |
+| Only some | Grants the selected items |
+| None | Has a rule, but grants nothing |
 
 Example: Anna is in *Sales* (rule: profiles A, B) and *Board* (no profile
 rule). She can use A and B. If she is also given an own rule "C", she can use
@@ -56,14 +73,17 @@ them too. Access to the admin panel itself is not affected by groups.
    (*Groups*) tab and click **Nuovo gruppo** (*New group*). Give it a
    name; the identifier is suggested from it.
 2. Click the members icon of the group and select the accounts.
-3. Click the shield icon (*access rules*) and choose the profile rule.
+3. Click the shield icon (*access rules*) and choose a rule on each tab
+   (*Profili*, *Skill*, *MCP*, *Tool nativi*, *Funzioni*). A dot on a tab means the group
+   has a rule for that type.
 
 To see or change what one user can do, open the **Account** tab of
 **Accessi → Utenti** and click the **Accessi** (*Access*) icon of the user. The dialog shows:
 
 - the user's groups (click to add or remove),
-- the user's own profile rule,
-- the profiles the user can use **now**, and which rule each one comes from.
+- the user's own rules, one tab per type,
+- under each tab, what the user can use **now** and which rule each item
+  comes from.
 
 Changes apply at the user's next request; nobody needs to log in again.
 
@@ -97,6 +117,9 @@ data step did not run stay correct.
   `filter_profiles`). Chat, cron, Telegram, WhatsApp, A2A and the agent
   factory all go through it.
 - `src/access/store.py` writes groups, memberships and rules.
+- `src/access/catalog.py` lists the ids that can go in a rule, per type.
+- `src/access/mcp_filter.py` computes the MCP servers a user can set up in
+  Integrations (`configurable_mcp_servers`).
 
 **Admin API** (super-admin only; `src/api/admin_groups.py`):
 
@@ -108,11 +131,17 @@ data step did not run stay correct.
 | `GET` / `PUT /admin/groups/{id}/rules` | Group rules |
 | `GET` / `PUT /admin/users/{id}/groups` | Replace a user's groups (`{"group_ids": [...]}`) |
 | `GET` / `PUT /admin/users/{id}/rules` | A user's own rules |
-| `GET /admin/users/{id}/effective-access` | Effective access and the rule behind it |
+| `GET /admin/users/{id}/effective-access` | Effective access and the rule behind it, per type |
+| `GET /admin/access/catalog` | Ids that can go in a rule, per type (`{types: {profile: [{id, name, description}], …}}`) |
 
-Rules are sent as `{"rules": {"profile": ["a", "b"]}}`: `null` removes the
-rule, `[]` is "no profile", `["*"]` is "all profiles". Unknown profile slugs
-and resource types that cannot be edited yet return `422`. Every change is
+Rules are sent as `{"rules": {"profile": ["a", "b"], "mcp_server": ["grafana"]}}`
+with the keys `profile`, `skill`, `mcp_server`, `native_tool_group` and
+`capability` (ids: `private_profiles.create`); only
+the keys present change. `null` removes the rule, `[]` is "none", `["*"]` is
+"all". Skill, MCP server and native tool ids may be glob patterns (`sql_*`)
+that match at least one existing id. Ids that do not exist return `422`
+(`unknown_profiles` for profiles, `unknown_resources` otherwise), and so do
+resource types that cannot be edited yet (`resource_type_not_editable`). Every change is
 written to the audit log (`group.*`, `user.groups.update`,
 `user.rules.update`).
 
@@ -120,6 +149,18 @@ The older `GET` / `POST /admin/users/{id}/profiles` (used by the service
 accounts page) still work: they read and write the user's own profile rule,
 and an empty list removes it.
 
-`GET /auth/me` returns the user's `groups` (slugs) and `permissions` (strings
-`<resource_type>:<id>:<action>`, for example `profile:coding_workspace:use`)
-so clients can hide what the user cannot use. The backend always checks again.
+**User API**:
+
+- `GET /auth/me` returns the user's `groups` (slugs) and `permissions`
+  (strings `<resource_type>:<id>:<action>`, for example
+  `profile:coding_workspace:use`).
+- `GET /v1/me/access` returns, per type, `limited` and `allowed` (existing ids,
+  patterns expanded; `null` = everything). For `mcp_server` it also returns
+  `configurable`: the servers the user can set up in Integrations (allowed
+  servers plus the servers of their profiles; `null` = all).
+
+Clients use them to hide what the user cannot use; the backend always checks
+again. In `/v1/integrations`, when an MCP rule applies, the list shows only the
+configurable servers, and turning on, saving credentials or starting OAuth for
+any other server returns `403 mcp_server_not_allowed`. Turning a server off is
+always possible.
